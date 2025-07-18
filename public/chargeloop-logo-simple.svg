@@ -1,0 +1,36 @@
+<svg width="300" height="90" viewBox="0 0 300 90" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lightningGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1D4ED8;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="loopGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="300" height="90" fill="#FFFFFF" rx="8"/>
+  
+  <!-- Logo circle -->
+  <circle cx="45" cy="45" r="35" fill="none" stroke="url(#loopGradient)" stroke-width="2" opacity="0.3"/>
+  <circle cx="45" cy="45" r="25" fill="none" stroke="url(#loopGradient)" stroke-width="3" stroke-dasharray="4,2" opacity="0.8"/>
+  
+  <!-- Lightning bolt -->
+  <path d="M35 28 L50 28 L42 38 L55 38 L42 58 L35 45 L42 45 L35 35 Z" 
+        fill="url(#lightningGradient)" 
+        transform="translate(3, 7)"/>
+  
+  <!-- Charging points -->
+  <circle cx="70" cy="45" r="2" fill="#10B981"/>
+  <circle cx="45" cy="20" r="2" fill="#10B981"/>
+  <circle cx="20" cy="45" r="2" fill="#10B981"/>
+  <circle cx="45" cy="70" r="2" fill="#10B981"/>
+  
+  <!-- Text -->
+  <text x="100" y="40" font-family="'Segoe UI', 'Arial', sans-serif" font-size="24" font-weight="700" fill="#1F2937">Charge</text>
+  <text x="180" y="40" font-family="'Segoe UI', 'Arial', sans-serif" font-size="24" font-weight="700" fill="#10B981">Loop</text>
+  <text x="100" y="58" font-family="'Segoe UI', 'Arial', sans-serif" font-size="10" fill="#6B7280">Peer-to-Peer EV Charging Network</text>
+</svg>

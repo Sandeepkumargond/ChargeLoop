@@ -73,9 +73,16 @@ export default function Navbar() {
       {/* Desktop Navbar */}
       <div className="flex justify-between items-center px-6 py-4">
         {/* Brand */}
-        <div className="text-2xl font-bold">
-          <span className="text-blue-600">Charge</span>
-          <span className="text-green-600">Loop</span>
+        <div className="flex items-center space-x-2">
+          <img 
+            src="/chargeloop-icon.svg" 
+            alt="ChargeLoop" 
+            className="h-10 w-10"
+          />
+          <div className="text-2xl font-bold">
+            <span className="text-blue-600">Charge</span>
+            <span className="text-green-600">Loop</span>
+          </div>
         </div>
 
         {/* Desktop Navigation Links */}
