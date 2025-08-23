@@ -8,7 +8,7 @@
 
 ## Overview
 
-ChargeLoop is a full-stack web application that connects EV owners with charging station hosts, creating a seamless peer-to-peer charging marketplace. It features real-time location services, secure payment processing, and an intuitive user experience.  
+ChargeLoop is a full-stack platform for discovering, booking, and hosting electric vehicle (EV) charging stations. It provides real-time location services, secure booking, host management, and a modern user interface for both EV owners and charging station hosts.
 
 ### Problem Statement
 
