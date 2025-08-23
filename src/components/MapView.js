@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 export default function MapView() {
   const [userLocation, setUserLocation] = useState(null);
@@ -14,6 +14,7 @@ export default function MapView() {
   const [selectedCharger, setSelectedCharger] = useState(null);
   const [bookingModal, setBookingModal] = useState(false);
   const [searchRadius, setSearchRadius] = useState(2); // 2km radius
+  const searchInputRef = useRef();
 
   useEffect(() => {
     let map;
@@ -77,102 +78,170 @@ export default function MapView() {
           });
         }
 
-        // Get user location with multiple fallback methods
-        let center = [23.2599, 77.4126]; // Default to India
+        // Get user location with enhanced detection methods
+        let center = [25.5943, 85.1352]; // Default to current IP location (Patna, Bihar)
         let locationSource = 'default';
         let accuracy = 0;
         
-        console.log('Starting location detection...');
+        console.log('🌍 Starting enhanced location detection...');
+        console.log('📍 Default location set to Patna, Bihar:', center);
         
         if (navigator.geolocation) {
-          // Method 1: High accuracy GPS
+          // Check permissions first
+          let permissionStatus = 'unknown';
           try {
-            console.log('Trying high accuracy GPS...');
-            const position = await new Promise((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                  console.log('GPS success:', pos.coords);
-                  console.log('Accuracy:', pos.coords.accuracy, 'meters');
-                  resolve(pos);
-                },
-                (err) => {
-                  console.log('GPS error:', err.message);
-                  reject(err);
-                },
-                {
-                  timeout: 15000,
-                  enableHighAccuracy: true,
-                  maximumAge: 0 // Always get fresh location
-                }
-              );
-            });
-            center = [position.coords.latitude, position.coords.longitude];
-            setUserLocation(center);
-            locationSource = 'gps';
-            setLocationSource('gps');
-            accuracy = position.coords.accuracy;
-            setLocationAccuracy(accuracy);
-            console.log('High accuracy GPS location found:', center, 'Accuracy:', accuracy + 'm');
-          } catch (gpsError) {
-            console.log('High accuracy GPS failed, trying network location...');
-            
-            // Method 2: Network-based location (less accurate but faster)
-            try {
-              const position = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => {
-                    console.log('Network location success:', pos.coords);
-                    console.log('Network accuracy:', pos.coords.accuracy, 'meters');
-                    resolve(pos);
-                  },
-                  (err) => {
-                    console.log('Network location error:', err.message);
-                    reject(err);
-                  },
-                  {
-                    timeout: 8000,
-                    enableHighAccuracy: false,
-                    maximumAge: 60000 // Allow 1 minute old location
-                  }
-                );
-              });
-              center = [position.coords.latitude, position.coords.longitude];
-              setUserLocation(center);
-              locationSource = 'network';
-              setLocationSource('network');
-              accuracy = position.coords.accuracy;
-              setLocationAccuracy(accuracy);
-              console.log('Network location found:', center, 'Accuracy:', accuracy + 'm');
-            } catch (networkError) {
-              console.log('Network location failed, trying IP-based location...');
+            if (navigator.permissions) {
+              const permission = await navigator.permissions.query({name: 'geolocation'});
+              permissionStatus = permission.state;
+              console.log('Geolocation permission status:', permissionStatus);
               
-              // Method 3: IP-based geolocation API
+              if (permission.state === 'denied') {
+                console.log(' Geolocation permission denied by user');
+                alert(' Location Permission Denied\n\nTo show your accurate location:\n1. Click the location icon in your browser address bar\n2. Select "Allow" for location access\n3. Refresh the page\n\nUsing IP-based location as fallback.');
+              }
+            }
+          } catch (permError) {
+            console.log(' Could not check permission status:', permError.message);
+          }
+          
+          // Enhanced GPS detection with multiple attempts
+          let gpsSuccess = false;
+          
+          if (permissionStatus !== 'denied') {
+            for (let attempt = 1; attempt <= 2 && !gpsSuccess; attempt++) {
               try {
-                const ipResponse = await fetch('http://ip-api.com/json/?fields=status,lat,lon,city,country');
-                const ipData = await ipResponse.json();
-                if (ipData.status === 'success') {
-                  center = [ipData.lat, ipData.lon];
+                console.log(`🛰️ GPS attempt ${attempt}/2 - High accuracy mode...`);
+                const position = await new Promise((resolve, reject) => {
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      console.log(`✅ GPS attempt ${attempt} success:`, {
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude,
+                        accuracy: pos.coords.accuracy,
+                        altitude: pos.coords.altitude,
+                        speed: pos.coords.speed,
+                        heading: pos.coords.heading,
+                        timestamp: new Date(pos.timestamp).toISOString()
+                      });
+                      resolve(pos);
+                    },
+                    (err) => {
+                      console.error(`❌ GPS attempt ${attempt} error:`, err.message, 'Code:', err.code);
+                      
+                      // Provide specific error messages
+                      if (err.code === 1) {
+                        console.log('🚫 User denied location access');
+                      } else if (err.code === 2) {
+                        console.log('📍 Location unavailable (poor GPS signal)');
+                      } else if (err.code === 3) {
+                        console.log('⏰ Location request timeout');
+                      }
+                      reject(err);
+                    },
+                    {
+                      timeout: attempt === 1 ? 25000 : 15000, // Longer timeout for first attempt
+                      enableHighAccuracy: true,
+                      maximumAge: attempt === 1 ? 0 : 5000 // Very fresh location
+                    }
+                  );
+                });
+                
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const posAccuracy = position.coords.accuracy;
+                
+                // More lenient accuracy acceptance for Indian conditions
+                if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && posAccuracy < 10000) {
+                  center = [lat, lng];
                   setUserLocation(center);
-                  locationSource = 'ip';
-                  setLocationSource('ip');
-                  accuracy = 10000; // IP location is typically 10km+ accuracy
+                  locationSource = 'gps';
+                  setLocationSource('gps');
+                  accuracy = posAccuracy;
                   setLocationAccuracy(accuracy);
-                  console.log('IP-based location found:', center, 'City:', ipData.city, ipData.country);
+                  gpsSuccess = true;
+                  console.log(`🎯 GPS location set successfully on attempt ${attempt}:`, center, 'Accuracy:', accuracy + 'm');
+                  
+                  // Show success message for good accuracy
+                  if (posAccuracy <= 100) {
+                    console.log('🎉 Excellent GPS accuracy achieved!');
+                  } else if (posAccuracy <= 1000) {
+                    console.log('✅ Good GPS accuracy achieved');
+                  } else {
+                    console.log('⚠️ Fair GPS accuracy - might improve outdoors');
+                  }
+                  break;
                 } else {
-                  throw new Error('IP location failed');
+                  console.log(`⚠️ GPS attempt ${attempt}: Invalid coordinates or poor accuracy:`, lat, lng, 'Accuracy:', posAccuracy);
+                  if (attempt < 2) {
+                    console.log('⏳ Waiting 3 seconds before retry...');
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                  }
                 }
-              } catch (ipError) {
-                console.log('All location methods failed, using default location');
-                setUserLocation(center);
-                locationSource = 'default';
-                setLocationSource('default');
+              } catch (gpsError) {
+                console.log(`❌ GPS attempt ${attempt} failed:`, gpsError.message);
+                if (attempt < 2) {
+                  console.log('⏳ Waiting 3 seconds before retry...');
+                  await new Promise(resolve => setTimeout(resolve, 3000));
+                }
               }
             }
           }
+          
+          // If GPS failed, try IP-based location immediately (more reliable than network geolocation)
+          if (!gpsSuccess) {
+            console.log('📍 GPS failed, trying IP-based location...');
+            try {
+              const ipResponse = await fetch('https://ipapi.co/json/');
+              const ipData = await ipResponse.json();
+              console.log('🌐 IP Location data:', ipData);
+              
+              if (ipData.latitude && ipData.longitude) {
+                const lat = parseFloat(ipData.latitude);
+                const lng = parseFloat(ipData.longitude);
+                
+                if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                  center = [lat, lng];
+                  setUserLocation(center);
+                  locationSource = 'ip';
+                  setLocationSource('ip');
+                  accuracy = 5000; // IP location typically 5km accuracy
+                  setLocationAccuracy(accuracy);
+                  console.log(`🌍 IP-based location set:`, center, 'City:', ipData.city, ipData.region);
+                } else {
+                  throw new Error('Invalid IP coordinates');
+                }
+              } else {
+                throw new Error('No coordinates in IP response');
+              }
+            } catch (ipError) {
+              console.log(' IP location failed:', ipError.message);
+              console.log('📍 Using default location');
+              setUserLocation(center);
+              setLocationSource('default');
+              setLocationAccuracy(0);
+            }
+          }
         } else {
-          console.log('Geolocation not supported by browser');
-          setUserLocation(center);
-          setLocationSource('default');
+          console.log(' Geolocation not supported by browser');
+          // Try IP location as fallback
+          try {
+            const ipResponse = await fetch('https://ipapi.co/json/');
+            const ipData = await ipResponse.json();
+            if (ipData.latitude && ipData.longitude) {
+              center = [parseFloat(ipData.latitude), parseFloat(ipData.longitude)];
+              setUserLocation(center);
+              locationSource = 'ip';
+              setLocationSource('ip');
+              accuracy = 5000;
+              setLocationAccuracy(accuracy);
+              console.log(' Using IP location as fallback:', center);
+            }
+          } catch (error) {
+            console.log(' IP fallback failed, using default');
+            setUserLocation(center);
+            setLocationSource('default');
+            setLocationAccuracy(0);
+          }
         }
 
         // Create map
@@ -184,24 +253,35 @@ export default function MapView() {
           attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Add user marker with custom icon
+        // Add user marker with enhanced red icon for better visibility
         const userIcon = window.L.divIcon({
           className: 'custom-div-icon',
-          html: `<div style="background-color: #3b82f6; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); position: relative;">
-                   <div style="position: absolute; top: -5px; left: -5px; width: 30px; height: 30px; border-radius: 50%; background-color: rgba(59, 130, 246, 0.3); animation: pulse 2s infinite;"></div>
+          html: `<div style="background-color: #ef4444; width: 24px; height: 24px; border-radius: 50%; border: 4px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.4); position: relative; z-index: 1000;">
+                   <div style="position: absolute; top: -8px; left: -8px; width: 40px; height: 40px; border-radius: 50%; background-color: rgba(239, 68, 68, 0.3); animation: pulse 2s infinite; z-index: 999;"></div>
                  </div>`,
-          iconSize: [30, 30],
-          iconAnchor: [15, 15]
+          iconSize: [40, 40],
+          iconAnchor: [20, 20]
         });
 
         const userMarker = window.L.marker(center, { icon: userIcon }).addTo(map);
+        
+        // Add backup circle marker for better visibility
+        const circleMarker = window.L.circleMarker(center, {
+          radius: 12,
+          fillColor: '#ef4444',
+          color: '#ffffff',
+          weight: 3,
+          opacity: 1,
+          fillOpacity: 0.8,
+          zIndexOffset: 1000
+        }).addTo(map);
         userMarker.bindPopup(`
           <div style="text-align: center; padding: 10px;">
-            <strong>📍 Your Location</strong><br>
+            <strong> Your Location</strong><br>
             <small>Source: ${locationSource === 'gps' ? 'GPS' : locationSource === 'network' ? 'Network' : locationSource === 'ip' ? 'IP Location' : 'Default'}</small><br>
             ${accuracy > 0 ? `<small>Accuracy: ±${Math.round(accuracy)}m</small><br>` : ''}
             <button onclick="window.updateUserLocation()" style="margin-top: 8px; background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
-              📍 Get Precise Location
+               Get Precise Location
             </button>
           </div>
         `).openPopup();
@@ -240,12 +320,12 @@ export default function MapView() {
             
             userMarker.bindPopup(`
               <div style="text-align: center; padding: 10px;">
-                <strong>📍 Location Updated!</strong><br>
+                <strong> Location Updated!</strong><br>
                 <small>Source: GPS (High Precision)</small><br>
                 <small>Accuracy: ±${Math.round(newAccuracy)}m</small><br>
-                <small style="color: green;">✅ ${new Date().toLocaleTimeString()}</small><br>
+                <small style="color: green;"> ${new Date().toLocaleTimeString()}</small><br>
                 <button onclick="window.updateUserLocation()" style="margin-top: 8px; background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
-                  📍 Update Again
+                  Update Again
                 </button>
               </div>
             `).openPopup();
@@ -286,92 +366,55 @@ export default function MapView() {
   // Function to fetch available chargers within radius
   const fetchAndDisplayChargers = async (map, userCenter) => {
     try {
-      // First try to fetch from backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/nearby?lat=${userCenter[0]}&lng=${userCenter[1]}&radius=${searchRadius}`);
+      console.log('Fetching real-time hosts from backend...');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      let response = await fetch(`${apiUrl}/api/host/nearby?lat=${userCenter[0]}&lng=${userCenter[1]}&radius=${searchRadius}`);
+      if (!response.ok) {
+        console.log('Nearby API failed, trying all hosts...');
+        response = await fetch(`${apiUrl}/api/host/all`);
+      }
       let chargersData = [];
-      
       if (response.ok) {
         const data = await response.json();
+        console.log('Backend response:', data);
         chargersData = data.hosts || [];
-      } else {
-        // Mock data for demonstration
-        chargersData = generateMockChargers(userCenter);
       }
-      
       setAvailableChargers(chargersData);
       displayChargersOnMap(map, chargersData);
+      if (!chargersData || chargersData.length === 0) {
+        alert('No station available in your area.');
+      }
     } catch (error) {
-      console.error('Error fetching chargers:', error);
-      // Use mock data as fallback
-      const mockChargers = generateMockChargers(userCenter);
-      setAvailableChargers(mockChargers);
-      displayChargersOnMap(map, mockChargers);
+      console.error('Error fetching real chargers:', error);
+      setAvailableChargers([]);
+      displayChargersOnMap(map, []);
+      alert('Unable to load charging stations from backend.');
     }
-  };
-
-  // Generate mock chargers for demonstration
-  const generateMockChargers = (center) => {
-    const chargers = [];
-    const chargerTypes = ['Type 2 AC', 'CCS DC Fast', 'CHAdeMO', 'Type 1 AC'];
-    const brands = ['Tesla Supercharger', 'ChargePoint', 'EVgo', 'Electrify America', 'Local Station'];
-    
-    for (let i = 0; i < 8; i++) {
-      // Generate random locations within 2km radius
-      const latOffset = (Math.random() - 0.5) * 0.036; // ~2km in lat
-      const lngOffset = (Math.random() - 0.5) * 0.036; // ~2km in lng
-      
-      chargers.push({
-        _id: `charger_${i}`,
-        hostName: `${brands[Math.floor(Math.random() * brands.length)]} Station ${i + 1}`,
-        location: {
-          coordinates: [center[1] + lngOffset, center[0] + latOffset],
-          address: `Station Address ${i + 1}, Local Area`
-        },
-        chargerType: chargerTypes[Math.floor(Math.random() * chargerTypes.length)],
-        pricePerHour: 50 + Math.floor(Math.random() * 100),
-        available: Math.random() > 0.3, // 70% availability
-        powerOutput: [22, 50, 150, 350][Math.floor(Math.random() * 4)],
-        amenities: ['WiFi', 'Parking', 'Restroom', 'Cafe'].slice(0, Math.floor(Math.random() * 4) + 1),
-        rating: (3.5 + Math.random() * 1.5).toFixed(1),
-        distance: (Math.random() * 2).toFixed(1)
-      });
-    }
-    return chargers;
   };
 
   // Display chargers on map
   const displayChargersOnMap = (map, chargers) => {
     chargers.forEach(charger => {
-      const lat = charger.location.coordinates[1];
-      const lng = charger.location.coordinates[0];
-      
-      // Create custom charger icon based on availability and type
+      let lat, lng;
+      // Support both array and object format
+      if (Array.isArray(charger.location.coordinates)) {
+        lng = charger.location.coordinates[0];
+        lat = charger.location.coordinates[1];
+      } else if (charger.location.coordinates && typeof charger.location.coordinates === 'object') {
+        lat = charger.location.coordinates.lat;
+        lng = charger.location.coordinates.lng;
+      } else {
+        return; // skip if no valid coordinates
+      }
+
       const chargerIcon = window.L.divIcon({
         className: 'charger-marker',
-        html: `
-          <div style="
-            background-color: ${charger.available ? '#10b981' : '#ef4444'}; 
-            width: 24px; 
-            height: 24px; 
-            border-radius: 6px; 
-            border: 2px solid white; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: white;
-            font-weight: bold;
-          ">
-            ⚡
-          </div>
-        `,
+        html: `<div style="background-color: ${charger.available ? '#10b981' : '#ef4444'}; width: 24px; height: 24px; border-radius: 6px; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; font-weight: bold;">⚡</div>`,
         iconSize: [24, 24],
         iconAnchor: [12, 12]
       });
 
       const marker = window.L.marker([lat, lng], { icon: chargerIcon }).addTo(map);
-      
       marker.bindPopup(`
         <div style="min-width: 250px; padding: 10px;">
           <div style="display: flex; justify-content: between; align-items: start; margin-bottom: 8px;">
@@ -382,39 +425,23 @@ export default function MapView() {
               </div>
             </div>
           </div>
-          
           <div style="margin-bottom: 8px; font-size: 12px; color: #6b7280;">
-            <div>📍 ${charger.location.address}</div>
-            <div>⚡ ${charger.chargerType} - ${charger.powerOutput}kW</div>
-            <div>💰 ₹${charger.pricePerHour}/hour</div>
-            <div>📍 ${charger.distance}km away</div>
-            <div>⭐ ${charger.rating} rating</div>
+            <div> ${charger.location.address}</div>
+            <div> ${charger.chargerType} - ${charger.powerOutput || ''}kW</div>
+            <div> ₹${charger.pricePerHour}/hour</div>
+            <div>Rating: ${charger.rating?.average ?? ''}/5</div>
           </div>
-
           <div style="margin-bottom: 8px;">
             <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Amenities:</div>
             <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-              ${charger.amenities.map(amenity => 
-                `<span style="background: #e5e7eb; color: #374151; padding: 2px 6px; border-radius: 3px; font-size: 10px;">${amenity}</span>`
-              ).join('')}
+              ${(charger.amenities || []).map(amenity => `<span style=\"background: #e5e7eb; color: #374151; padding: 2px 6px; border-radius: 3px; font-size: 10px;\">${amenity}</span>`).join('')}
             </div>
           </div>
-
-          ${charger.available ? `
-            <button onclick="window.bookCharger('${charger._id}')" 
-                    style="width: 100%; background: #3b82f6; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: 500;">
-              📱 Book Now
-            </button>
-          ` : `
-            <button disabled style="width: 100%; background: #9ca3af; color: white; border: none; padding: 8px; border-radius: 4px; cursor: not-allowed;">
-              ⏰ Currently Occupied
-            </button>
-          `}
+          ${charger.available ? `<button onclick=\"window.bookCharger('${charger._id}')\" style=\"width: 100%; background: #3b82f6; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: 500;\">📱 Book Now</button>` : `<button disabled style=\"width: 100%; background: #9ca3af; color: white; border: none; padding: 8px; border-radius: 4px; cursor: not-allowed;\">⏰ Currently Occupied</button>`}
         </div>
       `);
     });
-
-    // Global function to handle booking
+    // Booking handler
     window.bookCharger = (chargerId) => {
       const charger = chargers.find(c => c._id === chargerId);
       if (charger) {
@@ -437,8 +464,51 @@ export default function MapView() {
     setMapReady(true);
   }, []);
 
+  // Address search handler using Nominatim
+  const handleAddressSearch = async (e) => {
+    e.preventDefault();
+    const query = searchInputRef.current.value.trim();
+    if (!query) return;
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+      const response = await fetch(url);
+      const results = await response.json();
+      if (results.length > 0) {
+        const lat = parseFloat(results[0].lat);
+        const lon = parseFloat(results[0].lon);
+        setUserLocation([lat, lon]);
+        setLocationSource('search');
+        setLocationAccuracy(0);
+        if (mapInstance) {
+          mapInstance.setView([lat, lon], 15);
+        }
+        // Fetch and display chargers for new location
+        if (typeof window !== 'undefined' && mapInstance) {
+          await fetchAndDisplayChargers(mapInstance, [lat, lon]);
+        }
+      } else {
+        alert('No results found for that address.');
+      }
+    } catch (error) {
+      alert('Failed to search address. Please try again.');
+    }
+  };
+
   return (
     <div className="w-full relative">
+      {/* Address Search Bar */}
+      <form onSubmit={handleAddressSearch} style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', justifyContent: 'center' }}>
+        <input
+          ref={searchInputRef}
+          type="text"
+          placeholder="Search address or city..."
+          style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc', width: '300px' }}
+        />
+        <button type="submit" style={{ padding: '8px 16px', borderRadius: '6px', background: '#3b82f6', color: 'white', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>
+          Search
+        </button>
+      </form>
+      
       {/* Map container - always rendered */}
       <div 
         id="map" 
@@ -483,13 +553,13 @@ export default function MapView() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-blue-600">
-                  📍 Your location: {userLocation[0].toFixed(6)}, {userLocation[1].toFixed(6)}
+                   Your location: {userLocation[0].toFixed(6)}, {userLocation[1].toFixed(6)}
                 </p>
                 <p className="text-xs text-blue-500">
-                  Source: {locationSource === 'gps' ? '🛰️ GPS (High Accuracy)' : 
-                           locationSource === 'network' ? '📶 Network (Approximate)' : 
-                           locationSource === 'ip' ? '� IP Location (City Level)' :
-                           '�🌍 Default Location'}
+                  Source: {locationSource === 'gps' ? ' GPS (High Accuracy)' : 
+                           locationSource === 'network' ? ' Network (Approximate)' : 
+                           locationSource === 'ip' ? ' IP Location (City Level)' :
+                           ' Default Location'}
                 </p>
                 {locationAccuracy > 0 && (
                   <p className="text-xs text-blue-500">
@@ -505,18 +575,18 @@ export default function MapView() {
                 }}
                 className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition duration-200"
               >
-                📍 Get Precise Location
+                 Get Precise Location
               </button>
             </div>
           </div>
           {(locationSource === 'default' || locationSource === 'ip' || locationAccuracy > 1000) && (
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-xs text-yellow-700">
-                ⚠️ {locationSource === 'default' ? 'Using default location.' : 
+                {locationSource === 'default' ? 'Using default location.' : 
                      locationSource === 'ip' ? 'Using approximate IP-based location.' :
                      'Low accuracy location detected.'} 
                 <br/>
-                💡 Tips for better accuracy:
+                 Tips for better accuracy:
                 <br/>• Click "Get Precise Location" to use GPS
                 <br/>• Enable location services in your browser
                 <br/>• Go outside for better GPS signal
@@ -526,55 +596,9 @@ export default function MapView() {
           )}
           {locationSource === 'gps' && locationAccuracy <= 100 && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-xs text-green-700">
-                ✅ High accuracy GPS location detected! Your location is precise within {Math.round(locationAccuracy)} meters.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Charger Search Controls */}
-      {userLocation && !loading && !error && (
-        <div className="mt-4 p-4 text-black bg-white rounded-lg shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">⚡ Available Chargers</h3>
-            <div className="flex items-center space-x-2">
-              <label className="text-sm text-gray-600">Search Radius:</label>
-              <select 
-                value={searchRadius} 
-                onChange={(e) => updateSearchRadius(Number(e.target.value))}
-                className="px-2 py-1 border border-gray-300 rounded text-sm"
-              >
-                <option value={1}>1km</option>
-                <option value={2}>2km</option>
-                <option value={5}>5km</option>
-                <option value={10}>10km</option>
-              </select>
-            </div>
-          </div>
-          
-          <div className="text-sm text-gray-600 mb-3">
-            Found {availableChargers.length} chargers • {availableChargers.filter(c => c.available).length} available
-          </div>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            <div className="text-center p-2 bg-green-50 rounded">
-              <div className="text-lg font-bold text-green-600">{availableChargers.filter(c => c.available).length}</div>
-              <div className="text-xs text-green-600">Available</div>
-            </div>
-            <div className="text-center p-2 bg-red-50 rounded">
-              <div className="text-lg font-bold text-red-600">{availableChargers.filter(c => !c.available).length}</div>
-              <div className="text-xs text-red-600">Occupied</div>
-            </div>
-            <div className="text-center p-2 bg-blue-50 rounded">
-              <div className="text-lg font-bold text-blue-600">
-                ₹{availableChargers.length > 0 ? Math.min(...availableChargers.map(c => c.pricePerHour)) : 0}
-              </div>
               <div className="text-xs text-blue-600">Min Price/hr</div>
             </div>
-          </div>
+          )}
 
           {/* Charger List */}
           <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -583,16 +607,16 @@ export default function MapView() {
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center space-x-2">
-                      <h4 className="font-medium text-sm">{charger.hostName}</h4>
+                      <h4 className="font-medium text-gray-600 text-sm">{charger.hostName}</h4>
                       <span className={`px-2 py-1 text-xs rounded ${charger.available ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
                         {charger.available ? 'Available' : 'Occupied'}
                       </span>
                     </div>
                     <div className="text-xs text-gray-600 mt-1">
-                      ⚡ {charger.chargerType} • {charger.powerOutput}kW • ₹{charger.pricePerHour}/hr • {charger.distance}km
+                       {charger.chargerType} • {charger.powerOutput}kW • ₹{charger.pricePerHour}/hr • {charger.distance}km
                     </div>
                     <div className="flex items-center mt-1">
-                      <span className="text-xs text-yellow-600">⭐ {charger.rating}</span>
+                      <span className="text-xs text-yellow-600">{typeof charger.rating === 'object' ? charger.rating.average : charger.rating}</span>
                     </div>
                   </div>
                   <button 
@@ -654,7 +678,7 @@ function BookingModal({ charger, onClose, userLocation }) {
     if (!bookingDetails.vehicleNumber.trim()) {
       newErrors.vehicleNumber = 'Vehicle number is required';
     } else if (!/^[A-Z]{2}\s?\d{2}\s?[A-Z]{1,2}\s?\d{4}$/i.test(bookingDetails.vehicleNumber.replace(/\s/g, ''))) {
-      newErrors.vehicleNumber = 'Please enter a valid vehicle number (e.g., MH 01 AB 1234)';
+      newErrors.vehicleNumber = 'Please enter a valid vehicle number (e.g., BR01AB1234)';
     }
     
     if (new Date(bookingDetails.startTime) < new Date()) {
@@ -728,7 +752,7 @@ function BookingModal({ charger, onClose, userLocation }) {
       if (response.ok) {
         alert(`🎉 Booking Confirmed Successfully!
 
-📋 Booking Details:
+ Booking Details:
 • Charger: ${charger.hostName}
 • Vehicle: ${bookingDetails.vehicleNumber} (${bookingDetails.vehicleType})
 • Duration: ${bookingDetails.duration} minutes
@@ -736,8 +760,8 @@ function BookingModal({ charger, onClose, userLocation }) {
 • Estimated Cost: ₹${estimatedCost}
 • Reservation ID: ${responseData.reservationId}
 
-✅ Your booking has been saved and you can view it in the Charging History page.
-📱 You will receive a confirmation SMS shortly.`);
+ Your booking has been saved and you can view it in the Charging History page.
+ You will receive a confirmation SMS shortly.`);
         
         onClose();
       } else {
@@ -748,14 +772,14 @@ function BookingModal({ charger, onClose, userLocation }) {
           window.location.href = '/login';
           return;
         } else if (response.status === 400 && responseData.msg?.includes('Insufficient wallet balance')) {
-          alert(`❌ Booking Failed: Insufficient wallet balance.
+          alert(` Booking Failed: Insufficient wallet balance.
 
 Required Amount: ₹${estimatedCost}
 Please add money to your wallet and try again.
 
 Go to Wallet page to add funds.`);
         } else {
-          alert(`❌ Booking Failed: ${responseData.msg || responseData.error || 'Unknown error occurred'}
+          alert(` Booking Failed: ${responseData.msg || responseData.error || 'Unknown error occurred'}
 
 Please try again or contact support if the issue persists.`);
         }
@@ -766,12 +790,12 @@ Please try again or contact support if the issue persists.`);
       
       // Check if it's a network error
       if (error.message.includes('fetch')) {
-        alert(`❌ Network Error: Unable to connect to server.
+        alert(` Network Error: Unable to connect to server.
 
 
 Error: ${error.message}`);
       } else {
-        alert(`❌ Booking Error: ${error.message}
+        alert(` Booking Error: ${error.message}
 
 Please try again or contact support if the issue persists.`);
       }
@@ -808,7 +832,7 @@ Please try again or contact support if the issue persists.`);
               <div><strong>Type:</strong> {charger.chargerType}</div>
               <div><strong>Power:</strong> {charger.powerOutput}kW</div>
               <div><strong>Price:</strong> ₹{charger.pricePerHour}/hour</div>
-              <div><strong>Rating:</strong> ⭐ {charger.rating}</div>
+              <div><strong>Rating:</strong> {typeof charger.rating === 'object' ? charger.rating.average : charger.rating}/5</div>
             </div>
             <div className="mt-2 text-sm">
               <strong>Address:</strong> {charger.location.address}
@@ -833,7 +857,7 @@ Please try again or contact support if the issue persists.`);
               </label>
               <input
                 type="text"
-                placeholder="e.g. MH 01 AB 1234"
+                placeholder="e.g. BR-1AB1234"
                 value={bookingDetails.vehicleNumber}
                 onChange={(e) => {
                   setBookingDetails({...bookingDetails, vehicleNumber: e.target.value.toUpperCase()});

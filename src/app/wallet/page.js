@@ -212,10 +212,10 @@ export default function WalletPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-lg">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
           <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading wallet...</p>
+          <p className="text-gray-600 dark:text-gray-300 mt-4">Loading wallet...</p>
         </div>
       </div>
     );
@@ -223,33 +223,33 @@ export default function WalletPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
-          <p className="text-red-600 mb-4">Error: {error}</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg flex flex-col items-center">
           <button
             onClick={() => router.push('/')}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mb-4"
           >
-            Go Home
+            ←
           </button>
+          <p className="text-red-600 dark:text-red-400 mb-4 text-center">Error: {error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen text-black bg-gray-100 py-8">
+    <div className="min-h-screen text-black dark:text-white bg-gray-100 dark:bg-gray-900 py-8">
       <div className="max-w-6xl mx-auto px-4">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6 flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-gray-800">My Wallet</h1>
             <button
               onClick={() => router.push('/')}
               className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition duration-200"
             >
-              Back to Home
+              ←
             </button>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white text-center w-full">My Wallet</h1>
           </div>
         </div>
 
@@ -265,19 +265,19 @@ export default function WalletPage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Quick Stats</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mt-6">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Quick Stats</h3>
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Total Recharged:</span>
+                  <span className="text-gray-600 dark:text-gray-300">Total Recharged:</span>
                   <span className="font-semibold text-green-600">₹{stats.totalRecharged}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Total Spent:</span>
+                  <span className="text-gray-600 dark:text-gray-300">Total Spent:</span>
                   <span className="font-semibold text-red-600">₹{stats.totalSpent}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Transactions:</span>
+                  <span className="text-gray-600 dark:text-gray-300">Transactions:</span>
                   <span className="font-semibold text-blue-600">{stats.transactionCount}</span>
                 </div>
               </div>
@@ -286,7 +286,7 @@ export default function WalletPage() {
 
           {/* Recharge Section */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-6">Recharge Wallet</h2>
               
               {/* Quick Amount Buttons */}
@@ -389,31 +389,31 @@ export default function WalletPage() {
             </div>
 
             {/* Transaction History */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-6">Recent Transactions</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">Recent Transactions</h2>
               
               {transactionsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-                  <span className="ml-2 text-gray-600">Loading transactions...</span>
+                  <span className="ml-2 text-gray-600 dark:text-gray-300">Loading transactions...</span>
                 </div>
               ) : transactions.length === 0 ? (
                 <div className="text-center py-8">
-                  <div className="text-gray-400 text-6xl mb-4">💳</div>
-                  <p className="text-gray-600">No transactions yet</p>
-                  <p className="text-sm text-gray-500 mt-2">Your transaction history will appear here</p>
+                  <div className="text-gray-400 dark:text-gray-500 text-6xl mb-4">💳</div>
+                  <p className="text-gray-600 dark:text-gray-300">No transactions yet</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Your transaction history will appear here</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {transactions.map((transaction) => (
-                    <div key={transaction.id || transaction._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition duration-200">
+                    <div key={transaction.id || transaction._id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition duration-200">
                       <div className="flex items-center">
                         <div className={`w-3 h-3 rounded-full mr-3 ${
                           transaction.type === 'credit' ? 'bg-green-500' : 'bg-red-500'
                         }`}></div>
                         <div>
-                          <p className="font-medium text-gray-800">{transaction.description}</p>
-                          <p className="text-sm text-gray-600">
+                          <p className="font-medium text-gray-800 dark:text-white">{transaction.description}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
                             {transaction.timestamp 
                               ? new Date(transaction.timestamp).toLocaleDateString('en-IN', {
                                   year: 'numeric',

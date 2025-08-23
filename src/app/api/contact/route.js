@@ -5,7 +5,7 @@ export async function POST(request) {
   try {
     const { name, email, subject, message, type, to } = await request.json();
 
-    // Validate required fields
+  
     if (!name || !email || !subject || !message) {
       return NextResponse.json(
         { error: 'All fields are required' },
@@ -13,13 +13,11 @@ export async function POST(request) {
       );
     }
 
-    // Create a transporter using SMTP
-    // You'll need to configure this with your email service
-    const transporter = nodemailer.createTransporter({
-      service: 'gmail', // or your email service
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER, // Your email
-        pass: process.env.EMAIL_PASS, // Your email password or app password
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS, 
       },
     });
 

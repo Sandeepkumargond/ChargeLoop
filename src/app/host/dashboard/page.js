@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function HostDashboardPage() {
+  const router = useRouter();
   const [hostData, setHostData] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState({
@@ -15,12 +16,59 @@ export default function HostDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
-  const router = useRouter();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [newBookingAlert, setNewBookingAlert] = useState(false);
+  const refreshIntervalRef = useRef(null);
+  const previousBookingsRef = useRef([]);
 
+  // Real-time refresh function
+  const refreshData = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([fetchHostData(), fetchBookings()]);
+      setLastUpdate(new Date());
+      console.log('🔄 Host dashboard data refreshed at:', new Date().toLocaleTimeString());
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      setError('Failed to refresh data');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // Setup auto-refresh
   useEffect(() => {
+    // Initial load
     fetchHostData();
     fetchBookings();
-  }, []);
+    
+    // Setup auto-refresh every 30 seconds
+    refreshIntervalRef.current = setInterval(refreshData, 30000);
+    
+    // Cleanup on unmount
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, [refreshData]);
+
+  // Check for new bookings and show alerts
+  useEffect(() => {
+    if (previousBookingsRef.current.length > 0 && bookings.length > previousBookingsRef.current.length) {
+      const newBookings = bookings.filter(booking => 
+        !previousBookingsRef.current.find(prev => prev._id === booking._id)
+      );
+      
+      if (newBookings.length > 0) {
+        setNewBookingAlert(true);
+        // Auto-hide alert after 5 seconds
+        setTimeout(() => setNewBookingAlert(false), 5000);
+      }
+    }
+    previousBookingsRef.current = [...bookings];
+  }, [bookings]);
 
   const fetchHostData = async () => {
     try {
@@ -29,23 +77,28 @@ export default function HostDashboardPage() {
         router.push('/login');
         return;
       }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/profile`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${apiUrl}/api/host/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
-
       if (response.ok) {
         const data = await response.json();
         setHostData(data);
+        console.log('✅ Host data fetched successfully');
+      } else if (response.status === 401) {
+        localStorage.removeItem('token');
+        router.push('/login');
+      } else if (response.status === 404) {
+        router.push('/host/register');
       } else {
         setError('Failed to fetch host data');
       }
     } catch (error) {
-      console.error('Error fetching host data:', error);
-      setError('Network error');
+      console.error('❌ Error fetching host data:', error);
+      setError('Network error - Please check your connection');
     } finally {
       setLoading(false);
     }
@@ -54,75 +107,49 @@ export default function HostDashboardPage() {
   const fetchBookings = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/bookings`, {
+      if (!token) return;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${apiUrl}/api/host/bookings`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
-
       if (response.ok) {
         const data = await response.json();
         setBookings(data.bookings || []);
-        setStats(data.stats || stats);
-      } else {
-        // Mock data for demonstration
-        const mockBookings = [
-          {
-            _id: '1',
-            customerName: 'Rahul Sharma',
-            customerPhone: '+91 9876543210',
-            startTime: '2025-01-17T10:00:00Z',
-            endTime: '2025-01-17T11:30:00Z',
-            duration: 90,
-            amount: 225,
-            status: 'pending',
-            vehicleNumber: 'MH 01 AB 1234',
-            energyConsumed: 0
-          },
-          {
-            _id: '2',
-            customerName: 'Priya Patel',
-            customerPhone: '+91 9876543211',
-            startTime: '2025-01-16T14:00:00Z',
-            endTime: '2025-01-16T15:00:00Z',
-            duration: 60,
-            amount: 150,
-            status: 'active',
-            vehicleNumber: 'GJ 05 CD 5678',
-            energyConsumed: 25.5
-          },
-          {
-            _id: '3',
-            customerName: 'Amit Kumar',
-            customerPhone: '+91 9876543212',
-            startTime: '2025-01-15T09:00:00Z',
-            endTime: '2025-01-15T10:30:00Z',
-            duration: 90,
-            amount: 225,
-            status: 'completed',
-            vehicleNumber: 'DL 08 EF 9012',
-            energyConsumed: 42.3,
-            rating: 5
-          }
-        ];
-        setBookings(mockBookings);
-        setStats({
-          totalBookings: 15,
-          totalEarnings: 3750,
-          activeBookings: 1,
-          averageRating: 4.6
+        setStats(data.stats || {
+          totalBookings: 0,
+          totalEarnings: 0,
+          activeBookings: 0,
+          averageRating: 0
         });
+        console.log(`✅ Loaded ${data.bookings?.length || 0} real bookings`);
+      } else if (response.status === 401) {
+        localStorage.removeItem('token');
+        router.push('/login');
+      } else {
+        setBookings([]);
+        setStats({
+          totalBookings: 0,
+          totalEarnings: 0,
+          activeBookings: 0,
+          averageRating: 0
+        });
+        setError('Unable to load booking data');
       }
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      console.error('❌ Error fetching bookings:', error);
+      setBookings([]);
+      setError('Network error while fetching bookings');
     }
   };
 
   const updateBookingStatus = async (bookingId, status) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/bookings/${bookingId}/status`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/host/bookings/${bookingId}/status`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -130,19 +157,27 @@ export default function HostDashboardPage() {
         },
         body: JSON.stringify({ status }),
       });
-
       if (response.ok) {
-        // Update local state
         setBookings(prev => prev.map(booking => 
           booking._id === bookingId ? { ...booking, status } : booking
         ));
-        alert(`Booking ${status} successfully!`);
+        const statusMessages = {
+          'accepted': '✅ Booking accepted successfully!',
+          'declined': '❌ Booking declined',
+          'completed': '🎉 Booking marked as completed!',
+          'active': '⚡ Charging session started!'
+        };
+        alert(statusMessages[status] || `Booking ${status} successfully!`);
+        setTimeout(() => {
+          refreshData();
+        }, 1000);
       } else {
-        alert('Failed to update booking status');
+        const errorData = await response.json();
+        alert(`Failed to update booking: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Error updating booking status:', error);
-      alert('Error updating booking status');
+      console.error('❌ Error updating booking status:', error);
+      alert('Error updating booking status. Please check your connection.');
     }
   };
 
@@ -156,17 +191,21 @@ export default function HostDashboardPage() {
           'Content-Type': 'application/json',
         },
       });
-
       if (response.ok) {
         const data = await response.json();
         setHostData(prev => ({ ...prev, available: data.available }));
         alert(`Charger is now ${data.available ? 'available' : 'unavailable'}`);
       } else {
-        alert('Failed to update availability');
+        let errorMsg = 'Failed to update availability';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.message || errorMsg;
+        } catch {}
+        alert(errorMsg);
       }
     } catch (error) {
       console.error('Error toggling availability:', error);
-      alert('Error updating availability');
+      alert('Error updating availability: ' + (error.message || error));
     }
   };
 
@@ -175,6 +214,7 @@ export default function HostDashboardPage() {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
       case 'active':
+      case 'ongoing':
         return 'bg-blue-100 text-blue-800';
       case 'completed':
         return 'bg-green-100 text-green-800';
@@ -186,13 +226,17 @@ export default function HostDashboardPage() {
   };
 
   const formatDateTime = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
 
   if (loading) {
@@ -207,109 +251,106 @@ export default function HostDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen text-black bg-gray-100 py-8">
-      <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">Host Dashboard</h1>
-              <p className="text-gray-600 mt-1">Manage your charging station</p>
-            </div>
-            <div className="flex space-x-3">
-              <button
-                onClick={toggleAvailability}
-                className={`px-4 py-2 rounded-md transition duration-200 ${
-                  hostData?.available 
-                    ? 'bg-red-600 text-white hover:bg-red-700' 
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
-              >
-                {hostData?.available ? 'Make Unavailable' : 'Make Available'}
-              </button>
-              <button
-                onClick={() => router.push('/profile')}
-                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition duration-200"
-              >
-                Back to Profile
-              </button>
-            </div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        {newBookingAlert && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 animate-pulse">
+            <strong>🎉 New booking received!</strong> Check your pending bookings tab.
+          </div>
+        )}
+        
+        <div className="bg-white rounded-lg shadow p-6 mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Host Dashboard</h1>
+            <div className="text-sm text-gray-500">Last updated: {lastUpdate.toLocaleTimeString()}</div>
+          </div>
+          <div className="flex gap-2 mt-4 md:mt-0">
+            <button 
+              onClick={refreshData} 
+              disabled={isRefreshing} 
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+            >
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button 
+              onClick={toggleAvailability} 
+              className={`px-4 py-2 rounded ${hostData?.available ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-green-600 text-white hover:bg-green-700'}`}
+            >
+              {hostData?.available ? 'Make Unavailable' : 'Make Available'}
+            </button>
+
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600">Total Bookings</h3>
-            <p className="text-3xl font-bold text-blue-600">{stats.totalBookings}</p>
+        {error && (
+          <div className="bg-red-100 text-red-800 rounded p-4 mb-4 text-center">{error}</div>
+        )}
+
+        {/* Real-time Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-white p-4 rounded shadow text-center">
+            <div className="text-xs text-gray-500 mb-1">Total Bookings</div>
+            <div className="text-2xl font-bold text-blue-700">{stats.totalBookings}</div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600">Total Earnings</h3>
-            <p className="text-3xl font-bold text-green-600">₹{stats.totalEarnings}</p>
+          <div className="bg-white p-4 rounded shadow text-center">
+            <div className="text-xs text-gray-500 mb-1">Total Earnings</div>
+            <div className="text-2xl font-bold text-green-700">₹{stats.totalEarnings}</div>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600">Active Bookings</h3>
-            <p className="text-3xl font-bold text-orange-600">{stats.activeBookings}</p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-600">Average Rating</h3>
-            <p className="text-3xl font-bold text-purple-600">⭐ {stats.averageRating}</p>
+          <div className="bg-white p-4 rounded shadow text-center">
+            <div className="text-xs text-gray-500 mb-1">Active Bookings</div>
+            <div className="text-2xl font-bold text-orange-700">{stats.activeBookings}</div>
           </div>
         </div>
 
         {/* Host Info Card */}
         {hostData && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">Station Information</h2>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                hostData.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
+          <div className="bg-white rounded shadow p-6 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-lg font-bold text-gray-900">Station Info</div>
+              <span className={`px-3 py-1 rounded text-xs font-medium ${hostData.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                 {hostData.available ? 'Available' : 'Unavailable'}
               </span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
               <div>
-                <p><strong>Host Name:</strong> {hostData.hostName}</p>
-                <p><strong>Charger Type:</strong> {hostData.chargerType}</p>
-                <p><strong>Price:</strong> ₹{hostData.pricePerHour}/hour</p>
-                <p><strong>Location:</strong> {hostData.location?.address}</p>
+                <div className="text-sm text-gray-600">Host Name</div>
+                <div className="font-semibold text-gray-800">{hostData.hostName}</div>
               </div>
               <div>
-                <p><strong>Phone:</strong> {hostData.phone}</p>
-                <p><strong>Email:</strong> {hostData.email}</p>
-                {hostData.amenities && (
-                  <div>
-                    <strong>Amenities:</strong>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {hostData.amenities.map((amenity, index) => (
-                        <span key={index} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-                          {amenity}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <div className="text-sm text-gray-600">Charger Type</div>
+                <div className="font-semibold text-gray-800">{hostData.chargerType}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600">Price</div>
+                <div className="font-semibold text-gray-800">₹{hostData.pricePerHour}/hour</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600">Location</div>
+                <div className="font-semibold text-gray-800">{hostData.location?.address}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600">Phone</div>
+                <div className="font-semibold text-gray-800">{hostData.phone}</div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600">Email</div>
+                <div className="font-semibold text-gray-800">{hostData.email}</div>
               </div>
             </div>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="bg-white rounded-lg shadow-lg mb-6">
+        <div className="bg-white rounded shadow mb-6">
           <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6">
+            <nav className="flex space-x-8 px-4">
               {['overview', 'pending', 'active', 'completed'].map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`py-3 px-2 border-b-2 font-medium text-sm ${activeTab === tab ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                 >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)} 
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
                   {tab !== 'overview' && (
                     <span className="ml-2 bg-gray-100 text-gray-600 py-1 px-2 rounded-full text-xs">
                       {bookings.filter(b => b.status === tab).length}
@@ -321,25 +362,16 @@ export default function HostDashboardPage() {
           </div>
 
           {/* Bookings List */}
-          <div className="p-6">
+          <div className="p-4">
             {activeTab === 'overview' ? (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Recent Bookings</h3>
-                {bookings.slice(0, 5).map(booking => (
-                  <BookingCard 
-                    key={booking._id} 
-                    booking={booking} 
-                    onUpdateStatus={updateBookingStatus}
-                    formatDateTime={formatDateTime}
-                    getStatusColor={getStatusColor}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {bookings
-                  .filter(booking => booking.status === activeTab)
-                  .map(booking => (
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-base font-semibold">Recent Bookings</h3>
+                </div>
+                {bookings.length === 0 ? (
+                  <div className="bg-gray-50 rounded p-6 text-center text-gray-500">No bookings yet.</div>
+                ) : (
+                  bookings.slice(0, 5).map(booking => (
                     <BookingCard 
                       key={booking._id} 
                       booking={booking} 
@@ -347,11 +379,64 @@ export default function HostDashboardPage() {
                       formatDateTime={formatDateTime}
                       getStatusColor={getStatusColor}
                     />
-                  ))}
-                {bookings.filter(booking => booking.status === activeTab).length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No {activeTab} bookings found</p>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Bookings</h3>
+                  <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
+                    {bookings.filter(booking => {
+                      if (activeTab === 'active') {
+                        return booking.status === 'active' || booking.status === 'ongoing';
+                      }
+                      return booking.status === activeTab;
+                    }).length} {activeTab} booking{bookings.filter(booking => {
+                      if (activeTab === 'active') {
+                        return booking.status === 'active' || booking.status === 'ongoing';
+                      }
+                      return booking.status === activeTab;
+                    }).length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                
+                {bookings.filter(booking => {
+                  if (activeTab === 'active') {
+                    return booking.status === 'active' || booking.status === 'ongoing';
+                  }
+                  return booking.status === activeTab;
+                }).length === 0 ? (
+                  <div className="bg-gray-50 rounded-lg p-8 text-center">
+                    <span className="text-4xl mb-4 block">
+                      {activeTab === 'pending' && '⏳'}
+                      {activeTab === 'active' && '⚡'}  
+                      {activeTab === 'completed' && '✅'}
+                    </span>
+                    <h4 className="text-lg font-medium text-gray-600 mb-2">No {activeTab} bookings</h4>
+                    <p className="text-gray-500">
+                      {activeTab === 'pending' && 'New booking requests will appear here.'}
+                      {activeTab === 'active' && 'Active charging sessions will appear here.'}
+                      {activeTab === 'completed' && 'Completed bookings will appear here.'}
+                    </p>
                   </div>
+                ) : (
+                  bookings
+                    .filter(booking => {
+                      if (activeTab === 'active') {
+                        return booking.status === 'active' || booking.status === 'ongoing';
+                      }
+                      return booking.status === activeTab;
+                    })
+                    .map(booking => (
+                      <BookingCard 
+                        key={booking._id} 
+                        booking={booking} 
+                        onUpdateStatus={updateBookingStatus}
+                        formatDateTime={formatDateTime}
+                        getStatusColor={getStatusColor}
+                      />
+                    ))
                 )}
               </div>
             )}
@@ -363,86 +448,154 @@ export default function HostDashboardPage() {
 }
 
 function BookingCard({ booking, onUpdateStatus, formatDateTime, getStatusColor }) {
+  const getTimeStatus = () => {
+    try {
+      const now = new Date();
+      const startTime = new Date(booking.startTime);
+      const endTime = booking.endTime ? new Date(booking.endTime) : null;
+      
+      if (booking.status === 'active' || booking.status === 'ongoing') {
+        if (endTime && now > endTime) {
+          return { text: 'Overdue', color: 'text-red-600', icon: '⚠️' };
+        } else {
+          const remaining = endTime ? Math.max(0, Math.floor((endTime - now) / (1000 * 60))) : 0;
+          return { text: `${remaining} min remaining`, color: 'text-blue-600', icon: '⏱️' };
+        }
+      } else if (booking.status === 'pending') {
+        const timeUntilStart = Math.floor((startTime - now) / (1000 * 60));
+        if (timeUntilStart < 0) {
+          return { text: 'Ready to start', color: 'text-green-600', icon: '🟢' };
+        } else {
+          return { text: `Starts in ${timeUntilStart} min`, color: 'text-yellow-600', icon: '⏳' };
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error calculating time status:', error);
+      return null;
+    }
+  };
+
+  const timeStatus = getTimeStatus();
+
   return (
-    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <h4 className="font-semibold text-lg">{booking.customerName}</h4>
-          <p className="text-gray-600 text-sm">{booking.customerPhone}</p>
+    <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <div className={`w-3 h-3 rounded-full ${
+            (booking.status === 'active' || booking.status === 'ongoing') ? 'bg-blue-500 animate-pulse' : 
+            booking.status === 'pending' ? 'bg-yellow-500' : 
+            booking.status === 'completed' ? 'bg-green-500' : 'bg-red-500'
+          }`}></div>
+          <div>
+            <h4 className="font-semibold text-lg text-gray-800">{booking.customerName}</h4>
+            <p className="text-gray-600 text-sm">{booking.customerPhone}</p>
+          </div>
         </div>
-        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
-          {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-        </span>
+        <div className="flex flex-col items-end space-y-1">
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
+            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+          </span>
+          {timeStatus && (
+            <span className={`text-xs ${timeStatus.color} flex items-center space-x-1`}>
+              <span>{timeStatus.icon}</span>
+              <span>{timeStatus.text}</span>
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
         <div>
-          <p className="text-sm text-gray-600">Vehicle</p>
-          <p className="font-medium">{booking.vehicleNumber}</p>
+          <p className="text-xs text-gray-500 mb-1">Vehicle</p>
+          <p className="font-semibold text-gray-800">{booking.vehicleNumber || 'N/A'}</p>
         </div>
         <div>
-          <p className="text-sm text-gray-600">Duration</p>
-          <p className="font-medium">{booking.duration} minutes</p>
+          <p className="text-xs text-gray-500 mb-1">Duration</p>
+          <p className="font-semibold text-gray-800">{booking.duration} minutes</p>
         </div>
         <div>
-          <p className="text-sm text-gray-600">Amount</p>
-          <p className="font-medium text-green-600">₹{booking.amount}</p>
+          <p className="text-xs text-gray-500 mb-1">Amount</p>
+          <p className="font-semibold text-green-600">₹{booking.amount}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 mb-1">Energy</p>
+          <p className="font-semibold text-blue-600">{booking.energyConsumed || 0} kWh</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <p className="text-sm text-gray-600">Start Time</p>
-          <p className="font-medium">{formatDateTime(booking.startTime)}</p>
+          <p className="text-sm text-gray-600 mb-1">⏰ Start Time</p>
+          <p className="font-medium text-gray-800">{formatDateTime(booking.startTime)}</p>
         </div>
         <div>
-          <p className="text-sm text-gray-600">End Time</p>
-          <p className="font-medium">{booking.endTime ? formatDateTime(booking.endTime) : 'Ongoing'}</p>
+          <p className="text-sm text-gray-600 mb-1">🏁 End Time</p>
+          <p className="font-medium text-gray-800">
+            {booking.endTime ? formatDateTime(booking.endTime) : ((booking.status === 'active' || booking.status === 'ongoing') ? 'In Progress...' : 'Not started')}
+          </p>
         </div>
       </div>
 
-      {booking.energyConsumed > 0 && (
-        <div className="mb-4">
-          <p className="text-sm text-gray-600">Energy Consumed</p>
-          <p className="font-medium">{booking.energyConsumed} kWh</p>
-        </div>
-      )}
-
       {booking.rating && (
-        <div className="mb-4">
-          <p className="text-sm text-gray-600">Customer Rating</p>
-          <p className="font-medium">{'⭐'.repeat(booking.rating)} ({booking.rating}/5)</p>
+        <div className="mb-4 p-3 bg-yellow-50 rounded-lg">
+          <p className="text-sm text-gray-600 mb-1">⭐ Customer Rating</p>
+          <div className="flex items-center space-x-2">
+            <span className="text-yellow-500 text-lg">{'★'.repeat(booking.rating)}{'☆'.repeat(5-booking.rating)}</span>
+            <span className="font-medium text-gray-800">({booking.rating}/5)</span>
+          </div>
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex space-x-2">
+      {/* Real-time Action Buttons */}
+      <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
         {booking.status === 'pending' && (
           <>
             <button
-              onClick={() => onUpdateStatus(booking._id, 'active')}
-              className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700 transition duration-200"
+              onClick={() => {
+                if (confirm(`Accept booking for ${booking.customerName}?`)) {
+                  onUpdateStatus(booking._id, 'accepted');
+                }
+              }}
+              className="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 transition duration-200 flex items-center space-x-1"
             >
-              Accept
+              <span>✅</span>
+              <span>Accept</span>
             </button>
             <button
-              onClick={() => onUpdateStatus(booking._id, 'cancelled')}
-              className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 transition duration-200"
+              onClick={() => {
+                if (confirm(`Decline booking for ${booking.customerName}?`)) {
+                  onUpdateStatus(booking._id, 'declined');
+                }
+              }}
+              className="bg-red-600 text-white px-4 py-2 rounded-md text-sm hover:bg-red-700 transition duration-200 flex items-center space-x-1"
             >
-              Decline
+              <span>❌</span>
+              <span>Decline</span>
             </button>
           </>
         )}
-        {booking.status === 'active' && (
+        
+        {(booking.status === 'active' || booking.status === 'ongoing') && (
           <button
-            onClick={() => onUpdateStatus(booking._id, 'completed')}
-            className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition duration-200"
+            onClick={() => {
+              if (confirm(`Mark booking for ${booking.customerName} as completed?`)) {
+                onUpdateStatus(booking._id, 'completed');
+              }
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition duration-200 flex items-center space-x-1"
           >
-            Mark Complete
+            <span>🏁</span>
+            <span>Mark Complete</span>
           </button>
         )}
-        <button className="bg-gray-600 text-white px-4 py-2 rounded text-sm hover:bg-gray-700 transition duration-200">
-          Contact Customer
+        
+        <button
+          onClick={() => alert(`Calling ${booking.customerPhone}...`)}
+          className="bg-gray-600 text-white px-4 py-2 rounded-md text-sm hover:bg-gray-700 transition duration-200 flex items-center space-x-1"
+        >
+          <span>📞</span>
+          <span>Contact Customer</span>
         </button>
       </div>
     </div>

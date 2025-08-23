@@ -1,43 +1,40 @@
 'use client';
 
-import { useEffect, useState, Fragment } from 'react';
-import { Menu, Transition } from '@headlessui/react';
-import { BellIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function Navbar() {
+  const [mounted, setMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
 
-  // Update auth state when localStorage token is added/removed
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem('token');
+      const email = localStorage.getItem('userEmail');
       const newAuthState = !!token;
-      console.log('Navbar auth check:', { hasToken: !!token, currentIsLoggedIn: isLoggedIn, newState: newAuthState });
       
       if (newAuthState !== isLoggedIn) {
         setIsLoggedIn(newAuthState);
+        setUserEmail(email || '');
       }
       setLoading(false);
     };
 
-    // Initial check
     checkAuth();
 
-    // Listen for storage changes (from other tabs)
-    const handleStorageChange = () => {
-      console.log('Storage change detected');
-      checkAuth();
-    };
-
-    // Listen for custom auth event (from same tab)
-    const handleAuthChange = () => {
-      console.log('Auth change event detected');
-      checkAuth();
-    };
+    const handleStorageChange = () => checkAuth();
+    const handleAuthChange = () => checkAuth();
 
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('authChange', handleAuthChange);
@@ -52,319 +49,207 @@ export default function Navbar() {
     localStorage.removeItem('token');
     localStorage.removeItem('userEmail');
     setIsLoggedIn(false);
-    setIsMobileMenuOpen(false); // Close mobile menu on logout
-
-    // Optional: dispatch a custom event
+    setUserEmail('');
+    setShowUserMenu(false);
     window.dispatchEvent(new Event('authChange'));
-
-    router.push('/login');
+    router.push('/');
   };
 
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-
-  const closeMobileMenu = () => {
-    setIsMobileMenuOpen(false);
-  };
+  if (loading || !mounted) {
+    return (
+      <nav className="bg-white dark:bg-gray-800 shadow-lg transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <span className="text-xl font-bold text-green-600">ChargeLoop</span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
 
   return (
-    <nav className="bg-white shadow-md relative">
-      {/* Desktop Navbar */}
-      <div className="flex justify-between items-center px-6 py-4">
-        {/* Brand */}
-        <div className="flex items-center space-x-2">
-          <img 
-            src="/chargeloop-icon.svg" 
-            alt="ChargeLoop" 
-            className="h-10 w-10"
-          />
-          <div className="text-2xl font-bold">
-            <span className="text-blue-600">Charge</span>
-            <span className="text-green-600">Loop</span>
-          </div>
-        </div>
-
-        {/* Desktop Navigation Links */}
-        <ul className="hidden md:flex space-x-6 text-gray-700 font-medium">
-          <a href="/" className="cursor-pointer hover:text-blue-600 transition-colors">Home</a>
-          <a href="/map" className="cursor-pointer hover:text-blue-600 transition-colors">Map</a>
-          <a href="/about" className="cursor-pointer hover:text-blue-600 transition-colors">About</a>
-          <a href="/contactus" className="cursor-pointer hover:text-blue-600 transition-colors">Contact</a>
-        </ul>
-
-        {/* Desktop Right side */}
-        <div className="hidden md:flex items-center space-x-4">
-          {loading ? (
-            // Show loading state
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-            </div>
-          ) : isLoggedIn ? (
-            // Show user menu when logged in
-            <>
-              <BellIcon className="h-6 w-6 text-gray-600 hover:text-blue-600 cursor-pointer transition-colors" />
-              <Menu as="div" className="relative inline-block text-left">
-                <div>
-                  <Menu.Button className="inline-flex w-full justify-center items-center rounded-full bg-gray-200 hover:ring-2 ring-blue-500 focus:outline-none transition-all duration-200">
-                    <img
-                      src="https://www.w3schools.com/howto/img_avatar.png"
-                      alt="Profile"
-                      className="h-10 w-10 rounded-full cursor-pointer"
-                      // onClick={() => router.push('/profile')}
-                    />
-                  </Menu.Button>
-                </div>
-                <Transition
-                  as={Fragment}
-                enter="transition ease-out duration-100"
-                enterFrom="transform opacity-0 scale-95"
-                enterTo="transform opacity-100 scale-100"
-                leave="transition ease-in duration-75"
-                leaveFrom="transform opacity-100 scale-100"
-                leaveTo="transform opacity-0 scale-95"
-              >
-                <Menu.Items className="absolute text-black right-0 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
-                  <div className="px-1 py-1">
-                    
-                    <Menu.Item>
-                      {({ active }) => (
-                        <a 
-                          href="/profile" 
-                          className={`${active ? 'bg-blue-100' : ''} group flex w-full items-center rounded-md px-2 py-2 text-sm transition-colors`}
-                        >
-                          Your Profile
-                        </a>
-                      )}
-                    </Menu.Item>
-                    
-                    <Menu.Item>
-                      {({ active }) => (
-                        <a 
-                          href="/charging-history" 
-                          className={`${active ? 'bg-blue-100' : ''} group flex w-full items-center rounded-md px-2 py-2 text-sm transition-colors`}
-                        >
-                          Charging History
-                        </a>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <a 
-                          href="/wallet" 
-                          className={`${active ? 'bg-blue-100' : ''} group flex w-full items-center rounded-md px-2 py-2 text-sm transition-colors`}
-                        >
-                          Your Wallet
-                        </a>
-                      )}
-                    </Menu.Item>
-                    <div className="border-t border-gray-200 my-1"></div>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <a 
-                          href="/host/register" 
-                          className={`${active ? 'bg-green-100' : ''} group flex w-full items-center rounded-md px-2 py-2 text-sm transition-colors`}
-                        >
-                          🏠 Become a Host
-                        </a>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <a 
-                          href="/host/dashboard" 
-                          className={`${active ? 'bg-green-100' : ''} group flex w-full items-center rounded-md px-2 py-2 text-sm transition-colors`}
-                        >
-                          📊 Host Dashboard
-                        </a>
-                      )}
-                    </Menu.Item>
-                    <div className="border-t border-gray-200 my-1"></div>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={handleLogout}
-                          className={`${active ? 'bg-red-100 text-red-600' : ''} group flex w-full items-center rounded-md px-2 py-2 text-sm transition-colors`}
-                        >
-                          Sign Out
-                        </button>
-                      )}
-                    </Menu.Item>
-                  </div>
-                </Menu.Items>
-              </Transition>
-            </Menu>
-          </>
-        ) : (
-          // Show login/signup buttons when not logged in
-          <div className="flex space-x-3">
-            <a 
-              href="/login" 
-              className="text-blue-600 px-4 py-2 font-semibold hover:underline transition-all duration-200"
-            >
-              LogIn
-            </a>
-            <a 
-              href="/signup" 
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-all duration-200"
-            >
-              Sign Up
+    <nav className="bg-white dark:bg-gray-800 shadow-lg transition-colors sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          {/* Logo */}
+          <div className="flex items-center">
+            <a href="/" className="text-xl font-bold text-green-600 hover:text-green-700 transition-colors">
+              ChargeLoop
             </a>
           </div>
-        )}
-        </div>
 
-        {/* Mobile Menu Button */}
-        <div className="md:hidden flex items-center space-x-2">
-          {/* Show notification icon for logged in users on mobile */}
-          {isLoggedIn && !loading && (
-            <BellIcon className="h-6 w-6 text-gray-600 hover:text-blue-600 cursor-pointer transition-colors" />
-          )}
-          
-          <button
-            onClick={toggleMobileMenu}
-            className="text-gray-600 hover:text-blue-600 focus:outline-none focus:text-blue-600 transition-colors"
-            aria-label="Toggle mobile menu"
-          >
-            {isMobileMenuOpen ? (
-              <XMarkIcon className="h-6 w-6" />
-            ) : (
-              <Bars3Icon className="h-6 w-6" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      <Transition
-        show={isMobileMenuOpen}
-        as={Fragment}
-        enter="transition ease-out duration-200"
-        enterFrom="opacity-0 translate-y-1"
-        enterTo="opacity-100 translate-y-0"
-        leave="transition ease-in duration-150"
-        leaveFrom="opacity-100 translate-y-0"
-        leaveTo="opacity-0 translate-y-1"
-      >
-        <div className="md:hidden bg-white border-t border-gray-200 shadow-lg">
-          {/* Mobile Navigation Links */}
-          <div className="px-6 py-4 space-y-3">
-            <a 
-              href="/" 
-              onClick={closeMobileMenu}
-              className="block text-gray-700 hover:text-blue-600 font-medium transition-colors"
-            >
-              Home
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-8">
+            <a href="/map" className="text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+              Find Chargers
             </a>
-            <a 
-              href="/map" 
-              onClick={closeMobileMenu}
-              className="block text-gray-700 hover:text-blue-600 font-medium transition-colors"
-            >
-              Map
-            </a>
-            <a 
-              href="/about" 
-              onClick={closeMobileMenu}
-              className="block text-gray-700 hover:text-blue-600 font-medium transition-colors"
-            >
+            <a href="/about" className="text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors">
               About
             </a>
-            <a 
-              href="/contactus" 
-              onClick={closeMobileMenu}
-              className="block text-gray-700 hover:text-blue-600 font-medium transition-colors"
-            >
+            <a href="/contactus" className="text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors">
               Contact
             </a>
+            
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Toggle theme"
+            >
+              {theme === 'light' ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              )}
+            </button>
+
+            {isLoggedIn ? (
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center space-x-2 text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                >
+                  <div className="w-8 h-8 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
+                    <span className="text-green-600 dark:text-green-400 font-medium">
+                      {userEmail ? userEmail.charAt(0).toUpperCase() : 'U'}
+                    </span>
+                  </div>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
+                    <div className="py-1">
+                      <a href="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        Profile
+                      </a>
+                      <a href="/wallet" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        Wallet
+                      </a>
+                      <a href="/charging-history" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        Charging History
+                      </a>
+                      <a href="/host/dashboard" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        Host Dashboard
+                      </a>
+                      <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+                      <button
+                        onClick={handleLogout}
+                        className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 transition-colors"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex space-x-3">
+                <a 
+                  href="/login" 
+                  className="text-gray-700 dark:text-gray-200 px-4 py-2 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                >
+                  Login
+                </a>
+                <a 
+                  href="/signup" 
+                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                >
+                  Sign Up
+                </a>
+              </div>
+            )}
           </div>
 
-          {/* Mobile User Section */}
-          {loading ? (
-            <div className="px-6 py-4 border-t border-gray-200">
-              <div className="flex items-center justify-center">
-                <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-              </div>
-            </div>
-          ) : isLoggedIn ? (
-            <div className="px-6 py-4 border-t border-gray-200 space-y-3">
-              <div className="flex items-center space-x-3 pb-3 border-b border-gray-200">
-                <img
-                  src="https://www.w3schools.com/howto/img_avatar.png"
-                  alt="Profile"
-                  className="h-10 w-10 rounded-full"
-                />
-                <span className="text-gray-700 font-medium">Your Account</span>
-              </div>
-              
-              <a 
-                href="/profile" 
-                onClick={closeMobileMenu}
-                className="block text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                Your Profile
-              </a>
-              <a 
-                href="/charging-history" 
-                onClick={closeMobileMenu}
-                className="block text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                Charging History
-              </a>
-              <a 
-                href="/wallet" 
-                onClick={closeMobileMenu}
-                className="block text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                Your Wallet
-              </a>
-              
-              <div className="border-t border-gray-200 pt-3 space-y-3">
-                <a 
-                  href="/host/register" 
-                  onClick={closeMobileMenu}
-                  className="block text-green-600 hover:text-green-700 transition-colors"
-                >
-                  🏠 Become a Host
-                </a>
-                <a 
-                  href="/host/dashboard" 
-                  onClick={closeMobileMenu}
-                  className="block text-green-600 hover:text-green-700 transition-colors"
-                >
-                  📊 Host Dashboard
-                </a>
-              </div>
-              
-              <div className="border-t border-gray-200 pt-3">
-                <button
-                  onClick={handleLogout}
-                  className="block w-full text-left text-red-600 hover:text-red-700 transition-colors"
-                >
-                  Sign Out
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="px-6 py-4 border-t border-gray-200 space-y-3">
-              <a 
-                href="/login" 
-                onClick={closeMobileMenu}
-                className="block text-center text-blue-600 px-4 py-2 font-semibold hover:underline transition-all duration-200"
-              >
-                LogIn
-              </a>
-              <a 
-                href="/signup" 
-                onClick={closeMobileMenu}
-                className="block text-center bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-all duration-200"
-              >
-                Sign Up
-              </a>
-            </div>
-          )}
+          {/* Mobile menu button */}
+          <div className="md:hidden flex items-center space-x-2">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Toggle theme"
+            >
+              {theme === 'light' ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              )}
+            </button>
+            
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
         </div>
-      </Transition>
+
+        {/* Mobile menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-gray-200 dark:border-gray-600">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              <a href="/map" className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                Find Chargers
+              </a>
+              <a href="/about" className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                About
+              </a>
+              <a href="/contactus" className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                Contact
+              </a>
+              
+              {isLoggedIn ? (
+                <>
+                  <a href="/profile" className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                    Profile
+                  </a>
+                  <a href="/wallet" className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                    Wallet
+                  </a>
+                  <a href="/charging-history" className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                    Charging History
+                  </a>
+                  <a href="/host/dashboard" className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                    Host Dashboard
+                  </a>
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <a href="/login" className="block px-3 py-2 text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 transition-colors">
+                    Login
+                  </a>
+                  <a href="/signup" className="block px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-center">
+                    Sign Up
+                  </a>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </nav>
   );
 }
