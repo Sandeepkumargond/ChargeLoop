@@ -101,24 +101,37 @@ With the rapid growth of electric vehicles, finding available charging stations 
 
 ### **Frontend**
 - **Framework:** Next.js 15.4.1 with App Router
-- **UI Library:** React 19.1.0
-- **Styling:** Tailwind CSS 4.0
-- **Components:** Headless UI, Heroicons, Lucide React
-- **Maps:** Leaflet.js with OpenStreetMap tiles
-- **State Management:** React Hooks
+- **UI Library:** React 19.1.0 with React DOM
+- **Styling:** Tailwind CSS 4.0 with PostCSS
+- **Components:** 
+  - Headless UI 2.2.4 (accessible components)
+  - Heroicons 2.2.0 (icon library)
+  - Lucide React 0.525.0 (additional icons)
+- **Maps:** 
+  - Leaflet 1.9.4 (map engine)
+  - React Leaflet 5.0.0 (React integration)
+  - Google Maps API 2.20.7 (backup option)
+- **HTTP Client:** Axios 1.10.0
+- **Authentication:** NextAuth.js 4.24.11
+- **Email Service:** EmailJS Browser 4.4.1
+- **Build Tools:** Next Transpile Modules 10.0.1
 
 ### **Backend**
-- **Runtime:** Node.js with Express.js
-- **Database:** MongoDB with Mongoose ODM
-- **Authentication:** JWT with bcryptjs
-- **API:** RESTful API architecture
-- **Email Service:** EmailJS & Nodemailer
+- **Runtime:** Node.js with Express.js 5.1.0
+- **Database:** MongoDB with Mongoose ODM 8.16.4
+- **Authentication:** JSON Web Tokens (JWT) 9.0.2
+- **Password Hashing:** bcryptjs 3.0.2
+- **CORS:** cors 2.8.5 (Cross-Origin Resource Sharing)
+- **Environment:** dotenv 17.2.0 (environment variables)
+- **Email Service:** Nodemailer 6.10.1
+- **Development:** Nodemon 3.1.10 (auto-restart)
 
-### **DevOps & Tools**
+### **DevOps & Development**
 - **Package Manager:** npm
-- **Development:** Hot reload with Next.js dev server
-- **Build:** Next.js production build
-- **Deployment:** Ready for Vercel/Netlify deployment
+- **Development Server:** Next.js dev server with hot reload
+- **Build System:** Next.js production build optimization
+- **Code Quality:** ESLint integration
+- **Deployment Ready:** Vercel, Netlify, or custom server deployment
 
 ---
 

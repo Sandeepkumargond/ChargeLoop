@@ -84,10 +84,10 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-lg">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
           <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading profile...</p>
+          <p className="text-gray-600 dark:text-gray-300 mt-4">Loading profile...</p>
         </div>
       </div>
     );
@@ -95,9 +95,9 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
-          <p className="text-red-600 mb-4">Error: {error}</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg text-center">
+          <p className="text-red-600 dark:text-red-400 mb-4">Error: {error}</p>
           <button
             onClick={() => router.push('/')}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
@@ -110,14 +110,14 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8">
       <div className="max-w-6xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
           {/* Header with Profile Info */}
           <div className="bg-gradient-to-r from-blue-600 to-green-600 px-6 py-8">
             <div className="flex flex-col md:flex-row items-center">
               <div className="relative mb-4 md:mb-0">
-                <div className="h-24 w-24 bg-white rounded-full flex items-center justify-center">
+                <div className="h-24 w-24 bg-white dark:bg-gray-900 rounded-full flex items-center justify-center">
                   <img
                     src="https://www.w3schools.com/howto/img_avatar.png"
                     alt="Profile"
@@ -125,30 +125,30 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1">
-                  <div className="w-3 h-3 bg-white rounded-full"></div>
+                  <div className="w-3 h-3 bg-white dark:bg-gray-900 rounded-full"></div>
                 </div>
               </div>
-              <div className="md:ml-6 text-black text-center md:text-left flex-1">
+              <div className="md:ml-6 text-black dark:text-white text-center md:text-left flex-1">
                 <h1 className="text-3xl font-bold">{user?.name || 'User'}</h1>
-                <p className="text-blue-100 mb-2">{user?.email}</p>
+                <p className="text-blue-100 dark:text-blue-200 mb-2">{user?.email}</p>
                 <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm">
-                  <span className="bg-white text-black bg-opacity-20 px-3 py-1 rounded-full">
-                    📅 Member since {user?.memberSince}
+                  <span className="bg-white dark:bg-gray-900 text-black dark:text-white bg-opacity-20 px-3 py-1 rounded-full">
+                    Member since {user?.memberSince}
                   </span>
-                  <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full">
-                    🎯 {user?.accountType} Account
+                  <span className="bg-white dark:bg-gray-900 bg-opacity-20 px-3 py-1 rounded-full">
+                    {user?.accountType} Account
                   </span>
-                  <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full">
-                    🔋 {user?.chargingSessions?.length || 0} Sessions
+                  <span className="bg-white dark:bg-gray-900 bg-opacity-20 px-3 py-1 rounded-full">
+                    {user?.chargingSessions?.length || 0} Sessions
                   </span>
                 </div>
               </div>
               <div className="mt-4 md:mt-0">
                 <button 
                   onClick={() => router.push('/profile/edit')}
-                  className="bg-white text-blue-600 px-4 py-2 rounded-full font-semibold hover:bg-gray-100 transition-all duration-200"
+                  className="bg-white dark:bg-gray-900 text-blue-600 px-4 py-2 rounded-full font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
                 >
-                  ✏️ Edit Profile
+                  Edit Profile
                 </button>
               </div>
             </div>
@@ -158,10 +158,9 @@ export default function ProfilePage() {
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
               {[
-                { id: 'overview', label: '📊 Overview', icon: '📊' },
-                { id: 'personal', label: '👤 Personal Info', icon: '👤' },
-                { id: 'activity', label: '⚡ Activity', icon: '⚡' },
-                { id: 'preferences', label: '⚙️ Preferences', icon: '⚙️' }
+                { id: 'overview', label: 'Overview' },
+                { id: 'personal', label: 'Personal Info' },
+                { id: 'activity', label: 'Activity' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -185,51 +184,46 @@ export default function ProfilePage() {
                 {/* Quick Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl">
-                    <div className="text-2xl mb-2">🔋</div>
                     <div className="text-2xl font-bold">{user?.chargingSessions?.length || 0}</div>
                     <div className="text-sm opacity-90">Charging Sessions</div>
                   </div>
                   <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl">
-                    <div className="text-2xl mb-2">💰</div>
                     <div className="text-2xl font-bold">₹{user?.walletBalance || 0}</div>
                     <div className="text-sm opacity-90">Wallet Balance</div>
                   </div>
                   <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl">
-                    <div className="text-2xl mb-2">🏠</div>
                     <div className="text-2xl font-bold">{user?.hostSessions?.length || 0}</div>
                     <div className="text-sm opacity-90">Host Sessions</div>
                   </div>
                   <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl">
-                    <div className="text-2xl mb-2">🌱</div>
                     <div className="text-2xl font-bold">{user?.carbonSaved || '0 kg'}</div>
                     <div className="text-sm opacity-90">CO₂ Saved</div>
                   </div>
                 </div>
 
                 {/* Recent Activity */}
-                <div className="bg-gray-50  text-black p-6 rounded-xl">
-                  <h3 className="text-lg font-semibold mb-4">📈 Recent Activity</h3>
+                <div className="bg-gray-50 dark:bg-gray-900 text-black dark:text-white p-6 rounded-xl">
+                  <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
                   <div className="space-y-3">
                     {(user?.chargingSessions || []).length > 0 ? (
                       (user?.chargingSessions || []).slice(0, 3).map((session, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg">
+                        <div key={index} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg">
                           <div className="flex items-center">
-                            <div className="bg-green-100 p-2 rounded-full mr-3">⚡</div>
+                            <div className="bg-green-100 dark:bg-green-900 p-2 rounded-full mr-3">⚡</div>
                             <div>
                               <div className="font-medium">Charging Session</div>
-                              <div className="text-sm text-gray-500">
+                              <div className="text-sm text-gray-500 dark:text-gray-300">
                                 {session.location || 'Location not specified'} - ₹{session.amount || 0}
                               </div>
                             </div>
                           </div>
-                          <div className="text-sm text-gray-400">
+                          <div className="text-sm text-gray-400 dark:text-gray-300">
                             {session.createdAt ? new Date(session.createdAt).toLocaleDateString() : 'Date unknown'}
                           </div>
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <div className="text-4xl mb-2">🔋</div>
+                      <div className="text-center py-8 text-gray-500 dark:text-gray-300">
                         <p>No charging sessions yet</p>
                         <p className="text-sm">Start charging to see your activity here!</p>
                       </div>
@@ -242,28 +236,27 @@ export default function ProfilePage() {
             {activeTab === 'personal' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
-                  <h3 className="text-xl font-semibold text-gray-800">Personal Information</h3>
-                  
+                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Personal Information</h3>
                   <div className="space-y-4">
-                    <div className="flex justify-between py-3 border-b border-gray-200">
-                      <span className="text-gray-600 font-medium">Full Name:</span>
-                      <span className="text-gray-800 font-semibold">{user?.name || 'Not provided'}</span>
+                    <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                      <span className="text-gray-600 dark:text-gray-300 font-medium">Full Name:</span>
+                      <span className="text-gray-800 dark:text-white font-semibold">{user?.name || 'Not provided'}</span>
                     </div>
-                    <div className="flex justify-between py-3 border-b border-gray-200">
-                      <span className="text-gray-600 font-medium">Email:</span>
-                      <span className="text-gray-800">{user?.email || 'Not provided'}</span>
+                    <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                      <span className="text-gray-600 dark:text-gray-300 font-medium">Email:</span>
+                      <span className="text-gray-800 dark:text-white">{user?.email || 'Not provided'}</span>
                     </div>
-                    <div className="flex justify-between py-3 border-b border-gray-200">
-                      <span className="text-gray-600 font-medium">Phone:</span>
-                      <span className="text-gray-800">{user?.phone || 'Not provided'}</span>
+                    <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                      <span className="text-gray-600 dark:text-gray-300 font-medium">Phone:</span>
+                      <span className="text-gray-800 dark:text-white">{user?.phone || 'Not provided'}</span>
                     </div>
-                    <div className="flex justify-between py-3 border-b border-gray-200">
-                      <span className="text-gray-600 font-medium">Location:</span>
-                      <span className="text-gray-800">{user?.location || 'Not provided'}</span>
+                    <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                      <span className="text-gray-600 dark:text-gray-300 font-medium">Location:</span>
+                      <span className="text-gray-800 dark:text-white">{user?.location || 'Not provided'}</span>
                     </div>
-                    <div className="flex justify-between py-3 border-b border-gray-200">
-                      <span className="text-gray-600 font-medium">Last Login:</span>
-                      <span className="text-gray-800">
+                    <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                      <span className="text-gray-600 dark:text-gray-300 font-medium">Last Login:</span>
+                      <span className="text-gray-800 dark:text-white">
                         {user?.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Not available'}
                       </span>
                     </div>
@@ -271,28 +264,26 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="space-y-6">
-                  <h3 className="text-xl font-semibold text-gray-800">Account Details</h3>
-                  
-                  <div className="bg-gradient-to-br from-blue-50 to-green-50 p-6 rounded-xl">
+                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Account Details</h3>
+                  <div className="bg-gradient-to-br from-blue-50 to-green-50 dark:from-gray-800 dark:to-gray-900 p-6 rounded-xl">
                     <div className="text-center">
-                      <div className="text-3xl mb-2">🎯</div>
-                      <div className="text-lg font-semibold text-gray-800">{user?.accountType} Member</div>
-                      <div className="text-sm text-gray-600 mt-2">
+                      <div className="text-lg font-semibold text-gray-800 dark:text-white">{user?.accountType} Member</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">
                         Enjoying all the benefits of {user?.accountType.toLowerCase()} membership
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-3">
-                    <div className="bg-white p-4 rounded-lg border">
-                      <div className="flex text-gray-600 justify-between items-center">
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border dark:border-gray-700">
+                      <div className="flex text-gray-600 dark:text-gray-300 justify-between items-center">
                         <span className="font-medium">Total Spent</span>
                         <span className="text-green-600 font-bold">₹{user?.totalSavings || 0}</span>
                       </div>
                     </div>
-                    <div className="bg-white p-4 rounded-lg border">
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border dark:border-gray-700">
                       <div className="flex justify-between items-center">
-                        <span className="font-medium text-black">Favorite Stations</span>
+                        <span className="font-medium text-black dark:text-white">Favorite Stations</span>
                         <span className="text-blue-600 font-bold">{user?.favoriteStations?.length || 0}</span>
                       </div>
                     </div>
@@ -303,12 +294,11 @@ export default function ProfilePage() {
 
             {activeTab === 'activity' && (
               <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-gray-800">⚡ Activity Overview</h3>
-                
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white"> Activity Overview</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl">
-                    <h4 className="font-semibold text-blue-800 mb-4">🔋 Charging Stats</h4>
-                    <div className="space-y-3 text-black">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900 p-6 rounded-xl">
+                    <h4 className="font-semibold text-blue-800 dark:text-blue-300 mb-4">Charging Stats</h4>
+                    <div className="space-y-3 text-black dark:text-white">
                       <div className="flex justify-between">
                         <span>Total Sessions:</span>
                         <span className="font-bold">{user?.chargingSessions?.length || 0}</span>
@@ -324,111 +314,71 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl">
-                    <h4 className="font-semibold text-green-800 mb-4">🏠 Hosting Stats</h4>
-                    <div className="space-y-3  text-black">
-                      <div className="flex justify-between">
-                        <span>Host Sessions:</span>
-                        <span className="font-bold">{user?.hostSessions?.length || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Earnings:</span>
-                        <span className="font-bold text-green-600">₹{(user?.hostSessions || []).reduce((total, session) => total + (session.earnings || 0), 0)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Rating:</span>
-                        <span className="font-bold">{user?.hostRating ? `⭐ ${user.hostRating}/5` : '⭐ No ratings yet'}</span>
+                  {user?.isHost && (
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-gray-800 dark:to-gray-900 p-6 rounded-xl">
+                      <h4 className="font-semibold text-green-800 dark:text-green-300 mb-4">🏠 Hosting Stats</h4>
+                      <div className="space-y-3  text-black dark:text-white">
+                        <div className="flex justify-between">
+                          <span>Host Sessions:</span>
+                          <span className="font-bold">{user?.hostSessions?.length || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Earnings:</span>
+                          <span className="font-bold text-green-600">₹{(user?.hostSessions || []).reduce((total, session) => total + (session.earnings || 0), 0)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Rating:</span>
+                          <span className="font-bold">{user?.hostRating ? `${user.hostRating}/5` : 'No ratings yet'}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
-                <div className="bg-gray-50 text-black p-6 rounded-xl">
-                  <h4 className="font-semibold mb-4">🌱 Environmental Impact</h4>
+                <div className="bg-gray-50 dark:bg-gray-900 text-black dark:text-white p-6 rounded-xl">
+                  <h4 className="font-semibold mb-4">Environmental Impact</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-green-600">{user?.carbonSaved || '0 kg'}</div>
-                      <div className="text-sm text-gray-600">CO₂ Saved</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">CO₂ Saved</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-blue-600">{Math.floor((user?.chargingSessions?.length || 0) * 25)} kWh</div>
-                      <div className="text-sm text-gray-600">Clean Energy Used</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">Clean Energy Used</div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-purple-600">{Math.floor((user?.chargingSessions?.length || 0) * 2)} Trees</div>
-                      <div className="text-sm text-gray-600">Equivalent Trees Planted</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">Equivalent Trees Planted</div>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {activeTab === 'preferences' && (
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-gray-800">⚙️ Account Preferences</h3>
-                
-                <div className="grid text-black grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-6 rounded-xl border">
-                    <h4 className="font-semibold mb-4">🔔 Notifications</h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span>Email Notifications</span>
-                        <span className={`px-2 py-1 rounded text-sm ${user?.preferences?.notifications ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
-                          {user?.preferences?.notifications ? 'Enabled' : 'Disabled'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span>Auto Payment</span>
-                        <span className={`px-2 py-1 rounded text-sm ${user?.preferences?.autoPayment ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
-                          {user?.preferences?.autoPayment ? 'Enabled' : 'Disabled'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-6 rounded-xl border">
-                    <h4 className="font-semibold mb-4">🎨 Appearance</h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span>Dark Mode</span>
-                        <span className={`px-2 py-1 rounded text-sm ${user?.preferences?.darkMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}>
-                          {user?.preferences?.darkMode ? 'Dark' : 'Light'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Action Buttons */}
-          <div className="px-6 py-6 bg-gray-50 border-t">
+          <div className="px-6 py-6 bg-gray-50 dark:bg-gray-900 border-t dark:border-gray-700">
             <div className="flex flex-wrap gap-3">
               <button 
                 onClick={() => router.push('/wallet')}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center gap-2"
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200"
               >
-                💳 Wallet
+                Wallet
               </button>
               <button 
                 onClick={() => router.push('/charging-history')}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200 flex items-center gap-2"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200"
               >
-                📋 History
+                History
               </button>
               <button 
                 onClick={() => router.push('/host/register')}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition duration-200 flex items-center gap-2"
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition duration-200"
               >
-                🏠 Become Host
+                Become Host
               </button>
-              <button 
-                onClick={() => router.push('/')}
-                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-200 flex items-center gap-2"
-              >
-                🏠 Home
-              </button>
+             
             </div>
           </div>
         </div>

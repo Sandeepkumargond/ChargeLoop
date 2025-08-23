@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { sendEmailViaAPI } from '../../lib/emailService';
 
 export default function ContactPage() {
   const router = useRouter();
@@ -15,7 +14,8 @@ export default function ContactPage() {
     type: 'general'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [modalContent, setModalContent] = useState({ status: '', message: '' });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -28,13 +28,25 @@ export default function ContactPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setSubmitStatus('');
-    
+    setShowModal(false);
+    setModalContent({ status: '', message: '' });
     try {
-      // Use the email service
-      await sendEmailViaAPI(formData);
-      
-      setSubmitStatus('success');
+      // Use the backend API endpoint instead of client-side email service
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      const result = await response.json();
+      setModalContent({ status: 'success', message: "Message sent successfully! We'll get back to you within 24 hours." });
+      setShowModal(true);
       setFormData({
         name: '',
         email: '',
@@ -43,44 +55,15 @@ export default function ContactPage() {
         type: 'general'
       });
     } catch (error) {
-      setSubmitStatus('error');
+      setModalContent({ status: 'error', message: "Failed to send message! Please try again or contact us directly at errorincode404@gmail.com" });
+      setShowModal(true);
       console.error('Error sending message:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const contactMethods = [
-    {
-      icon: "📧",
-      title: "Email Support",
-      desc: "Get help via email",
-      contact: "errorincode404@gmail.com",
-      action: "mailto:ChargeLoop@gmail.com"
-    },
-    {
-      icon: "💬",
-      title: "Live Chat",
-      desc: "Chat with our support team",
-      contact: "Available 24/7",
-      action: "#"
-    },
-    {
-      icon: "📱",
-      title: "Mobile App",
-      desc: "Contact us through the app",
-      contact: "In-app messaging",
-      action: "#"
-    },
-    {
-      icon: "🏢",
-      title: "Business Inquiries",
-      desc: "Partnership opportunities",
-      contact: "business@chargeloop.com",
-      action: "mailto:business@chargeloop.com"
-    }
-  ];
-
+ 
   const faqItems = [
     {
       question: "How do I find charging stations near me?",
@@ -104,8 +87,30 @@ export default function ContactPage() {
 
   return (
     <>
+      {/* Modal Pop-up for status */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className={`bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center border-2 ${modalContent.status === 'success' ? 'border-green-400' : 'border-red-400'}`}>
+            <div className="mb-4">
+              {modalContent.status === 'success' ? (
+                <span className="text-green-500 text-4xl">✅</span>
+              ) : (
+                <span className="text-red-500 text-4xl">❌</span>
+              )}
+            </div>
+            <h3 className={`text-xl font-bold mb-2 ${modalContent.status === 'success' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>{modalContent.status === 'success' ? 'Success' : 'Error'}</h3>
+            <p className="mb-6 text-gray-700 dark:text-gray-200">{modalContent.message}</p>
+            <button
+              onClick={() => setShowModal(false)}
+              className="bg-green-500 dark:bg-green-700 text-white px-6 py-2 rounded-full font-semibold hover:bg-green-600 dark:hover:bg-green-800 transition-all duration-300"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       {/* Hero Section */}
-      <div className="relative w-full h-[400px] lg:h-[500px] overflow-hidden">
+      <div className="relative dark:bg-gray-900  w-full h-[400px] lg:h-[500px] overflow-hidden">
         <Image
           src="/contact.png"
           alt="Contact Us"
@@ -126,62 +131,25 @@ export default function ContactPage() {
         </div>
       </div>
 
-      {/* Contact Methods */}
-      <div className="py-16 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-6">
-          <h2 className="text-3xl lg:text-4xl font-bold text-center text-gray-800 mb-12">
-            Multiple Ways to Reach Us
-          </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {contactMethods.map((method, index) => (
-              <div key={index} className="bg-white rounded-2xl shadow-lg p-6 text-center hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 group">
-                <div className="text-4xl mb-4 group-hover:scale-110 transition-all duration-300">{method.icon}</div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2 group-hover:text-green-600 transition-colors duration-300">{method.title}</h3>
-                <p className="text-gray-600 mb-4">{method.desc}</p>
-                <a 
-                  href={method.action}
-                  className="text-green-600 hover:text-green-700 font-semibold transition-colors duration-300"
-                >
-                  {method.contact}
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
+  
       {/* Contact Form */}
-      <div className="py-16 bg-white">
+      <div className="py-16 bg-white dark:bg-gray-900">
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-4">
+            <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white mb-4">
               Send Us a Message
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-gray-600 dark:text-gray-300">
               Have a question or suggestion? We'd love to hear from you.
             </p>
           </div>
 
-          {submitStatus === 'success' && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8 text-center">
-              <div className="text-green-600 text-2xl mb-2">✅</div>
-              <p className="text-green-800 font-semibold">Message sent successfully!</p>
-              <p className="text-green-600">We'll get back to you within 24 hours.</p>
-            </div>
-          )}
+          {/* Status pop-up is now handled by modal above. */}
 
-          {submitStatus === 'error' && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8 text-center">
-              <div className="text-red-600 text-2xl mb-2">❌</div>
-              <p className="text-red-800 font-semibold">Failed to send message!</p>
-              <p className="text-red-600">Please try again or contact us directly at errorincode404@gmail.com</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="bg-gray-50 rounded-2xl p-8 shadow-lg">
+          <form onSubmit={handleSubmit} className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-8 shadow-lg">
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                   Your Name *
                 </label>
                 <input
@@ -189,14 +157,14 @@ export default function ContactPage() {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-all duration-300"
                   placeholder="Enter your full name"
                   required
                   suppressHydrationWarning
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                   Email Address *
                 </label>
                 <input
@@ -204,7 +172,7 @@ export default function ContactPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-all duration-300"
                   placeholder="your@email.com"
                   required
                   suppressHydrationWarning
@@ -214,14 +182,14 @@ export default function ContactPage() {
 
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                   Inquiry Type
                 </label>
                 <select
                   name="type"
                   value={formData.type}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-all duration-300"
                   suppressHydrationWarning
                 >
                   <option value="general">General Inquiry</option>
@@ -232,7 +200,7 @@ export default function ContactPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
                   Subject *
                 </label>
                 <input
@@ -240,7 +208,7 @@ export default function ContactPage() {
                   name="subject"
                   value={formData.subject}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-300 font-semibold"
                   placeholder="Brief subject of your message"
                   required
                   suppressHydrationWarning
@@ -257,7 +225,7 @@ export default function ContactPage() {
                 value={formData.message}
                 onChange={handleInputChange}
                 rows={6}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-300 resize-none"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-all duration-300 resize-none"
                 placeholder="Tell us more about your inquiry..."
                 required
                 suppressHydrationWarning
@@ -268,7 +236,7 @@ export default function ContactPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className="bg-green-600 hover:bg-green-700 text-white dark:text-white px-8 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 suppressHydrationWarning
               >
                 {isSubmitting ? (
@@ -286,16 +254,16 @@ export default function ContactPage() {
       </div>
 
       {/* FAQ Section */}
-      <div className="py-16 bg-gray-50">
+      <div className="py-16 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-4xl mx-auto px-6">
-          <h2 className="text-3xl lg:text-4xl font-bold text-center text-gray-800 mb-12">
+          <h2 className="text-3xl lg:text-4xl font-bold text-center text-gray-800 dark:text-white mb-12">
             Frequently Asked Questions
           </h2>
           <div className="space-y-6">
             {faqItems.map((faq, index) => (
-              <div key={index} className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
-                <h3 className="text-xl font-bold text-gray-800 mb-3">{faq.question}</h3>
-                <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
+              <div key={index} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-3">{faq.question}</h3>
+                <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{faq.answer}</p>
               </div>
             ))}
           </div>

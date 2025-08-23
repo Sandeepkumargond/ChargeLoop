@@ -60,17 +60,11 @@ export default function AboutPage() {
     }
   ];
 
-  const milestones = [
-    { year: "2025", title: "ChargeLoop Founded", desc: "Started with a vision to democratize EV charging" },
-    { year: "2025", title: "First 100 Chargers", desc: "Reached our initial milestone of active charging points" },
-    { year: "2025", title: "Multi-City Launch", desc: "Expanded to 10+ major cities across India" },
-    { year: "2025", title: "1000+ Active Users", desc: "Growing community of EV enthusiasts and hosts" }
-  ];
 
   const team = [
     { 
       name: "Sandeep", 
-      role: "Founder & Lead Developer", 
+      role: "Developer", 
       image: "/sandeep.jpg",
       bio: "Passionate about sustainable technology and clean energy solutions"
     }
@@ -79,12 +73,12 @@ export default function AboutPage() {
   return (
     <>
       {/* Hero Section */}
-      <div className="bg-gradient-to-br from-green-50 to-blue-50 py-16 lg:py-24">
+  <div className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 py-16 lg:py-24 transition-colors">
         <div className="max-w-6xl mx-auto px-6 text-center">
-          <h1 className="text-4xl lg:text-6xl font-bold text-gray-800 mb-6">
+          <h1 className="text-4xl lg:text-6xl font-extrabold text-gray-900 dark:text-white mb-6">
             About <span className="text-green-600">ChargeLoop</span>
           </h1>
-          <p className="text-xl lg:text-2xl text-gray-600 mb-8 max-w-4xl mx-auto leading-relaxed">
+          <p className="text-xl lg:text-2xl text-gray-800 dark:text-gray-100 mb-8 max-w-4xl mx-auto leading-relaxed">
             We're revolutionizing electric vehicle charging through a peer-to-peer network that connects EV owners with private charging stations, making sustainable transportation accessible to everyone.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -105,12 +99,12 @@ export default function AboutPage() {
       </div>
 
       {/* Mission & Vision */}
-      <div className="py-16 bg-white">
+  <div className="py-16 bg-white dark:bg-gray-900 transition-colors">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-6">Our Mission</h2>
-              <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+              <h2 className="text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white mb-6">Our Mission</h2>
+              <p className="text-lg text-gray-800 dark:text-gray-100 mb-6 leading-relaxed">
                 To accelerate the adoption of electric vehicles by creating the world's most accessible and reliable peer-to-peer charging network. We believe that by connecting EV owners with private charging infrastructure, we can solve the charging anxiety that holds back EV adoption.
               </p>
               <div className="space-y-4">
@@ -118,24 +112,24 @@ export default function AboutPage() {
                   <div className="bg-green-100 rounded-full p-2 mr-4">
                     <span className="text-green-600 text-xl">🎯</span>
                   </div>
-                  <span className="text-gray-700 font-medium">Make EV charging accessible everywhere</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">Make EV charging accessible everywhere</span>
                 </div>
                 <div className="flex items-center">
                   <div className="bg-green-100 rounded-full p-2 mr-4">
                     <span className="text-green-600 text-xl">🤝</span>
                   </div>
-                  <span className="text-gray-700 font-medium">Build a community-driven network</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">Build a community-driven network</span>
                 </div>
                 <div className="flex items-center">
                   <div className="bg-green-100 rounded-full p-2 mr-4">
                     <span className="text-green-600 text-xl">🌍</span>
                   </div>
-                  <span className="text-gray-700 font-medium">Contribute to a sustainable future</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">Contribute to a sustainable future</span>
                 </div>
               </div>
             </div>
             <div className="relative">
-              <div className="bg-gradient-to-br from-green-400 to-blue-500 rounded-3xl p-8 text-white">
+              <div className="bg-gradient-to-br from-green-400 to-blue-500 dark:from-gray-800 dark:to-gray-900 rounded-3xl p-8 text-white dark:text-white transition-colors font-semibold">
                 <h3 className="text-2xl font-bold mb-4">Our Vision</h3>
                 <p className="text-lg leading-relaxed">
                   A world where every electric vehicle owner has instant access to charging infrastructure, 
@@ -148,22 +142,22 @@ export default function AboutPage() {
       </div>
 
       {/* Features Section */}
-      <div className="bg-gray-50 py-16">
+  <div className="dark:bg-gray-950 py-16 transition-colors">
         <div className="max-w-6xl mx-auto px-6">
-          <h2 className="text-3xl lg:text-4xl font-bold text-center text-gray-800 mb-4">
+          <h2 className="text-3xl lg:text-4xl  text-center text-gray-900 dark:text-white mb-4">
             Platform Features
           </h2>
-          <p className="text-xl text-gray-600 text-center mb-12 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-900 dark:text-white text-center mb-12 max-w-3xl mx-auto ">
             Discover the powerful features that make ChargeLoop the preferred choice for EV owners and hosts
           </p>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid text-gray-900 dark:text-white md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((item, index) => (
-              <div key={index} className="group bg-white rounded-2xl shadow-lg p-6 text-center hover:shadow-xl transition-all duration-500 transform hover:-translate-y-2">
+              <div key={index} className="group bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 text-center hover:shadow-xl  duration-500 transform ">
                 <div className={`bg-gradient-to-r ${item.color} rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-all duration-300`}>
                   <Image src={item.icon} alt={item.title} width={32} height={32} className="brightness-0 invert" />
                 </div>
-                <h3 className="text-xl font-bold mb-4 text-gray-800 group-hover:text-green-600 transition-colors duration-300">{item.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{item.desc}</p>
+                <h3 className="text-xl  mb-4 text-gray-900 dark:text-white group-hover:text-green-400 transition-colors duration-300">{item.title}</h3>
+                <p className="leading-relaxed text-gray-900 dark:text-white">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -171,13 +165,13 @@ export default function AboutPage() {
       </div>
 
       {/* Environmental Impact */}
-      <div className="py-16 bg-white">
+  <div className="py-16 bg-white dark:bg-gray-900 transition-colors">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-4">
+            <h2 className="text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
               Environmental Impact
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-900 dark:text-white max-w-3xl mx-auto">
               Together, we're building a cleaner, more sustainable future through innovative charging solutions
             </p>
           </div>
@@ -188,48 +182,27 @@ export default function AboutPage() {
                   <span className="group-hover:scale-110 transition-all duration-300">{item.icon}</span>
                 </div>
                 <div className="text-2xl font-bold text-green-600 mb-2">{item.stat}</div>
-                <h3 className="text-lg font-bold mb-3 text-gray-800">{item.title}</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
+                <h3 className="text-lg font-bold mb-3 text-gray-900 dark:text-white">{item.title}</h3>
+                <p className="text-gray-900 dark:text-white text-sm leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Timeline */}
-      <div className="bg-gray-50 py-16">
-        <div className="max-w-4xl mx-auto px-6">
-          <h2 className="text-3xl lg:text-4xl font-bold text-center text-gray-800 mb-12">
-            Our Journey
-          </h2>
-          <div className="space-y-8">
-            {milestones.map((milestone, index) => (
-              <div key={index} className="flex items-center group">
-                <div className="bg-green-500 text-white rounded-full w-16 h-16 flex items-center justify-center font-bold text-lg mr-6 group-hover:bg-green-600 transition-all duration-300">
-                  {milestone.year}
-                </div>
-                <div className="flex-1 bg-white rounded-xl p-6 shadow-lg group-hover:shadow-xl transition-all duration-300">
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">{milestone.title}</h3>
-                  <p className="text-gray-600">{milestone.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
+     
       {/* Team Section */}
-      <div className="py-16 bg-white">
+  <div className="py-16 bg-white dark:bg-gray-900 transition-colors">
         <div className="max-w-6xl mx-auto px-6 text-center">
-          <h2 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-4">
+          <h2 className="text-3xl lg:text-4xl font-boldtext-gray-800 dark:text-gray-100 mb-4">
             Meet Our Team
           </h2>
-          <p className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-800 dark:text-gray-100 mb-12 max-w-3xl mx-auto">
             Passionate individuals working together to revolutionize the EV charging experience
           </p>
           <div className="flex justify-center">
             {team.map((member, idx) => (
-              <div key={idx} className="bg-white rounded-2xl shadow-xl p-8 max-w-sm group hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
+              <div key={idx} className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 max-w-sm group hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2">
                 <div className="relative mb-6">
                   <Image 
                     src={member.image} 
@@ -240,9 +213,9 @@ export default function AboutPage() {
                   />
                   <div className="absolute inset-0 rounded-full bg-gradient-to-t from-green-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">{member.name}</h3>
-                <p className="text-green-600 font-semibold mb-4">{member.role}</p>
-                <p className="text-gray-600 leading-relaxed">{member.bio}</p>
+                <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-2">{member.name}</h3>
+                <p className="text-green-600 dark:text-green-400 font-semibold mb-4">{member.role}</p>
+                <p className="text-gray-800 dark:text-gray-100 leading-relaxed font-semibold">{member.bio}</p>
               </div>
             ))}
           </div>
@@ -250,18 +223,18 @@ export default function AboutPage() {
       </div>
 
       {/* CTA Section */}
-      <div className="bg-gradient-to-r from-green-600 to-blue-600 py-16">
+  <div className="bg-gradient-to-r from-green-600 to-blue-600 dark:from-gray-900 dark:to-gray-800 py-16 transition-colors">
         <div className="max-w-4xl mx-auto text-center px-6">
-          <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">
+          <h2 className="text-3xl lg:text-4xl  text-white dark:text-white mb-6">
             Ready to Be Part of the Change?
           </h2>
-          <p className="text-xl text-white opacity-90 mb-8">
+          <p className="text-xl text-white dark:text-gray-100 opacity-90 mb-8 ">
             Join thousands of EV owners and hosts who are already shaping the future of transportation
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
               onClick={() => router.push('/signup')}
-              className="bg-white text-green-600 px-8 py-4 rounded-full text-lg font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105"
+              className="bg-white text-green-600 px-8 py-4 rounded-full text-lg  hover:bg-gray-100 transition-all duration-300 transform hover:scale-105"
             >
               Join ChargeLoop
             </button>
@@ -271,7 +244,7 @@ export default function AboutPage() {
             >
               Contact Us
             </button>
-          </div>
+          </div> 
         </div>
       </div>
     </>
