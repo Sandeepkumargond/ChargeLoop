@@ -33,30 +33,30 @@ export default function HomePage() {
   };
 
 
-  const testimonials = [
-    {
-      name: "Priya Sharma",
-      location: "Mumbai",
-      text: "ChargeLoop made finding a charger so easy! I saved 2 hours on my weekend trip.",
-      rating: 5
-    },
-    {
-      name: "Rajesh Kumar",
-      location: "Delhi",
-      text: "Earning extra income by hosting my charger has been amazing. Great platform!",
-      rating: 5
-    },
-    {
-      name: "Sarah Williams",
-      location: "Bangalore",
-      text: "The booking process is seamless and the hosts are very friendly.",
-      rating: 5
-    }
-  ];
+  // const testimonials = [
+  //   {
+  //     name: "Priya Sharma",
+  //     location: "Mumbai",
+  //     text: "ChargeLoop made finding a charger so easy! I saved 2 hours on my weekend trip.",
+  //     rating: 5
+  //   },
+  //   {
+  //     name: "Rajesh Kumar",
+  //     location: "Delhi",
+  //     text: "Earning extra income by hosting my charger has been amazing. Great platform!",
+  //     rating: 5
+  //   },
+  //   {
+  //     name: "Sarah Williams",
+  //     location: "Bangalore",
+  //     text: "The booking process is seamless and the hosts are very friendly.",
+  //     rating: 5
+  //   }
+  // ];
 
   return (
     <>
-      {/* Hero Section */}
+      
       <div className="relative w-full h-[600px] lg:h-[700px] overflow-hidden">
         <Image
           src="/image.png"
