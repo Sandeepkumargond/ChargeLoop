@@ -1,0 +1,129 @@
+<svg width="500" height="150" viewBox="0 0 500 150" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Premium gradients -->
+    <linearGradient id="premiumBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1E3A8A;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#60A5FA;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="premiumGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#064E3B;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#10B981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#34D399;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="goldAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FBBF24;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Glow effects -->
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <filter id="strongGlow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background with subtle pattern -->
+  <rect width="500" height="150" fill="#F8FAFC" rx="12"/>
+  <circle cx="450" cy="30" r="20" fill="#EFF6FF" opacity="0.5"/>
+  <circle cx="480" cy="120" r="15" fill="#F0FDF4" opacity="0.5"/>
+  
+  <!-- Main logo container -->
+  <g transform="translate(20, 20)">
+    
+    <!-- Central charging hub -->
+    <circle cx="65" cy="55" r="45" fill="none" stroke="url(#premiumGreen)" stroke-width="2" opacity="0.2"/>
+    <circle cx="65" cy="55" r="35" fill="none" stroke="url(#premiumGreen)" stroke-width="3" stroke-dasharray="8,4" opacity="0.6">
+      <animateTransform attributeName="transform" attributeType="XML" type="rotate" from="0 65 55" to="360 65 55" dur="15s" repeatCount="indefinite"/>
+    </circle>
+    
+    <!-- Inner power core -->
+    <circle cx="65" cy="55" r="25" fill="url(#premiumBlue)" opacity="0.1"/>
+    <circle cx="65" cy="55" r="20" fill="none" stroke="url(#premiumBlue)" stroke-width="2" opacity="0.8">
+      <animateTransform attributeName="transform" attributeType="XML" type="rotate" from="360 65 55" to="0 65 55" dur="8s" repeatCount="indefinite"/>
+    </circle>
+    
+    <!-- Premium lightning bolt -->
+    <path d="M55 35 L72 35 L63 50 L78 50 L60 75 L50 58 L60 58 L50 43 Z" 
+          fill="url(#premiumBlue)" 
+          filter="url(#strongGlow)"
+          transform="translate(5, 10)">
+      <animate attributeName="opacity" values="0.8;1;0.8" dur="2.5s" repeatCount="indefinite"/>
+    </path>
+    
+    <!-- Network nodes with premium styling -->
+    <g filter="url(#softGlow)">
+      <circle cx="110" cy="55" r="4" fill="url(#premiumGreen)">
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="65" cy="10" r="4" fill="url(#premiumGreen)">
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" begin="0.4s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="20" cy="55" r="4" fill="url(#premiumGreen)">
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" begin="0.8s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="65" cy="100" r="4" fill="url(#premiumGreen)">
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" begin="1.2s" repeatCount="indefinite"/>
+      </circle>
+      
+      <!-- Corner nodes -->
+      <circle cx="95" cy="25" r="3" fill="url(#goldAccent)">
+        <animate attributeName="opacity" values="0.3;0.8;0.3" dur="3s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="95" cy="85" r="3" fill="url(#goldAccent)">
+        <animate attributeName="opacity" values="0.3;0.8;0.3" dur="3s" begin="0.6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="35" cy="25" r="3" fill="url(#goldAccent)">
+        <animate attributeName="opacity" values="0.3;0.8;0.3" dur="3s" begin="1.2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="35" cy="85" r="3" fill="url(#goldAccent)">
+        <animate attributeName="opacity" values="0.3;0.8;0.3" dur="3s" begin="1.8s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+    
+    <!-- Connection lines -->
+    <line x1="65" y1="35" x2="65" y2="10" stroke="url(#premiumGreen)" stroke-width="1" opacity="0.3"/>
+    <line x1="85" y1="55" x2="110" y2="55" stroke="url(#premiumGreen)" stroke-width="1" opacity="0.3"/>
+    <line x1="65" y1="75" x2="65" y2="100" stroke="url(#premiumGreen)" stroke-width="1" opacity="0.3"/>
+    <line x1="45" y1="55" x2="20" y2="55" stroke="url(#premiumGreen)" stroke-width="1" opacity="0.3"/>
+    
+  </g>
+  
+  <!-- Premium Typography -->
+  <g transform="translate(160, 35)">
+    <text x="0" y="30" font-family="'Inter', 'Segoe UI', sans-serif" font-size="36" font-weight="800" fill="url(#premiumBlue)" filter="url(#softGlow)">
+      Charge
+    </text>
+    <text x="140" y="30" font-family="'Inter', 'Segoe UI', sans-serif" font-size="36" font-weight="800" fill="url(#premiumGreen)" filter="url(#softGlow)">
+      Loop
+    </text>
+    
+    <text x="0" y="55" font-family="'Inter', 'Segoe UI', sans-serif" font-size="14" font-weight="600" fill="#64748B">
+      Peer-to-Peer EV Charging Network
+    </text>
+    
+    <text x="0" y="75" font-family="'Inter', 'Segoe UI', sans-serif" font-size="12" font-weight="500" fill="#94A3B8">
+      Connect • Charge • Earn • Sustain
+    </text>
+    
+    <!-- Premium badge -->
+    <rect x="0" y="85" width="120" height="20" rx="10" fill="url(#goldAccent)" opacity="0.1"/>
+    <text x="60" y="97" font-family="'Inter', 'Segoe UI', sans-serif" font-size="10" font-weight="700" fill="url(#goldAccent)" text-anchor="middle">
+      PREMIUM PLATFORM
+    </text>
+  </g>
+  
+</svg>
