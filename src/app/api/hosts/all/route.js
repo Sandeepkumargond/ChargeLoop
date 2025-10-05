@@ -5,7 +5,7 @@ export async function GET() {
     console.log('API: Fetching all hosts');
     
     // Make request to backend
-    const backendResponse = await fetch('http://localhost:5000/api/host/all', {
+    const backendResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/all`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

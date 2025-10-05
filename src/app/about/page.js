@@ -50,13 +50,13 @@ export default function AboutPage() {
       title: "Cleaner Cities",
       desc: "By promoting EV adoption, we're helping reduce harmful emissions that pollute our cities and communities.",
       icon: "🏙️",
-      stat: "50+ Cities Covered"
+      stat: "Growing Network"
     },
     {
       title: "Economic Empowerment",
       desc: "Homeowners and businesses can generate income by sharing their charging infrastructure with the community.",
       icon: "💰",
-      stat: "₹50K+ Monthly Earnings"
+      stat: "Earn Extra Income"
     }
   ];
 

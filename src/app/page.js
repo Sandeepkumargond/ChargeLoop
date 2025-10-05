@@ -95,7 +95,7 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-      )} */}
+      )} */}  
 
 
 
@@ -188,38 +188,141 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* How It Works Section */}
-      <div className="bg-gray-50 dark:bg-gray-900 py-16">
-        <div className="max-w-6xl mx-auto px-6">
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-800 dark:text-white mb-12">
-            How ChargeLoop Works
-          </h2>
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="bg-blue-500 dark:bg-blue-700 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">1</div>
-              <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">Sign Up</h3>
-              <p className="text-gray-600 dark:text-gray-200">Create your free ChargeLoop account in minutes</p>
+      {/* How ChargeLoop Works - Dual Side Section */}
+      <div className="bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 py-20">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
+              Two Ways to Join <span className="text-green-500">ChargeLoop</span>
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+              Whether you're looking to charge your EV or earn money from your home charger, we've got you covered
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-12 items-start">
+            {/* Left Side - How to Book a Charger */}
+            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-gray-700 transform hover:scale-[1.02] transition-all duration-300">
+              <div className="text-center mb-8">
+                <div className="bg-gradient-to-r from-blue-500 to-purple-600 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">Book a Charger</h3>
+                <p className="text-gray-600 dark:text-gray-300">Find and book charging stations near you</p>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-start space-x-4">
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 text-lg font-bold">1</div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Create Account</h4>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Sign up with your email or Google account in under 2 minutes</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 text-lg font-bold">2</div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Find Nearby Chargers</h4>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Use our interactive map to locate available charging stations around you</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 text-lg font-bold">3</div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Book & Navigate</h4>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Reserve your slot, get directions, and arrive at the charging station</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 text-lg font-bold">4</div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Charge & Pay</h4>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Plug in your vehicle, charge, and pay securely through the app</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-600">
+                <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-4">
+
+                </div>
+                <button 
+                  onClick={() => router.push('/map')}
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-4 px-6 rounded-xl text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                >
+                  Find Chargers Now
+                </button>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="bg-green-500 dark:bg-green-700 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">2</div>
-              <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">Find & Book</h3>
-              <p className="text-gray-600 dark:text-gray-200">Locate nearby chargers and book your slot instantly</p>
-            </div>
-            <div className="text-center">
-              <div className="bg-purple-500 dark:bg-purple-700 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">3</div>
-              <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">Charge & Pay</h3>
-              <p className="text-gray-600 dark:text-gray-200">Charge your vehicle and pay securely through the app</p>
-            </div>
-            <div className="text-center">
-              <div className="bg-orange-500 dark:bg-orange-700 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">4</div>
-              <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-white">Rate & Review</h3>
-              <p className="text-gray-600 dark:text-gray-200">Share your experience to help the community</p>
+
+            {/* Right Side - How to Become a Host */}
+            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 border border-gray-100 dark:border-gray-700 transform hover:scale-[1.02] transition-all duration-300">
+              <div className="text-center mb-8">
+                <div className="bg-gradient-to-r from-green-500 to-emerald-600 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                </div>
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">Become a Host</h3>
+                <p className="text-gray-600 dark:text-gray-300">Earn money from your home charging station</p>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-start space-x-4">
+                  <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 text-lg font-bold">1</div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Register Station</h4>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Fill out detailed form with station specs, location, pricing, and amenities</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 text-lg font-bold">2</div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Submit Application</h4>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Your application enters review queue with pending verification status</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 text-lg font-bold">3</div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Admin Review</h4>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Our team reviews your application for quality and safety standards</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 text-lg font-bold">4</div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Start Earning</h4>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Once approved, your station goes live and starts accepting bookings</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-600">
+               
+                <button 
+                  onClick={() => router.push('/host/register')}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white py-4 px-6 rounded-xl text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                >
+                  Start Hosting Today
+                </button>
+              </div>
             </div>
           </div>
+
+         
         </div>
       </div>
 
-
+    
 
       {/* CTA Section */}
       <div className="bg-gradient-to-r from-green-600 to-blue-600 dark:from-gray-900 dark:to-gray-800 py-16">
