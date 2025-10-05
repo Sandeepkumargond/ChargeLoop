@@ -101,7 +101,7 @@ export default function Footer() {
               <li><a href="/contactus" className="text-gray-700 dark:text-gray-300 hover:text-white transition-colors">Contact Us</a></li>
               <li><a href="#" className="text-gray-700 dark:text-gray-300 hover:text-white transition-colors">Privacy Policy</a></li>
               <li><a href="#" className="text-gray-700 dark:text-gray-300 hover:text-white transition-colors">Terms of Service</a></li>
-              <li><a href="/admin/login" className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-400 transition-colors">Founder</a></li>
+              <li><a href="/admin/login" className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-400 transition-colors">Admin</a></li>
             </ul>
           </div>
         </div>
