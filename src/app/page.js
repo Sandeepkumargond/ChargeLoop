@@ -276,16 +276,16 @@ export default function HomePage() {
                 <div className="flex items-start space-x-4">
                   <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 text-lg font-bold">1</div>
                   <div>
-                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Register Station</h4>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm">Fill out detailed form with station specs, location, pricing, and amenities</p>
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Create Account</h4>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Sign up with your email or Google account in under 2 minutes</p>
                   </div>
                 </div>
 
                 <div className="flex items-start space-x-4">
                   <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 text-lg font-bold">2</div>
                   <div>
-                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Submit Application</h4>
-                    <p className="text-gray-600 dark:text-gray-300 text-sm">Your application enters review queue with pending verification status</p>
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Register as a host</h4>
+                    <p className="text-gray-600 dark:text-gray-300 text-sm">Fill out detailed form with station specs, location, pricing, and amenities</p>
                   </div>
                 </div>
 
