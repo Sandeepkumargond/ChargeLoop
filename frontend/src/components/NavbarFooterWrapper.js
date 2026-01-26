@@ -8,7 +8,7 @@ export default function NavbarFooterWrapper() {
   const pathname = usePathname();
   
   // Hide navbar and footer on dashboard and map routes
-  const isHiddenRoute = pathname.startsWith('/user') || pathname.startsWith('/profile') || pathname.startsWith('/host') || pathname === '/map';
+  const isHiddenRoute = pathname.startsWith('/user') || pathname.startsWith('/profile') || pathname.startsWith('/host') || pathname === '/map'|| pathname.startsWith('/admin/dashboard') ;
   
   if (isHiddenRoute) {
     return null;
@@ -25,7 +25,7 @@ export function FooterWrapper() {
   const pathname = usePathname();
   
   // Hide footer on dashboard and map routes
-  const isHiddenRoute = pathname.startsWith('/user') || pathname.startsWith('/profile') || pathname.startsWith('/host') || pathname === '/map';
+  const isHiddenRoute = pathname.startsWith('/user') || pathname.startsWith('/profile') || pathname.startsWith('/host') || pathname === '/map' || pathname.startsWith('/admin/dashboard');
   
   if (isHiddenRoute) {
     return null;

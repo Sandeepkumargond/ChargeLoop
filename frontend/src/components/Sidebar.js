@@ -48,7 +48,6 @@ export default function Sidebar() {
     { label: 'Manage Chargers', href: '/host/stations', icon: '' },
     { label: 'Bookings & Requests', href: '/host/bookings', icon: '' },
     { label: 'Earnings & Payouts', href: '/host/earnings', icon: '' },
-    { label: 'Settings', href: '/host/settings', icon: '' },
     { label: 'Account', href: '/profile', icon: '' },
     { label: 'Logout', href: '', icon: '' },
   ];
@@ -97,24 +96,21 @@ export default function Sidebar() {
       </button>
 
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 bottom-0 w-56 bg-gray-100 dark:bg-gray-800 border-r border-gray-300 dark:border-gray-700 z-40 overflow-y-auto transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        <div className="p-4">
+      <aside className={`fixed left-0 top-0 bottom-0 w-56 bg-gray-100 dark:bg-gray-800 border-r border-gray-300 dark:border-gray-700 z-40 flex flex-col transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+        <div className="flex-1 overflow-y-auto p-4">
           <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 px-2">
             {isHostSection ? '' : ''}
           </h3>
           
           <nav className="space-y-1">
-            {menuItems.map((item, index) => (
-              <div key={item.label}>
-                {item.label === 'Logout' && (
-                  <div className="my-2 border-t border-gray-300 dark:border-gray-600"></div>
-                )}
+            {menuItems
+              .filter(item => item.label !== 'Logout')
+              .map((item) => (
                 <button
+                  key={item.label}
                   onClick={() => handleMenuClick(item)}
                   className={`w-full flex items-center gap-3 px-4 py-2 text-sm rounded ${
-                    item.label === 'Logout'
-                      ? 'text-red-600 dark:text-red-400 font-medium'
-                      : isActive(item.href)
+                    isActive(item.href)
                       ? isHostSection
                         ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-900 dark:text-orange-200 font-medium border-l-4 border-orange-600'
                         : 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200 font-medium border-l-4 border-blue-600'
@@ -124,9 +120,19 @@ export default function Sidebar() {
                   <span className="text-lg">{item.icon}</span>
                   <span>{item.label}</span>
                 </button>
-              </div>
-            ))}
+              ))}
           </nav>
+        </div>
+
+        {/* Logout Button at Bottom */}
+        <div className="border-t border-gray-300 dark:border-gray-600 p-4">
+          <button
+            onClick={() => handleMenuClick({ label: 'Logout' })}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm rounded text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            <span className="text-lg"></span>
+            <span>Logout</span>
+          </button>
         </div>
       </aside>
 

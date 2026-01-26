@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GoogleLogin } from '@react-oauth/google';
+import { useNotification } from '../../contexts/NotificationContext';
 
 export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
@@ -11,6 +12,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loginType, setLoginType] = useState('user'); // 'user' or 'host'
   const router = useRouter();
+  const { showSuccess, showError: showErrorToast } = useNotification();
 
   useEffect(() => {
     setMounted(true);
@@ -66,6 +68,8 @@ const handleSubmit = async (e) => {
         // Dispatch auth change event to update navbar
         window.dispatchEvent(new Event('authChange'));
         
+        showSuccess('Login successful! Redirecting...');
+        
         // Redirect based on login type
         if (loginType === 'host') {
           router.push('/host');
@@ -76,6 +80,7 @@ const handleSubmit = async (e) => {
     } catch (error) {
       console.error('Error during login:', error);
       setError(error.message);
+      showErrorToast(error.message);
     } finally {
       setLoading(false);
     }
@@ -143,6 +148,8 @@ const handleSubmit = async (e) => {
         // Dispatch auth change event to update navbar
         window.dispatchEvent(new Event('authChange'));
         
+        showSuccess('Login successful! Redirecting...');
+        
         // Redirect based on user type
         if (userType === 'host') {
           router.push('/host');
@@ -154,7 +161,9 @@ const handleSubmit = async (e) => {
       }
     } catch (error) {
       console.error('Error during Google login:', error);
-      setError(error.message || 'Failed to login with Google. Check console for details.');
+      const errorMsg = error.message || 'Failed to login with Google. Check console for details.';
+      setError(errorMsg);
+      showErrorToast(errorMsg);
     } finally {
       setLoading(false);
     }

@@ -88,7 +88,7 @@ export default function Footer() {
                 <>
                   <li><a href="/login" className="text-gray-700 dark:text-gray-300 hover:text-white transition-colors">Login</a></li>
                   <li><a href="/signup" className="text-gray-700 dark:text-gray-300 hover:text-white transition-colors">Sign Up</a></li>
-                  <li><a href="/host/register" className="text-gray-700 dark:text-gray-300 hover:text-white transition-colors">Become Host</a></li>
+                  <li><a href="/register-host" className="text-gray-700 dark:text-gray-300 hover:text-white transition-colors">Become Host</a></li>
                 </>
               )}
             </ul>

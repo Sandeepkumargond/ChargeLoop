@@ -243,7 +243,6 @@ export default function VehiclesPage() {
               
               {vehicles.length === 0 ? (
                 <div className="bg-gray-50 dark:bg-gray-800 p-8 rounded-lg text-center border border-gray-200 dark:border-gray-700">
-                  <div className="text-5xl mb-4">🚗</div>
                   <p className="text-gray-600 dark:text-gray-400 text-lg font-semibold">No vehicles added yet</p>
                   <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">Add your first vehicle to quickly select it during booking</p>
                 </div>

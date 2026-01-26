@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import LoadingCard from '@/components/LoadingCard';
 
 export default function UserDashboardPage() {
   const router = useRouter();
@@ -53,12 +55,11 @@ export default function UserDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
-          <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-          <p className="text-gray-600 dark:text-gray-300 mt-4">Loading dashboard...</p>
-        </div>
-      </div>
+      <LoadingSpinner 
+        fullScreen 
+        size="xl"
+        message="Loading your dashboard..."
+      />
     );
   }
 
@@ -106,7 +107,6 @@ export default function UserDashboardPage() {
                       <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">Vehicles</p>
                       <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">0</p>
                     </div>
-                    <div className="text-4xl">🚗</div>
                   </div>
                 </div>
               </div>
@@ -116,10 +116,7 @@ export default function UserDashboardPage() {
         <div className="mt-12">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Current Bookings</h2>
           {bookingsLoading ? (
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow text-center">
-              <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-              <p className="text-gray-600 dark:text-gray-400 mt-4">Loading bookings...</p>
-            </div>
+            <LoadingCard variant="table" title="Loading your bookings..." />
           ) : bookings.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {bookings.map((booking) => (
