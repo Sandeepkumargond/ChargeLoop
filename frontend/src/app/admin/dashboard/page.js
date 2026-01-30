@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { useNotification } from '@/contexts/NotificationContext';
 
 const DetailItem = ({ label, value }) => (
   <div className="mb-1">
@@ -66,7 +65,6 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
 
   const router = useRouter();
-  const { showSuccess, showError } = useNotification();
 
   useEffect(() => {
     fetchAdminData();
@@ -158,23 +156,22 @@ export default function AdminDashboard() {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
       if (res.ok) {
-        showSuccess('Host Approved');
         await fetchHosts();
         await fetchRegistrationRequests();
         setSelectedRegistration(null);
       }
-    } catch (err) { showError('Failed to approve'); }
+    } catch (err) { console.error('Failed to approve'); }
     finally { setProcessingHost(null); }
   };
 
   const rejectHost = async () => {
     if (!rejectionReason.trim()) {
-      showError('Please provide a rejection reason');
+      setError('Please provide a rejection reason');
       return;
     }
     
     if (!hostToReject || !hostToReject._id) {
-      showError('Host information not found');
+      setError('Host information not found');
       return;
     }
 
@@ -188,7 +185,6 @@ export default function AdminDashboard() {
       });
       
       if (res.ok) {
-        showSuccess('Host Rejected Successfully');
         setShowRejectModal(false);
         setHostToReject(null);
         setRejectionReason('');
@@ -197,11 +193,11 @@ export default function AdminDashboard() {
         setSelectedRegistration(null);
       } else {
         const errorData = await res.json().catch(() => ({}));
-        showError(errorData.msg || errorData.message || 'Failed to reject host');
+        setError(errorData.msg || errorData.message || 'Failed to reject host');
       }
     } catch (err) { 
       console.error('Reject error:', err);
-      showError('Network error: ' + err.message); 
+      setError('Network error: ' + err.message); 
     } finally {
       setRejectingHost(false);
     }
@@ -224,7 +220,6 @@ export default function AdminDashboard() {
         body: JSON.stringify({ email: newAdminEmail, password: newAdminPassword, name: newAdminName })
       });
       if (res.ok) {
-        showSuccess('Admin Added');
         setShowAddAdminModal(false);
         setNewAdminEmail(''); setNewAdminPassword(''); setNewAdminName('');
         fetchAdmins();
@@ -245,10 +240,9 @@ export default function AdminDashboard() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        showSuccess('Admin deleted');
         fetchAdmins();
       }
-    } catch(err) { showError('Failed to delete'); }
+    } catch(err) { console.error('Failed to delete'); }
   };
 
   const renderHostTable = (hosts, title, emptyMessage) => (

@@ -10,4 +10,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping backend to keep it awake
-        run: curl -s https://chargeloop-backend.onrender.com/api/host/all
+        run: curl -s https://chargeloop.onrender.com/api/host/all

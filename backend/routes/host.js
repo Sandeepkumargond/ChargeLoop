@@ -7,8 +7,8 @@ const auth = require('../middleware/auth');
 const { sendHostOnboardingEmail, sendBookingConfirmationEmail } = require('../services/emailService');
 const { getNearbyHosts, getAllHosts, updateHostAvailability, toggleMapVisibility } = require('../controllers/hostController');
 
-router.get('/nearby', getNearbyHosts);
-router.get('/all', getAllHosts);
+router.get('/nearby', auth, getNearbyHosts);
+router.get('/all', auth, getAllHosts);
 router.put('/:hostId/availability', auth, updateHostAvailability);
 router.put('/:hostId/visibility', auth, toggleMapVisibility);
 

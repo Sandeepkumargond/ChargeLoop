@@ -31,11 +31,28 @@ export default function Navbar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [healthStatus, setHealthStatus] = useState(null);
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
+    
+    const fetchHealth = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/health`);
+        if (response.ok) {
+          const data = await response.json();
+          setHealthStatus(data);
+        }
+      } catch (err) {
+        console.error('Health check failed:', err);
+      }
+    };
+
+    fetchHealth();
+    const healthInterval = setInterval(fetchHealth, 30000);
+
     const checkAuth = () => {
       const token = localStorage.getItem('token');
       const email = localStorage.getItem('userEmail');
@@ -48,6 +65,7 @@ export default function Navbar() {
     window.addEventListener('authChange', checkAuth);
     window.addEventListener('storage', checkAuth);
     return () => {
+      clearInterval(healthInterval);
       window.removeEventListener('authChange', checkAuth);
       window.removeEventListener('storage', checkAuth);
     };
@@ -99,7 +117,8 @@ export default function Navbar() {
               {theme === 'light' ? MOON_ICON : SUN_ICON}
             </button>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
               {!isLoggedIn ? (
                 <>
                   <a href="/login" className="px-3 py-1.5 text-neutral-700 dark:text-neutral-200 font-medium text-sm hover:text-blue-600 transition">
@@ -108,6 +127,16 @@ export default function Navbar() {
                   <a href="/signup" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-lg transition shadow-sm">
                     Sign Up
                   </a>
+                  {healthStatus && (
+                    <div className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
+                      healthStatus.mongoStatus === 'Connected'
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+                        : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${healthStatus.mongoStatus === 'Connected' ? 'bg-green-600 dark:bg-green-400' : 'bg-red-600 dark:bg-red-400'}`}></span>
+                      <span>{healthStatus.mongoStatus === 'Connected' ? 'Server On' : 'Server Off'}</span>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="relative">
@@ -137,6 +166,7 @@ export default function Navbar() {
                   )}
                 </div>
               )}
+              </div>
             </div>
           </div>
 

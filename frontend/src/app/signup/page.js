@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GoogleLogin } from '@react-oauth/google';
-import { useNotification } from '../../contexts/NotificationContext';
 
 export default function SignupPage() {
   const [mounted, setMounted] = useState(false);
@@ -19,7 +18,6 @@ export default function SignupPage() {
   const [otpTimer, setOtpTimer] = useState(0);
   const [email, setEmail] = useState('');
   const router = useRouter();
-  const { showSuccess: showSuccessToast, showError: showErrorToast } = useNotification();
 
   useEffect(() => {
     let interval;
@@ -54,7 +52,6 @@ export default function SignupPage() {
 
     if (!otpVerified) {
       setError('Please verify your email with OTP first');
-      showErrorToast('Please verify your email with OTP first');
       return;
     }
 
@@ -76,7 +73,6 @@ export default function SignupPage() {
     if (data.password !== data.confirmPassword) {
       const errorMsg = 'Passwords do not match';
       setError(errorMsg);
-      showErrorToast(errorMsg);
       setLoading(false);
       return;
     }
@@ -84,7 +80,6 @@ export default function SignupPage() {
     if (!data.phone || data.phone.trim().length === 0) {
       const errorMsg = 'Mobile number is required';
       setError(errorMsg);
-      showErrorToast(errorMsg);
       setLoading(false);
       return;
     }
@@ -92,7 +87,6 @@ export default function SignupPage() {
     if (data.phone.includes('@') || data.phone === email) {
       const errorMsg = 'Please enter a valid mobile number';
       setError(errorMsg);
-      showErrorToast(errorMsg);
       setLoading(false);
       return;
     }
@@ -120,8 +114,7 @@ export default function SignupPage() {
         const errorMsg = errorData.msg || 'Signup failed';
         setError(errorMsg);
         showErrorToast(errorMsg);
-        setLoading(false);
-        return;
+        seturn;
       }
 
       const result = await response.json();
@@ -143,9 +136,7 @@ export default function SignupPage() {
         }
       }
     } catch (error) {
-      setError(error.message);
-      showErrorToast(error.message);
-    } finally {
+      setError
       setLoading(false);
     }
   };
@@ -176,10 +167,8 @@ export default function SignupPage() {
 
       setOtpSent(true);
       setOtpTimer(300);
-      showSuccessToast('OTP sent to your email!');
     } catch (error) {
       setError(error.message);
-      showErrorToast(error.message);
     } finally {
       setOtpLoading(false);
     }
@@ -215,7 +204,6 @@ export default function SignupPage() {
       setError('');
     } catch (error) {
       setError(error.message);
-      showErrorToast(error.message);
     } finally {
       setOtpLoading(false);
     }
@@ -266,7 +254,6 @@ export default function SignupPage() {
     } catch (error) {
       const errorMsg = error.message || 'Failed to signup with Google.';
       setError(errorMsg);
-      showErrorToast(errorMsg);
     } finally {
       setLoading(false);
     }

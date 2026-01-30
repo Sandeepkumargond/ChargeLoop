@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { GoogleLogin } from '@react-oauth/google';
-import { useNotification } from '../../contexts/NotificationContext';
 
 export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
@@ -13,7 +12,6 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loginType, setLoginType] = useState('user');
   const router = useRouter();
-  const { showSuccess, showError: showErrorToast } = useNotification();
 
   useEffect(() => {
     setMounted(true);
@@ -59,7 +57,6 @@ const handleSubmit = async (e) => {
       if (!response.ok) {
         const errorData = await response.json();
         setError(errorData.msg || 'Login failed');
-        showErrorToast(errorData.msg || 'Login failed');
         setLoading(false);
         return;
       }
@@ -73,8 +70,6 @@ const handleSubmit = async (e) => {
 
         window.dispatchEvent(new Event('authChange'));
 
-        showSuccess('Login successful! Redirecting...');
-
         if (result.user.role === 'host') {
           router.push('/host');
         } else if (result.user.role === 'admin') {
@@ -85,7 +80,6 @@ const handleSubmit = async (e) => {
       }
     } catch (error) {
       setError(error.message);
-      showErrorToast(error.message);
     } finally {
       setLoading(false);
     }
@@ -151,12 +145,17 @@ const handleSubmit = async (e) => {
 
         window.dispatchEvent(new Event('authChange'));
 
-        showSuccess('Login successful! Redirecting...');
-
         if (userType === 'host') {
           router.push('/host');
         } else if (userType === 'admin') {
           router.push('/admin/dashboard');
+      {healthStatus && (
+        <div className="fixed top-4 left-4 text-xs text-neutral-600 dark:text-neutral-400 bg-white dark:bg-neutral-800 p-2 rounded border border-neutral-200 dark:border-neutral-700">
+          <p>Server running ✓</p>
+          <p>Uptime: {Math.floor(healthStatus.uptime)}s</p>
+          <p>DB: {healthStatus.mongoStatus}</p>
+        </div>
+      )}
         } else {
           router.push('/user');
         }
@@ -164,7 +163,6 @@ const handleSubmit = async (e) => {
     } catch (error) {
       const errorMsg = error.message || 'Failed to login with Google. Check console for details.';
       setError(errorMsg);
-      showErrorToast(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -301,7 +299,6 @@ const handleSubmit = async (e) => {
           </div>
         </div>
 
-        {}
         <p className="text-center text-neutral-600 dark:text-neutral-400 text-sm mt-6">
           Don't have an account?{' '}
           <a href="/signup" className="text-blue-600 dark:text-blue-400 font-semibold hover:text-blue-700 dark:hover:text-blue-300">

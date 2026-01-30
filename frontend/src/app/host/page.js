@@ -2,12 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useNotification } from '@/contexts/NotificationContext';
 import LoadingCard from '@/components/LoadingCard';
 
 export default function HostPage() {
   const router = useRouter();
-  const { showSuccess, showError } = useNotification();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState('');
@@ -120,10 +118,9 @@ export default function HostPage() {
         throw new Error(data.msg || data.error || 'Failed to accept request');
       }
 
-      showSuccess('Booking request accepted successfully!');
       fetchPendingRequests();
     } catch (err) {
-      showError(err.message || 'Error accepting request');
+      console.error(err.message || 'Error accepting request');
     }
   };
 
@@ -147,10 +144,9 @@ export default function HostPage() {
         throw new Error(data.msg || data.error || 'Failed to decline request');
       }
 
-      showSuccess('Booking request declined successfully!');
       fetchPendingRequests();
     } catch (err) {
-      showError(err.message || 'Error declining request');
+      console.error(err.message || 'Error declining request');
     }
   };
 
@@ -162,7 +158,7 @@ export default function HostPage() {
 
       if (!hostId) {
         showError('Host ID not found');
-        return;
+        retRequestsrn;
       }
 
       const newVisibility = !isVisibleOnMap;
@@ -182,12 +178,8 @@ export default function HostPage() {
       }
 
       setIsVisibleOnMap(data.isVisibleOnMap);
-      const statusMessage = data.isVisibleOnMap
-        ? 'Your charger is now visible on the map'
-        : 'Your charger has been hidden from the map';
-      showSuccess(statusMessage);
     } catch (err) {
-      showError(err.message || 'Failed to toggle visibility');
+      console.error(err.message || 'Failed to toggle visibility');
     } finally {
       setToggleLoading(false);
     }

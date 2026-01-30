@@ -11,8 +11,8 @@ const {
   getChargerStationDetails
 } = require('../controllers/chargerController');
 
-router.get('/nearby', getNearbyChargerStations);
-router.get('/:id', getChargerStationDetails);
+router.get('/nearby', auth, getNearbyChargerStations);
+router.get('/:id', auth, getChargerStationDetails);
 
 router.post('/', auth, createChargerStation);
 router.get('/host/stations', auth, getHostChargerStations);

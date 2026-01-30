@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useNotification } from '../../contexts/NotificationContext';
 
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState(1);
@@ -15,7 +14,6 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const router = useRouter();
-  const { showSuccess, showError: showErrorToast } = useNotification();
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
@@ -41,15 +39,12 @@ export default function ForgotPasswordPage() {
 
       if (response.ok) {
         setSuccessMsg('OTP sent successfully to your email');
-        showSuccess('OTP sent to your email');
         setStep(2);
       } else {
         setError(data.msg || 'Failed to send OTP');
-        showErrorToast(data.msg || 'Failed to send OTP');
       }
     } catch (error) {
       setError('Network error. Please try again.');
-      showErrorToast('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -87,15 +82,12 @@ export default function ForgotPasswordPage() {
 
       if (response.ok) {
         setSuccessMsg('OTP verified successfully');
-        showSuccess('OTP verified successfully');
         setStep(3);
       } else {
         setError(data.msg || 'Failed to verify OTP');
-        showErrorToast(data.msg || 'Failed to verify OTP');
       }
     } catch (error) {
       setError('Network error. Please try again.');
-      showErrorToast('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -139,17 +131,14 @@ export default function ForgotPasswordPage() {
 
       if (response.ok) {
         setSuccessMsg('Password reset successfully!');
-        showSuccess('Password reset successfully! Redirecting to login...');
         setTimeout(() => {
           router.push('/login');
         }, 2000);
       } else {
         setError(data.msg || 'Failed to reset password');
-        showErrorToast(data.msg || 'Failed to reset password');
       }
     } catch (error) {
       setError('Network error. Please try again.');
-      showErrorToast('Network error. Please try again.');
     } finally {
       setLoading(false);
     }

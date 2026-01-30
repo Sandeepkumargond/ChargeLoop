@@ -12,12 +12,27 @@ const chargerRoutes = require('./routes/charger');
 const adminRoutes = require('./routes/admin');
 const contactRoutes = require('./routes/contact');
 const reviewsRoutes = require('./routes/reviews');
+const securityMiddleware = require('./middleware/security');
 
 const app = express();
 
-app.use(cors());
+app.use(securityMiddleware.helmet);
+app.use(securityMiddleware.securityHeaders);
 
-app.use(express.json());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  maxAge: 3600
+}));
+
+app.use(securityMiddleware.rateLimiter);
+app.use(express.json({ limit: '10kb' }));
+app.use(securityMiddleware.mongoSanitize);
+app.use(securityMiddleware.inputLengthValidator);
+app.use(securityMiddleware.preventHttp);
+app.use(securityMiddleware.requestValidator);
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB Connected'))

@@ -3,11 +3,9 @@
 import React, { useState } from 'react';
 
 import { useRouter } from 'next/navigation';
-import { useNotification } from '../../contexts/NotificationContext';
 
 export default function ContactPage() {
   const router = useRouter();
-  const { showSuccess, showError } = useNotification();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -49,7 +47,6 @@ export default function ContactPage() {
       const result = await response.json();
       setModalContent({ status: 'success', message: "Message sent successfully! We'll get back to you within 24 hours." });
       setShowModal(true);
-      showSuccess("Message sent successfully! We'll get back to you within 24 hours.");
       setFormData({
         name: '',
         email: '',
@@ -61,7 +58,6 @@ export default function ContactPage() {
       const errorMsg = "Failed to send message! Please try again or contact us directly at errorincode404@gmail.com";
       setModalContent({ status: 'error', message: errorMsg });
       setShowModal(true);
-      showError("Failed to send message. Please try again");
     } finally {
       setIsSubmitting(false);
     }
