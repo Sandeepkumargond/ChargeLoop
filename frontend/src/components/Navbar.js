@@ -44,9 +44,11 @@ export default function Navbar() {
         if (response.ok) {
           const data = await response.json();
           setHealthStatus(data);
+        } else {
+          setHealthStatus({ mongoStatus: 'Disconnected' });
         }
       } catch (err) {
-        console.error('Health check failed:', err);
+        setHealthStatus({ mongoStatus: 'Disconnected' });
       }
     };
 
