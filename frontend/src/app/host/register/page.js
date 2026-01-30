@@ -8,17 +8,18 @@ let L;
 
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-const MAX_IMAGE_SIZE = 500 * 1024; // 500KB in bytes
-const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB for PDFs
+const MAX_IMAGE_SIZE = 500 * 1024;
+const MAX_PDF_SIZE = 10 * 1024 * 1024;
 
 export default function HostRegisterPage() {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showDenialInfo, setShowDenialInfo] = useState(false);
-  const [registrationStatus, setRegistrationStatus] = useState('none'); // none, pending, approved, rejected
+  const [registrationStatus, setRegistrationStatus] = useState('none');
   const [registrationDetails, setRegistrationDetails] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const mapRef = useRef(null);
@@ -31,12 +32,31 @@ export default function HostRegisterPage() {
     longitude: '',
     addressProof: null,
     aadharCard: null,
-    lightConnectionProof: null
+    lightConnectionProof: null,
+    maxKw: '',
+    perUnitCharge: ''
   });
 
-  const router = useRouter();
+  const fetchUserProfile = async (token) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
-  // Fetch registration status
+      if (response.ok) {
+        const data = await response.json();
+        setFormData(prev => ({
+          ...prev,
+          name: data.name || '',
+          mobile: data.phone || ''
+        }));
+      }
+    } catch (err) {
+    }
+  };
+
   const fetchRegistrationStatus = async (token) => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/host-registration-status`, {
@@ -57,7 +77,6 @@ export default function HostRegisterPage() {
     }
   };
 
-  // Load OpenStreetMap/Leaflet
   useEffect(() => {
     setMounted(true);
     const token = localStorage.getItem('token');
@@ -66,21 +85,19 @@ export default function HostRegisterPage() {
       return;
     }
 
-    // Fetch registration status on page load
+    fetchUserProfile(token);
     fetchRegistrationStatus(token);
 
-    // Check if coming from denied status
     const denialFlag = localStorage.getItem('fromDeniedStatus');
     if (denialFlag === 'true') {
       setShowDenialInfo(true);
       localStorage.removeItem('fromDeniedStatus');
-      // Refresh status after a moment
+
       setTimeout(() => {
         fetchRegistrationStatus(token);
       }, 500);
     }
 
-    // Refresh status every 10 seconds for live updates
     const interval = setInterval(() => {
       fetchRegistrationStatus(token);
     }, 10000);
@@ -88,10 +105,9 @@ export default function HostRegisterPage() {
     return () => clearInterval(interval);
   }, [router]);
 
-  // Initialize map after component mounts
   useEffect(() => {
     if (mounted && mapRef.current) {
-      // Small delay to ensure DOM is ready
+
       const timer = setTimeout(() => {
         initializeMap();
       }, 100);
@@ -101,7 +117,7 @@ export default function HostRegisterPage() {
 
   const initializeMap = async () => {
     try {
-      // Import Leaflet only when needed
+
       if (!L) {
         L = (await import('leaflet')).default;
       }
@@ -111,32 +127,26 @@ export default function HostRegisterPage() {
         return;
       }
 
-      // Check if map is already initialized
       if (mapRef.current._leaflet_id) {
         return;
       }
 
-      // Clear any existing content
       mapRef.current.innerHTML = '';
 
-      // Default coordinates (Delhi, India)
       const defaultLat = 28.6139;
       const defaultLng = 77.2090;
 
-      // Create Leaflet map
       const map = L.map(mapRef.current, {
         center: [defaultLat, defaultLng],
         zoom: 12,
         layers: []
       });
 
-      // Add OpenStreetMap tiles
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19,
       }).addTo(map);
 
-      // Create custom icon with CDN URLs
       const customIcon = L.icon({
         iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
         iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -148,7 +158,6 @@ export default function HostRegisterPage() {
         shadowAnchor: [12, 41]
       });
 
-      // Create draggable marker with custom icon
       const marker = L.marker([defaultLat, defaultLng], {
         draggable: true,
         title: 'Your charging station location',
@@ -157,7 +166,6 @@ export default function HostRegisterPage() {
 
       markerRef.current = marker;
 
-      // Handle marker drag
       marker.on('dragend', () => {
         const position = marker.getLatLng();
         const lat = position.lat;
@@ -170,7 +178,6 @@ export default function HostRegisterPage() {
         fetchAddressFromCoordinates(lat, lng);
       });
 
-      // Handle map click
       map.on('click', (event) => {
         const lat = event.latlng.lat;
         const lng = event.latlng.lng;
@@ -183,7 +190,6 @@ export default function HostRegisterPage() {
         fetchAddressFromCoordinates(lat, lng);
       });
 
-      // Store map reference for later use
       mapRef.current._leafletMap = map;
       setError('');
       setMapLoaded(true);
@@ -194,7 +200,7 @@ export default function HostRegisterPage() {
 
   const fetchAddressFromCoordinates = async (lat, lng) => {
     try {
-      // Use OpenStreetMap Nominatim API for reverse geocoding
+
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
         {
@@ -203,7 +209,7 @@ export default function HostRegisterPage() {
           }
         }
       );
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.address) {
@@ -221,7 +227,7 @@ export default function HostRegisterPage() {
     if (!value || !markerRef.current) return;
 
     try {
-      // Use OpenStreetMap Nominatim API for geocoding
+
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(value)}&format=json&limit=1`,
         {
@@ -238,12 +244,10 @@ export default function HostRegisterPage() {
           const lat = parseFloat(result.lat);
           const lng = parseFloat(result.lon);
 
-          // Update marker position
           if (markerRef.current) {
             markerRef.current.setLatLng([lat, lng]);
           }
 
-          // Update form data
           setFormData(prev => ({
             ...prev,
             address: result.display_name,
@@ -251,7 +255,6 @@ export default function HostRegisterPage() {
             longitude: lng.toString()
           }));
 
-          // Center map on new location
           if (mapRef.current && mapRef.current._leafletMap) {
             mapRef.current._leafletMap.setView([lat, lng], 15);
           }
@@ -287,8 +290,7 @@ export default function HostRegisterPage() {
     const { name, files } = e.target;
     if (files && files[0]) {
       const file = files[0];
-      
-      // Validate file type
+
       if (name === 'addressProof' && !['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) {
         setError('Address proof must be PDF, JPG, or PNG');
         return;
@@ -302,10 +304,9 @@ export default function HostRegisterPage() {
         return;
       }
 
-      // Validate file size
       const isImage = file.type.startsWith('image/');
       const maxSize = isImage ? MAX_IMAGE_SIZE : MAX_PDF_SIZE;
-      
+
       if (file.size > maxSize) {
         const maxSizeMB = isImage ? '500KB' : '10MB';
         setError(`File size exceeds ${maxSizeMB} limit`);
@@ -316,7 +317,7 @@ export default function HostRegisterPage() {
         ...prev,
         [name]: file
       }));
-      setError(''); // Clear any previous errors
+      setError('');
     }
   };
 
@@ -352,19 +353,6 @@ export default function HostRegisterPage() {
     setError('');
     setSuccess('');
 
-    // Validation
-    if (!formData.name.trim()) {
-      setError('Please enter your name');
-      setLoading(false);
-      return;
-    }
-
-    if (!formData.mobile.trim()) {
-      setError('Please enter your mobile number');
-      setLoading(false);
-      return;
-    }
-
     if (!formData.address.trim()) {
       setError('Please select an address from the map');
       setLoading(false);
@@ -395,12 +383,23 @@ export default function HostRegisterPage() {
       return;
     }
 
+    if (!formData.maxKw) {
+      setError('Please enter the maximum kWh allowed');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.perUnitCharge) {
+      setError('Please enter the per unit charge');
+      setLoading(false);
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
-      
+
       setSuccess('Uploading files...');
 
-      // Upload files to Cloudinary
       let addressProofUrl = '';
       let aadharCardUrl = '';
       let lightConnectionProofUrl = '';
@@ -417,7 +416,6 @@ export default function HostRegisterPage() {
 
       setSuccess('Files uploaded! Submitting registration...');
 
-      // Send URLs to backend instead of files
       const requestData = {
         name: formData.name,
         mobile: formData.mobile,
@@ -426,7 +424,9 @@ export default function HostRegisterPage() {
         longitude: parseFloat(formData.longitude),
         addressProofUrl: addressProofUrl,
         aadharCardUrl: aadharCardUrl,
-        lightConnectionProofUrl: lightConnectionProofUrl
+        lightConnectionProofUrl: lightConnectionProofUrl,
+        maxKw: parseFloat(formData.maxKw),
+        perUnitCharge: parseFloat(formData.perUnitCharge)
       };
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/request-host-registration`, {
@@ -441,7 +441,7 @@ export default function HostRegisterPage() {
       if (!response.ok) {
         const contentType = response.headers.get('content-type');
         let errorMessage = 'Failed to submit registration';
-        
+
         if (contentType && contentType.includes('application/json')) {
           try {
             const errorData = await response.json();
@@ -452,19 +452,29 @@ export default function HostRegisterPage() {
         } else {
           errorMessage = `Backend error (${response.status}): ${response.statusText}`;
         }
-        
+
         throw new Error(errorMessage);
       }
 
       const responseData = await response.json();
-      
+
       setSuccess('Registration submitted successfully! Updating status...');
-      
-      // Fetch updated status after submission
+
+      const statusResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/host-registration-status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        setRegistrationStatus(statusData.status);
+        setRegistrationDetails(statusData.host);
+      }
+
       setTimeout(() => {
-        const token = localStorage.getItem('token');
-        fetchRegistrationStatus(token);
-      }, 1500);
+        router.push('/host');
+      }, 2000);
     } catch (error) {
       setError(error.message);
     } finally {
@@ -474,23 +484,22 @@ export default function HostRegisterPage() {
 
   if (!mounted) return null;
 
-  // If approved, show configured charger section
   if (registrationStatus === 'approved' && registrationDetails) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 dark:from-gray-950 dark:to-gray-900 py-12 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 dark:from-neutral-950 dark:to-neutral-900 py-12 px-4">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden">
-            {/* Success Status */}
+          <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl overflow-hidden">
+            {}
             <div className="bg-gradient-to-r from-green-500 to-green-600 px-6 py-8 text-white">
-              <h1 className="text-3xl font-bold mb-2">✅ Registration Approved!</h1>
+              <h1 className="text-3xl font-bold mb-2">Registration Approved!</h1>
               <p className="text-green-100">Your charging station is now registered. Configure it to start accepting bookings.</p>
             </div>
 
             <div className="p-8 space-y-8">
-              {/* Approved Status Card */}
+              {}
               <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-700 rounded-lg p-6">
                 <div className="flex items-start gap-4">
-                  <div className="text-4xl">✅</div>
+                  <div className="text-4xl"></div>
                   <div className="flex-1">
                     <h2 className="text-xl font-bold text-green-900 dark:text-green-100 mb-2">
                       Your registration has been approved!
@@ -502,69 +511,36 @@ export default function HostRegisterPage() {
                 </div>
               </div>
 
-              {/* Registered Details */}
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-6">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Registered Information</h3>
+              {}
+              <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-6">
+                <h3 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">Registered Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Name</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">{registrationDetails.hostName}</p>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">Name</p>
+                    <p className="font-semibold text-neutral-900 dark:text-white">{registrationDetails.hostName}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">{registrationDetails.email}</p>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">Email</p>
+                    <p className="font-semibold text-neutral-900 dark:text-white">{registrationDetails.email}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Phone</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">{registrationDetails.phone}</p>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">Phone</p>
+                    <p className="font-semibold text-neutral-900 dark:text-white">{registrationDetails.phone}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Location</p>
-                    <p className="font-semibold text-gray-900 dark:text-white text-sm">{registrationDetails.location?.address}</p>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">Location</p>
+                    <p className="font-semibold text-neutral-900 dark:text-white text-sm">{registrationDetails.location?.address}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Next Steps */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-6">
-                <h3 className="text-lg font-bold text-blue-900 dark:text-blue-100 mb-4">Next Steps</h3>
-                <ul className="space-y-2 text-blue-800 dark:text-blue-300 text-sm">
-                  <li className="flex items-center gap-2">
-                    <span className="text-xl">1️⃣</span>
-                    <span>Configure your charger type (22kW, 50kW, etc.)</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-xl">2️⃣</span>
-                    <span>Set your pricing per hour</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-xl">3️⃣</span>
-                    <span>Add amenities (WiFi, Cafe, Parking, etc.)</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-xl">4️⃣</span>
-                    <span>Set your availability hours</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-xl">5️⃣</span>
-                    <span>Start accepting bookings!</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Action Button */}
+              {}
               <div className="flex gap-4 pt-6">
                 <button
                   onClick={() => router.push('/host?tab=charger-setup')}
                   className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-3 rounded-lg transition-all"
                 >
-                  Configure Charger →
-                </button>
-                <button
-                  onClick={() => router.push('/host')}
-                  className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
-                >
-                  Go to Dashboard
+                  Go to Dashboard →
                 </button>
               </div>
             </div>
@@ -575,9 +551,9 @@ export default function HostRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 dark:from-gray-950 dark:to-gray-900 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 dark:from-neutral-950 dark:to-neutral-900 py-12 px-4">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-2xl overflow-hidden">
           <div className="bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-700 dark:to-orange-800 px-6 py-8 text-white">
             <h1 className="text-3xl font-bold mb-2">Register Your Charging Station</h1>
             <p className="text-orange-100">Complete your host registration with required documents</p>
@@ -596,53 +572,16 @@ export default function HostRegisterPage() {
               </div>
             )}
 
-            {/* Personal Information */}
+            {}
+            {}
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-                Personal Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="Enter your full name"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Mobile Number *
-                  </label>
-                  <input
-                    type="tel"
-                    name="mobile"
-                    value={formData.mobile}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="10-digit mobile number"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Location Section */}
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-6">
                 Charging Station Location
               </h2>
 
-              {/* Address Search */}
+              {}
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
                   Search & Select Address *
                 </label>
                 <input
@@ -650,31 +589,31 @@ export default function HostRegisterPage() {
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
+                  className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-neutral-700 dark:text-white"
                   placeholder="Type address or search on map"
                   required
                 />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
                   You can search here or click on the map to mark your location
                 </p>
               </div>
 
-              {/* Map */}
+              {}
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
                   Map Location *
                 </label>
                 <div
                   ref={mapRef}
-                  className="w-full rounded-lg border-2 border-gray-300 dark:border-gray-600 overflow-hidden shadow-md"
+                  className="w-full rounded-lg border-2 border-neutral-300 dark:border-neutral-600 overflow-hidden shadow-md"
                   style={{ height: '400px', minHeight: '400px', width: '100%' }}
                 />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
                   Click on map or drag marker to mark your charging station location
                 </p>
               </div>
 
-              {/* Coordinates Display */}
+              {}
               {formData.latitude && formData.longitude && (
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-6">
                   <p className="text-sm text-blue-800 dark:text-blue-300">
@@ -684,16 +623,16 @@ export default function HostRegisterPage() {
               )}
             </div>
 
-            {/* Document Upload Section */}
+            {}
             <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+              <h2 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">
                 Required Documents
               </h2>
 
               <div className="space-y-3">
-                {/* Address Proof */}
+                {}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                     Address Proof *
                   </label>
                   <div className="relative">
@@ -702,7 +641,7 @@ export default function HostRegisterPage() {
                       name="addressProof"
                       onChange={handleFileChange}
                       accept=".pdf,.jpg,.jpeg,.png"
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-orange-600 file:text-white file:cursor-pointer hover:file:bg-orange-700"
+                      className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-orange-600 file:text-white file:cursor-pointer hover:file:bg-orange-700"
                       required
                     />
                     {formData.addressProof && (
@@ -713,9 +652,9 @@ export default function HostRegisterPage() {
                   </div>
                 </div>
 
-                {/* Aadhar Card */}
+                {}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                     Aadhar Card Copy *
                   </label>
                   <div className="relative">
@@ -724,7 +663,7 @@ export default function HostRegisterPage() {
                       name="aadharCard"
                       onChange={handleFileChange}
                       accept=".pdf,.jpg,.jpeg,.png"
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-orange-600 file:text-white file:cursor-pointer hover:file:bg-orange-700"
+                      className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-orange-600 file:text-white file:cursor-pointer hover:file:bg-orange-700"
                       required
                     />
                     {formData.aadharCard && (
@@ -735,9 +674,9 @@ export default function HostRegisterPage() {
                   </div>
                 </div>
 
-                {/* Light Connection Proof */}
+                {}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                     Light Connection Proof *
                   </label>
                   <div className="relative">
@@ -746,7 +685,7 @@ export default function HostRegisterPage() {
                       name="lightConnectionProof"
                       onChange={handleFileChange}
                       accept=".pdf,.jpg,.jpeg,.png"
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-orange-600 file:text-white file:cursor-pointer hover:file:bg-orange-700"
+                      className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-orange-600 file:text-white file:cursor-pointer hover:file:bg-orange-700"
                       required
                     />
                     {formData.lightConnectionProof && (
@@ -757,20 +696,85 @@ export default function HostRegisterPage() {
                   </div>
                 </div>
 
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
                   PDF, JPG, PNG (Max 10MB for PDF, 500KB for images)
                 </p>
               </div>
             </div>
 
-            {/* Note */}
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
-              <p className="text-sm text-yellow-800 dark:text-yellow-300">
-                <span className="font-semibold">Note:</span> You can bring your own charger to your charging station. Our team will verify your documents and location within 24-48 hours.
-              </p>
+            {}
+            <div>
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-6">
+                Charger Configuration
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                {}
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+                    Maximum kWh Allowed for Charging *
+                  </label>
+                  <input
+                    type="number"
+                    name="maxKw"
+                    value={formData.maxKw}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 22, 50, 100"
+                    min="1"
+                    step="0.1"
+                    className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-neutral-700 dark:text-white"
+                    required
+                  />
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">Maximum power capacity of your charger in kilowatts</p>
+                </div>
+
+                {}
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+                    Per Unit Charge (₹/kWh) *
+                  </label>
+                  <input
+                    type="number"
+                    name="perUnitCharge"
+                    value={formData.perUnitCharge}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 8, 10, 12"
+                    min="0.1"
+                    step="0.1"
+                    className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-neutral-700 dark:text-white"
+                    required
+                  />
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">Electricity cost per kilowatt-hour in your area</p>
+                </div>
+              </div>
+
+              {}
+              {formData.maxKw && formData.perUnitCharge && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-700 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-1">Calculated Hourly Rate</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                          ₹{(parseFloat(formData.maxKw) * parseFloat(formData.perUnitCharge)).toFixed(2)}
+                        </span>
+                        <span className="text-neutral-600 dark:text-neutral-400">/hour</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-2">Calculation</p>
+                      <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                        {parseFloat(formData.maxKw).toFixed(1)} kW × ₹{parseFloat(formData.perUnitCharge).toFixed(2)}/kWh
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+
             </div>
 
-            {/* Buttons */}
+            {}
             <div className="flex gap-4 pt-6">
               <button
                 type="submit"
@@ -782,7 +786,7 @@ export default function HostRegisterPage() {
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                className="flex-1 border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-300 font-bold py-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-all"
               >
                 Cancel
               </button>

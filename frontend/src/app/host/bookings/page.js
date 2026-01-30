@@ -10,13 +10,12 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [bookingRequests, setBookingRequests] = useState([]);
   const [bookingHistory, setBookingHistory] = useState([]);
-  const [activeTab, setActiveTab] = useState('history'); // pending, history
+  const [activeTab, setActiveTab] = useState('history');
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState('all');
   const [totalPages, setTotalPages] = useState(1);
 
-  // Fetch pending booking requests
   const fetchPendingRequests = useCallback(async (token) => {
     try {
       setRequestsLoading(true);
@@ -38,7 +37,6 @@ export default function BookingsPage() {
     }
   }, []);
 
-  // Fetch booking history
   const fetchBookingHistory = useCallback(async (token, page = 1, status = 'all') => {
     try {
       setRequestsLoading(true);
@@ -65,7 +63,6 @@ export default function BookingsPage() {
     }
   }, []);
 
-  // Handle accept booking request
   const handleAcceptRequest = async (requestId) => {
     try {
       const token = localStorage.getItem('token');
@@ -81,7 +78,7 @@ export default function BookingsPage() {
       );
 
       if (response.ok) {
-        // Refresh requests
+
         fetchPendingRequests(token);
         alert('Booking request accepted successfully!');
       } else {
@@ -92,7 +89,6 @@ export default function BookingsPage() {
     }
   };
 
-  // Handle decline booking request
   const handleDeclineRequest = async (requestId, reason = '') => {
     try {
       const token = localStorage.getItem('token');
@@ -109,7 +105,7 @@ export default function BookingsPage() {
       );
 
       if (response.ok) {
-        // Refresh requests
+
         fetchPendingRequests(token);
         alert('Booking request declined successfully!');
       } else {
@@ -129,11 +125,9 @@ export default function BookingsPage() {
     setIsLoggedIn(true);
     setLoading(false);
 
-    // Fetch initial data
     fetchBookingHistory(token, 1, 'all');
   }, [router, fetchPendingRequests, fetchBookingHistory]);
 
-  // Handle tab switch
   const handleTabSwitch = (tab) => {
     setActiveTab(tab);
     const token = localStorage.getItem('token');
@@ -141,7 +135,6 @@ export default function BookingsPage() {
     fetchBookingHistory(token, 1, filterStatus);
   };
 
-  // Handle filter change
   const handleFilterChange = (status) => {
     setFilterStatus(status);
     setCurrentPage(1);
@@ -158,23 +151,23 @@ export default function BookingsPage() {
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="bg-neutral-50 dark:bg-neutral-900 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Booking Requests</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage your incoming bookings and view booking history</p>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Booking Requests</h1>
+          <p className="text-neutral-600 dark:text-neutral-400">Manage your incoming bookings and view booking history</p>
         </div>
 
-        {/* Booking History */}
+        {}
         <div>
-          {/* Filter Buttons */}
+          {}
           <div className="mb-6 flex flex-wrap gap-2">
             <button
               onClick={() => handleFilterChange('all')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 filterStatus === 'all'
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+                  : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-white hover:bg-neutral-300 dark:hover:bg-neutral-600'
               }`}
             >
               All
@@ -184,7 +177,7 @@ export default function BookingsPage() {
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 filterStatus === 'pending'
                   ? 'bg-yellow-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+                  : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-white hover:bg-neutral-300 dark:hover:bg-neutral-600'
               }`}
             >
               Pending
@@ -194,7 +187,7 @@ export default function BookingsPage() {
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 filterStatus === 'accepted'
                   ? 'bg-green-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+                  : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-white hover:bg-neutral-300 dark:hover:bg-neutral-600'
               }`}
             >
               Accepted
@@ -204,7 +197,7 @@ export default function BookingsPage() {
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 filterStatus === 'declined'
                   ? 'bg-red-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+                  : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-white hover:bg-neutral-300 dark:hover:bg-neutral-600'
               }`}
             >
               Declined
@@ -214,13 +207,13 @@ export default function BookingsPage() {
           {requestsLoading ? (
             <LoadingCard variant="table" title="Loading your bookings..." />
           ) : bookingHistory.length === 0 ? (
-            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
-              <p className="text-gray-600 dark:text-gray-400">No booking history available</p>
+            <div className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg p-8 text-center">
+              <p className="text-neutral-600 dark:text-neutral-400">No booking history available</p>
             </div>
           ) : (
             <div>
-              {/* Table Header */}
-              <div className="hidden md:grid grid-cols-7 gap-4 bg-gray-200 dark:bg-gray-700 p-4 rounded-t-lg font-semibold text-gray-900 dark:text-white text-sm">
+              {}
+              <div className="hidden md:grid grid-cols-7 gap-4 bg-neutral-200 dark:bg-neutral-700 p-4 rounded-t-lg font-semibold text-neutral-900 dark:text-white text-sm">
                 <div>Customer</div>
                 <div>Vehicle</div>
                 <div>Duration</div>
@@ -230,45 +223,45 @@ export default function BookingsPage() {
                 <div>Request ID</div>
               </div>
 
-              {/* Table Rows */}
+              {}
               <div className="space-y-2 md:space-y-0">
                 {bookingHistory.map((request, index) => (
-                  <div 
-                    key={request._id} 
-                    className="grid grid-cols-1 md:grid-cols-7 gap-4 md:gap-4 bg-white dark:bg-gray-800 p-4 md:p-4 border border-gray-200 dark:border-gray-700 md:border-b md:border-l-0 md:border-r-0 md:border-t-0 rounded-lg md:rounded-none items-center text-sm"
+                  <div
+                    key={request._id}
+                    className="grid grid-cols-1 md:grid-cols-7 gap-4 md:gap-4 bg-white dark:bg-neutral-800 p-4 md:p-4 border border-neutral-200 dark:border-neutral-700 md:border-b md:border-l-0 md:border-r-0 md:border-t-0 rounded-lg md:rounded-none items-center text-sm"
                   >
-                    {/* Customer - Mobile Label */}
-                    <div className="md:hidden text-xs text-gray-500 dark:text-gray-400 font-semibold">Customer</div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
+                    {}
+                    <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Customer</div>
+                    <div className="font-semibold text-neutral-900 dark:text-white">
                       {request.userId?.name || 'User'}
                     </div>
 
-                    {/* Vehicle - Mobile Label */}
-                    <div className="md:hidden text-xs text-gray-500 dark:text-gray-400 font-semibold">Vehicle</div>
-                    <div className="text-gray-600 dark:text-gray-400">
+                    {}
+                    <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Vehicle</div>
+                    <div className="text-neutral-600 dark:text-neutral-400">
                       {request.vehicleNumber || 'N/A'}
                     </div>
 
-                    {/* Duration - Mobile Label */}
-                    <div className="md:hidden text-xs text-gray-500 dark:text-gray-400 font-semibold">Duration</div>
-                    <div className="text-gray-600 dark:text-gray-400">
+                    {}
+                    <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Duration</div>
+                    <div className="text-neutral-600 dark:text-neutral-400">
                       {request.estimatedDuration} min
                     </div>
 
-                    {/* Cost - Mobile Label */}
-                    <div className="md:hidden text-xs text-gray-500 dark:text-gray-400 font-semibold">Cost</div>
-                    <div className="font-semibold text-gray-900 dark:text-white">
+                    {}
+                    <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Cost</div>
+                    <div className="font-semibold text-neutral-900 dark:text-white">
                       ₹{request.estimatedCost}
                     </div>
 
-                    {/* Scheduled - Mobile Label */}
-                    <div className="md:hidden text-xs text-gray-500 dark:text-gray-400 font-semibold">Scheduled</div>
-                    <div className="text-gray-600 dark:text-gray-400 text-xs">
+                    {}
+                    <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Scheduled</div>
+                    <div className="text-neutral-600 dark:text-neutral-400 text-xs">
                       {new Date(request.scheduledTime).toLocaleDateString()}
                     </div>
 
-                    {/* Status - Mobile Label */}
-                    <div className="md:hidden text-xs text-gray-500 dark:text-gray-400 font-semibold">Status</div>
+                    {}
+                    <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Status</div>
                     <div>
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold inline-block ${
                         request.status === 'pending'
@@ -281,16 +274,16 @@ export default function BookingsPage() {
                       </span>
                     </div>
 
-                    {/* Request ID - Mobile Label */}
-                    <div className="md:hidden text-xs text-gray-500 dark:text-gray-400 font-semibold">Request ID</div>
-                    <div className="text-gray-600 dark:text-gray-400 text-xs font-mono">
+                    {}
+                    <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Request ID</div>
+                    <div className="text-neutral-600 dark:text-neutral-400 text-xs font-mono">
                       {request._id?.slice(-8) || request.requestId}
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Pagination */}
+              {}
               {totalPages > 1 && (
                 <div className="mt-6 flex justify-center gap-2">
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
@@ -304,7 +297,7 @@ export default function BookingsPage() {
                       className={`px-3 py-2 rounded-lg font-medium transition-colors ${
                         currentPage === page
                           ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300'
+                          : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-white hover:bg-neutral-300'
                       }`}
                     >
                       {page}

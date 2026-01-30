@@ -3,28 +3,26 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// Get all pending hosts for verification
 const getPendingHosts = async (req, res) => {
   try {
     const pendingHosts = await Host.find({ verificationStatus: 'pending' })
       .populate('userId', 'name email phone profilePicture')
       .sort({ createdAt: -1 });
 
-    res.json({ 
+    res.json({
       hosts: pendingHosts,
       count: pendingHosts.length
     });
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch pending hosts' });
   }
-};  
+};
 
-// Get all hosts with their verification status
 const getAllHostsForAdmin = async (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
-    
+
     let filter = {};
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
       filter.verificationStatus = status;
@@ -38,8 +36,8 @@ const getAllHostsForAdmin = async (req, res) => {
 
     const totalHosts = await Host.countDocuments(filter);
 
-    res.json({ 
-      hosts, 
+    res.json({
+      hosts,
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(totalHosts / limit),
@@ -53,31 +51,29 @@ const getAllHostsForAdmin = async (req, res) => {
   }
 };
 
-// Approve a host
 const approveHost = async (req, res) => {
   try {
     const { hostId } = req.params;
-    
+
     const host = await Host.findById(hostId).populate('userId', 'name email');
     if (!host) {
       return res.status(404).json({ message: 'Host not found' });
     }
 
     if (host.verificationStatus !== 'pending') {
-      return res.status(400).json({ 
-        message: `Host is already ${host.verificationStatus}` 
+      return res.status(400).json({
+        message: `Host is already ${host.verificationStatus}`
       });
     }
 
-    // Update host status
     host.verificationStatus = 'approved';
     host.isVerified = true;
-    host.isActive = true; // Make host discoverable
-    host.rejectionReason = undefined; // Clear any previous rejection reason
+    host.isActive = true;
+    host.rejectionReason = undefined;
     await host.save();
 
-    res.json({ 
-      message: 'Host approved successfully', 
+    res.json({
+      message: 'Host approved successfully',
       host: {
         id: host._id,
         hostName: host.hostName,
@@ -90,12 +86,11 @@ const approveHost = async (req, res) => {
   }
 };
 
-// Reject a host
 const rejectHost = async (req, res) => {
   try {
     const { hostId } = req.params;
     const { reason } = req.body;
-    
+
     if (!reason || reason.trim().length === 0) {
       return res.status(400).json({ message: 'Rejection reason is required' });
     }
@@ -106,19 +101,18 @@ const rejectHost = async (req, res) => {
     }
 
     if (host.verificationStatus !== 'pending') {
-      return res.status(400).json({ 
-        message: `Host is already ${host.verificationStatus}` 
+      return res.status(400).json({
+        message: `Host is already ${host.verificationStatus}`
       });
     }
 
-    // Update host status
     host.verificationStatus = 'rejected';
     host.isVerified = false;
     host.rejectionReason = reason.trim();
     await host.save();
 
-    res.json({ 
-      message: 'Host rejected successfully', 
+    res.json({
+      message: 'Host rejected successfully',
       host: {
         id: host._id,
         hostName: host.hostName,
@@ -132,27 +126,26 @@ const rejectHost = async (req, res) => {
   }
 };
 
-// Get all users for admin
 const getAllUsers = async (req, res) => {
   try {
     const { page = 1, limit = 10, role } = req.query;
     const skip = (page - 1) * limit;
-    
+
     let filter = {};
     if (role && ['user', 'admin'].includes(role)) {
       filter.role = role;
     }
 
     const users = await User.find(filter)
-      .select('-password') // Exclude password field
+      .select('-password')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
     const totalUsers = await User.countDocuments(filter);
 
-    res.json({ 
-      users, 
+    res.json({
+      users,
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(totalUsers / limit),
@@ -166,7 +159,6 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-// Get admin dashboard statistics
 const getAdminStats = async (req, res) => {
   try {
     const [
@@ -198,54 +190,47 @@ const getAdminStats = async (req, res) => {
   }
 };
 
-// Simple admin login with just email and password
 const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validate required fields
     if (!email || !password) {
-      return res.status(400).json({ 
-        message: 'Email and password are required' 
+      return res.status(400).json({
+        message: 'Email and password are required'
       });
     }
 
-    // Find user by email
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
-      return res.status(401).json({ 
-        message: 'Invalid credentials' 
+      return res.status(401).json({
+        message: 'Invalid credentials'
       });
     }
 
-    // Check if user is admin
     if (user.role !== 'admin') {
-      return res.status(403).json({ 
-        message: 'Admin access required' 
+      return res.status(401).json({
+        message: 'User not found'
       });
     }
 
-    // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return res.status(401).json({ 
-        message: 'Invalid credentials' 
+      return res.status(401).json({
+        message: 'Invalid credentials'
       });
     }
 
-    // Generate JWT token
     const token = jwt.sign(
-      { 
+      {
         id: user._id,
-        userId: user._id, 
-        email: user.email, 
-        role: user.role 
+        userId: user._id,
+        email: user.email,
+        role: user.role
       },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    // Update last login
     user.lastLogin = new Date();
     await user.save();
 
@@ -261,11 +246,18 @@ const adminLogin = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error' });
+    try {
+      console.error('Admin login error:', error.message);
+    } catch (e) {
+
+    }
+    res.status(500).json({
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? 'Check server logs' : undefined
+    });
   }
 };
 
-// Get all admins
 const getAllAdmins = async (req, res) => {
   try {
     const admins = await User.find({ role: 'admin' }).select('-password');
@@ -275,7 +267,6 @@ const getAllAdmins = async (req, res) => {
   }
 };
 
-// Add new admin
 const addAdmin = async (req, res) => {
   try {
     const { email, password, name } = req.body;
@@ -304,7 +295,6 @@ const addAdmin = async (req, res) => {
   }
 };
 
-// Delete admin
 const deleteAdmin = async (req, res) => {
   try {
     const { adminId } = req.params;

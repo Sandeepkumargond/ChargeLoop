@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { GoogleLogin } from '@react-oauth/google';
 import { useNotification } from '../../contexts/NotificationContext';
 
@@ -10,19 +11,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  const [loginType, setLoginType] = useState('user'); // 'user' or 'host'
+  const [loginType, setLoginType] = useState('user');
   const router = useRouter();
   const { showSuccess, showError: showErrorToast } = useNotification();
 
   useEffect(() => {
     setMounted(true);
-    
-    // Check if user is already logged in
+
     const token = localStorage.getItem('token');
     const userRole = localStorage.getItem('userRole');
-    
+
     if (token) {
-      // Redirect based on user role
+
       if (userRole === 'host') {
         router.push('/host');
       } else if (userRole === 'admin') {
@@ -39,7 +39,7 @@ const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
 
@@ -55,7 +55,7 @@ const handleSubmit = async (e) => {
           loginType: loginType,
         }),
       });
-        
+
       if (!response.ok) {
         const errorData = await response.json();
         setError(errorData.msg || 'Login failed');
@@ -63,21 +63,18 @@ const handleSubmit = async (e) => {
         setLoading(false);
         return;
       }
-        
+
       const result = await response.json();
-      
-      // Store the token, user email, and role in localStorage
+
       if (result.token) {
         localStorage.setItem('token', result.token);
         localStorage.setItem('userEmail', data.email);
-        localStorage.setItem('userRole', result.user.role); // Store the actual user role from backend
-        
-        // Dispatch auth change event to update navbar
+        localStorage.setItem('userRole', result.user.role);
+
         window.dispatchEvent(new Event('authChange'));
-        
+
         showSuccess('Login successful! Redirecting...');
-        
-        // Redirect based on actual user role from backend
+
         if (result.user.role === 'host') {
           router.push('/host');
         } else if (result.user.role === 'admin') {
@@ -97,7 +94,7 @@ const handleSubmit = async (e) => {
   const handleGoogleLogin = async (credentialResponse) => {
     setLoading(true);
     setError('');
-    
+
     try {
       if (!credentialResponse?.credential) {
         throw new Error('Google authentication failed - no credential received. Please ensure your Google Cloud Console is properly configured.');
@@ -127,9 +124,9 @@ const handleSubmit = async (e) => {
       const result = await response.json();
 
       if (result.token) {
-        // Check user type based on email
+
         const userEmail = result.user.email;
-        let userType = 'user'; // default
+        let userType = 'user';
 
         try {
           const userTypeResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/check-user-type`, {
@@ -143,22 +140,19 @@ const handleSubmit = async (e) => {
 
           if (userTypeResponse.ok) {
             const userTypeData = await userTypeResponse.json();
-            userType = userTypeData.userType || 'user'; // 'user', 'host', or 'admin'
+            userType = userTypeData.userType || 'user';
           }
         } catch (error) {
         }
 
-        // Store the token and user info
         localStorage.setItem('token', result.token);
         localStorage.setItem('userEmail', userEmail);
         localStorage.setItem('userRole', userType);
-        
-        // Dispatch auth change event to update navbar
+
         window.dispatchEvent(new Event('authChange'));
-        
+
         showSuccess('Login successful! Redirecting...');
-        
-        // Redirect based on user type
+
         if (userType === 'host') {
           router.push('/host');
         } else if (userType === 'admin') {
@@ -177,23 +171,22 @@ const handleSubmit = async (e) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-950 dark:via-gray-900 dark:to-blue-950 flex items-center justify-center px-4 sm:px-6 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-blue-950 flex items-center justify-center px-4 sm:px-6 py-12">
       <div className="w-full max-w-md">
-        {/* Logo & Header */}
-        
+        {}
 
-        {/* Main Form Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-700">
-          
-          {/* Login Type Tabs */}
-          <div className="mb-8 flex gap-2 bg-gray-100 dark:bg-gray-700 p-1.5 rounded-xl">
+        {}
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl p-8 border border-neutral-100 dark:border-neutral-700">
+
+          {}
+          <div className="mb-8 flex gap-2 bg-neutral-100 dark:bg-neutral-700 p-1.5 rounded-xl">
             <button
               type="button"
               onClick={() => setLoginType('user')}
               className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all duration-200 ${
                 loginType === 'user'
-                  ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-md'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+                  ? 'bg-white dark:bg-neutral-800 text-blue-600 dark:text-blue-400 shadow-md'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100'
               }`}
             >
               User
@@ -203,15 +196,15 @@ const handleSubmit = async (e) => {
               onClick={() => setLoginType('host')}
               className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all duration-200 ${
                 loginType === 'host'
-                  ? 'bg-white dark:bg-gray-800 text-orange-600 dark:text-orange-400 shadow-md'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+                  ? 'bg-white dark:bg-neutral-800 text-orange-600 dark:text-orange-400 shadow-md'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100'
               }`}
             >
               Host
             </button>
           </div>
 
-          {/* Error Message */}
+          {}
           {error && (
             <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
               <div className="flex gap-3">
@@ -223,27 +216,27 @@ const handleSubmit = async (e) => {
             </div>
           )}
 
-          {/* Form */}
+          {}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2.5">Email Address</label>
+              <label className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2.5">Email Address</label>
               <input
                 type="email"
                 name="email"
                 placeholder="you@example.com"
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors text-sm"
+                className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm"
                 suppressHydrationWarning
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2.5">Password</label>
+              <label className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2.5">Password</label>
               <input
                 type="password"
                 name="password"
                 placeholder="••••••••"
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors text-sm"
+                className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm"
                 suppressHydrationWarning
                 required
               />
@@ -255,13 +248,13 @@ const handleSubmit = async (e) => {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
+                  className="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 text-blue-600 focus:ring-blue-500 dark:bg-neutral-700"
                 />
-                <span className="ml-2.5 text-sm text-gray-700 dark:text-gray-300">Remember me</span>
+                <span className="ml-2.5 text-sm text-neutral-700 dark:text-neutral-300">Remember me</span>
               </label>
-              <a href="#" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
+              <Link href="/forgot-password" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
                 Forgot password?
-              </a>
+              </Link>
             </div>
 
             <button
@@ -287,14 +280,14 @@ const handleSubmit = async (e) => {
             </button>
           </form>
 
-          {/* Divider */}
+          {}
           <div className="my-6 flex items-center gap-3">
-            <div className="flex-1 h-px bg-gray-300 dark:bg-gray-600"></div>
-            <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">OR</span>
-            <div className="flex-1 h-px bg-gray-300 dark:bg-gray-600"></div>
+            <div className="flex-1 h-px bg-neutral-300 dark:bg-neutral-600"></div>
+            <span className="text-xs text-neutral-600 dark:text-neutral-400 font-medium">OR</span>
+            <div className="flex-1 h-px bg-neutral-300 dark:bg-neutral-600"></div>
           </div>
 
-          {/* Google Login */}
+          {}
           <div className="mb-6">
             <GoogleLogin
               onSuccess={handleGoogleLogin}
@@ -308,8 +301,8 @@ const handleSubmit = async (e) => {
           </div>
         </div>
 
-        {/* Sign Up Link */}
-        <p className="text-center text-gray-600 dark:text-gray-400 text-sm mt-6">
+        {}
+        <p className="text-center text-neutral-600 dark:text-neutral-400 text-sm mt-6">
           Don't have an account?{' '}
           <a href="/signup" className="text-blue-600 dark:text-blue-400 font-semibold hover:text-blue-700 dark:hover:text-blue-300">
             Sign up for free

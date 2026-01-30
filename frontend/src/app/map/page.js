@@ -8,8 +8,8 @@ const MapView = dynamic(() => import('../../components/MapView'), {
 
 export default function MapPage() {
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 w-full">
-      {/* Map Container - Fills remaining space without footer overlap */}
+    <div className="bg-neutral-50 dark:bg-neutral-900 w-full">
+      {}
       <div className="w-full h-[calc(100vh-200px)]">
         <div className="w-full h-full">
           <MapView />

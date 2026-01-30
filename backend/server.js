@@ -15,7 +15,6 @@ const reviewsRoutes = require('./routes/reviews');
 
 const app = express();
 
-// CORS configuration
 app.use(cors());
 
 app.use(express.json());
@@ -33,7 +32,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/reviews', reviewsRoutes);
 
-// Health Check Endpoint
 app.get('/api/health', (req, res) => {
   const healthcheck = {
     uptime: process.uptime(),

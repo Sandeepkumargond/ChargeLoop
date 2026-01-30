@@ -7,8 +7,8 @@ export default function ChargingHistoryPage() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("all"); // all, completed, ongoing, cancelled, accepted, pending
-  const [sortBy, setSortBy] = useState("newest"); // newest, oldest, duration, cost
+  const [filter, setFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
   const router = useRouter();
 
   useEffect(() => {
@@ -74,7 +74,7 @@ export default function ChargingHistoryPage() {
       case "declined":
         return "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300";
       default:
-        return "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300";
+        return "bg-neutral-100 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-300";
     }
   };
 
@@ -143,10 +143,10 @@ export default function ChargingHistoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded border border-gray-200 dark:border-gray-700">
-          <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-          <p className="text-gray-600 dark:text-gray-300 mt-3 text-sm">
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900">
+        <div className="bg-white dark:bg-neutral-800 p-6 rounded border border-neutral-200 dark:border-neutral-700">
+          <div className="w-6 h-6 border-2 border-neutral-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+          <p className="text-neutral-600 dark:text-neutral-300 mt-3 text-sm">
             Loading...
           </p>
         </div>
@@ -156,10 +156,10 @@ export default function ChargingHistoryPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded border border-gray-200 dark:border-gray-700 max-w-md w-full mx-4">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white mb-2">Error Loading History</h2>
-          <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">{error}</p>
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900">
+        <div className="bg-white dark:bg-neutral-800 p-6 rounded border border-neutral-200 dark:border-neutral-700 max-w-md w-full mx-4">
+          <h2 className="text-base font-bold text-neutral-900 dark:text-white mb-2">Error Loading History</h2>
+          <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
             className="w-full bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 transition font-medium"
@@ -172,43 +172,43 @@ export default function ChargingHistoryPage() {
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="bg-neutral-50 dark:bg-neutral-900 min-h-screen">
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-            {/* Header Section */}
-            <div className="pb-6 border-b border-gray-200 dark:border-gray-700 mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Charging History</h1>
-              <p className="text-sm text-gray-600 dark:text-gray-300">View all your charging sessions</p>
+            {}
+            <div className="pb-6 border-b border-neutral-200 dark:border-neutral-700 mb-6">
+              <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-1">Charging History</h1>
+              <p className="text-sm text-neutral-600 dark:text-neutral-300">View all your charging sessions</p>
         </div>
 
-        {/* Quick Stats - Inline */}
-        <div className="py-6 grid grid-cols-2 md:grid-cols-4 gap-4 border-b border-gray-200 dark:border-gray-700 mb-6">
+        {}
+        <div className="py-6 grid grid-cols-2 md:grid-cols-4 gap-4 border-b border-neutral-200 dark:border-neutral-700 mb-6">
           <div>
-            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Total Bookings</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">{bookings.length}</p>
+            <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium">Total Bookings</p>
+            <p className="text-xl font-bold text-neutral-900 dark:text-white mt-1">{bookings.length}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Completed</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">{bookings.filter((s) => s.status === "completed").length}</p>
+            <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium">Completed</p>
+            <p className="text-xl font-bold text-neutral-900 dark:text-white mt-1">{bookings.filter((s) => s.status === "completed").length}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Energy Used</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">{bookings.reduce((sum, s) => sum + (s.energyConsumed || 0), 0).toFixed(1)} kWh</p>
+            <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium">Energy Used</p>
+            <p className="text-xl font-bold text-neutral-900 dark:text-white mt-1">{bookings.reduce((sum, s) => sum + (s.energyConsumed || 0), 0).toFixed(1)} kWh</p>
           </div>
           <div>
-            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Total Spent</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">₹{bookings.reduce((sum, s) => sum + (s.actualCost || s.estimatedCost || 0), 0)}</p>
+            <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium">Total Spent</p>
+            <p className="text-xl font-bold text-neutral-900 dark:text-white mt-1">₹{bookings.reduce((sum, s) => sum + (s.actualCost || s.estimatedCost || 0), 0)}</p>
           </div>
         </div>
 
-        {/* Filters Section */}
-        <div className="py-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-gray-200 dark:border-gray-700 mb-6">
+        {}
+        <div className="py-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-neutral-200 dark:border-neutral-700 mb-6">
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+              <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Status</label>
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="px-2 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="px-2 py-1 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value="all">All</option>
                 <option value="pending">Pending</option>
@@ -220,11 +220,11 @@ export default function ChargingHistoryPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Sort</label>
+              <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Sort</label>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-2 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="px-2 py-1 border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value="newest">Newest</option>
                 <option value="oldest">Oldest</option>
@@ -233,15 +233,15 @@ export default function ChargingHistoryPage() {
               </select>
             </div>
           </div>
-          <span className="text-xs text-gray-600 dark:text-gray-400">{sortedSessions.length} of {bookings.length}</span>
+          <span className="text-xs text-neutral-600 dark:text-neutral-400">{sortedSessions.length} of {bookings.length}</span>
         </div>
 
-        {/* Sessions Table */}
+        {}
         <div>
           {sortedSessions.length === 0 ? (
             <div className="text-center py-12">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">No Charging Sessions</h3>
-              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">No bookings yet</p>
+              <h3 className="text-base font-semibold text-neutral-900 dark:text-white mb-1">No Charging Sessions</h3>
+              <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-4">No bookings yet</p>
               <button
                 onClick={() => router.push("/map")}
                 className="bg-blue-600 text-white px-4 py-1.5 rounded hover:bg-blue-700 transition text-sm font-medium"
@@ -254,45 +254,45 @@ export default function ChargingHistoryPage() {
               {sortedSessions.map((booking) => (
                 <div
                   key={booking._id || booking.id}
-                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-4"
+                  className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded p-4"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    {/* Booking Details */}
+                    {}
                     <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Station</p>
-                      <h3 className="font-medium text-gray-900 dark:text-white text-sm">{booking.hostName}</h3>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{booking.hostLocation}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{booking.chargerType}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Station</p>
+                      <h3 className="font-medium text-neutral-900 dark:text-white text-sm">{booking.hostName}</h3>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">{booking.hostLocation}</p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-1">{booking.chargerType}</p>
                     </div>
-                    
-                    {/* Time & Duration */}
+
+                    {}
                     <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Duration</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDuration(booking.actualDuration || booking.estimatedDuration)}</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{formatDateTime(booking.scheduledTime)}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Duration</p>
+                      <p className="text-sm font-medium text-neutral-900 dark:text-white">{formatDuration(booking.actualDuration || booking.estimatedDuration)}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">{formatDateTime(booking.scheduledTime)}</p>
                     </div>
-                    
-                    {/* Energy & Cost */}
+
+                    {}
                     <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Energy • Cost</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{booking.energyConsumed || 0} kWh • ₹{booking.actualCost || booking.estimatedCost || 0}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Energy • Cost</p>
+                      <p className="text-sm font-medium text-neutral-900 dark:text-white">{booking.energyConsumed || 0} kWh • ₹{booking.actualCost || booking.estimatedCost || 0}</p>
                     </div>
-                    
-                    {/* Status */}
+
+                    {}
                     <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Status</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Status</p>
                       <span className={`px-2 py-0.5 rounded text-xs font-medium inline-block ${getStatusColor(booking.status)}`}>
                         {getStatusIcon(booking.status)}
                       </span>
                     </div>
 
-                    {/* Actions */}
+                    {}
                     <div className="flex gap-2 items-center justify-start lg:justify-end">
-                      <button className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                      <button className="text-xs px-2 py-1 bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded hover:bg-neutral-200 dark:hover:bg-neutral-600 transition">
                         Details
                       </button>
                       {booking.status === "completed" && (
-                        <button className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                        <button className="text-xs px-2 py-1 bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded hover:bg-neutral-200 dark:hover:bg-neutral-600 transition">
                           Receipt
                         </button>
                       )}
@@ -304,10 +304,10 @@ export default function ChargingHistoryPage() {
           )}
         </div>
 
-        {/* Load More */}
+        {}
         {sortedSessions.length > 0 && (
           <div className="text-center py-4">
-            <button className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition text-xs font-medium">
+            <button className="text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition text-xs font-medium">
               Load More
             </button>
           </div>

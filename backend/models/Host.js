@@ -56,13 +56,13 @@ const HostSchema = new mongoose.Schema({
   amenities: [{
     type: String,
     enum: [
-      'Parking', 'WiFi', 'Cafe', 'Restaurant', 'Security', 
+      'Parking', 'WiFi', 'Cafe', 'Restaurant', 'Security',
       '24/7 Available', 'CCTV', 'Washroom', 'Waiting Area', 'Food Court'
     ]
   }],
   description: String,
-  availableFrom: String, // Time format: "09:00"
-  availableTo: String,   // Time format: "21:00"
+  availableFrom: String,
+  availableTo: String,
   available: {
     type: Boolean,
     default: true
@@ -116,16 +116,13 @@ const HostSchema = new mongoose.Schema({
   }
 });
 
-// Index for geospatial queries
 HostSchema.index({ "location.coordinates": "2dsphere" });
 
-// Update the updatedAt field on save
 HostSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
 
-// Calculate average rating
 HostSchema.methods.updateRating = function(newRating) {
   const totalRating = (this.rating.average * this.rating.count) + newRating;
   this.rating.count += 1;

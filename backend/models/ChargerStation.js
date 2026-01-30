@@ -104,10 +104,8 @@ const chargerStationSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for geospatial queries
 chargerStationSchema.index({ "location.coordinates": "2dsphere" });
 
-// Index for search optimization
 chargerStationSchema.index({ city: 1, state: 1, availability: 1 });
 
 module.exports = mongoose.model('ChargerStation', chargerStationSchema);

@@ -11,22 +11,18 @@ export default function HostPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState('');
-  
-  // Registration Status States
+
   const [registrationStatus, setRegistrationStatus] = useState(null);
   const [regStatusLoading, setRegStatusLoading] = useState(false);
   const [regStatusError, setRegStatusError] = useState('');
 
-  // Map Visibility States
   const [isVisibleOnMap, setIsVisibleOnMap] = useState(true);
   const [toggleLoading, setToggleLoading] = useState(false);
 
-  // Booking Requests States
   const [bookingRequests, setBookingRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsError, setRequestsError] = useState('');
 
-  // Dashboard Stats
   const [stats, setStats] = useState({
     totalChargers: 0,
     totalEarnings: 0,
@@ -35,28 +31,6 @@ export default function HostPage() {
   });
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  // Auth Check
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const email = localStorage.getItem('userEmail');
-
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
-    setIsLoggedIn(true);
-    setUserEmail(email);
-    setLoading(false);
-
-    // Initial fetch only
-    fetchRegistrationStatus();
-    fetchPendingRequests();
-
-    return () => {};
-  }, [router]);
-
-  // Fetch Registration Status
   const fetchRegistrationStatus = useCallback(async () => {
     setRegStatusLoading(true);
     setRegStatusError('');
@@ -83,7 +57,6 @@ export default function HostPage() {
     }
   }, []);
 
-  // Fetch Pending Booking Requests
   const fetchPendingRequests = useCallback(async () => {
     setRequestsLoading(true);
     setRequestsError('');
@@ -107,7 +80,29 @@ export default function HostPage() {
     }
   }, []);
 
-  // Handle Accept Request
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const email = localStorage.getItem('userEmail');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setIsLoggedIn(true);
+    setUserEmail(email);
+    setLoading(false);
+
+    fetchRegistrationStatus();
+    fetchPendingRequests();
+
+    const statusInterval = setInterval(() => {
+      fetchRegistrationStatus();
+    }, 10000);
+
+    return () => clearInterval(statusInterval);
+  }, [router, fetchRegistrationStatus, fetchPendingRequests]);
+
   const handleAcceptRequest = async (requestId) => {
     try {
       const token = localStorage.getItem('token');
@@ -124,7 +119,7 @@ export default function HostPage() {
       if (!response.ok) {
         throw new Error(data.msg || data.error || 'Failed to accept request');
       }
-      
+
       showSuccess('Booking request accepted successfully!');
       fetchPendingRequests();
     } catch (err) {
@@ -132,12 +127,11 @@ export default function HostPage() {
     }
   };
 
-  // Handle Decline Request
   const handleDeclineRequest = async (requestId) => {
     try {
       const token = localStorage.getItem('token');
       const reason = prompt('Enter reason for declining (optional):');
-      
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/charging/requests/${requestId}/decline`, {
         method: 'PUT',
         headers: {
@@ -152,7 +146,7 @@ export default function HostPage() {
       if (!response.ok) {
         throw new Error(data.msg || data.error || 'Failed to decline request');
       }
-      
+
       showSuccess('Booking request declined successfully!');
       fetchPendingRequests();
     } catch (err) {
@@ -160,18 +154,17 @@ export default function HostPage() {
     }
   };
 
-  // Toggle Map Visibility
   const toggleMapVisibility = async () => {
     try {
       setToggleLoading(true);
       const token = localStorage.getItem('token');
       const hostId = registrationStatus?._id;
-      
+
       if (!hostId) {
         showError('Host ID not found');
         return;
       }
-      
+
       const newVisibility = !isVisibleOnMap;
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/${hostId}/visibility`, {
         method: 'PUT',
@@ -183,14 +176,14 @@ export default function HostPage() {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to toggle visibility');
       }
-      
+
       setIsVisibleOnMap(data.isVisibleOnMap);
-      const statusMessage = data.isVisibleOnMap 
-        ? 'Your charger is now visible on the map' 
+      const statusMessage = data.isVisibleOnMap
+        ? 'Your charger is now visible on the map'
         : 'Your charger has been hidden from the map';
       showSuccess(statusMessage);
     } catch (err) {
@@ -200,7 +193,6 @@ export default function HostPage() {
     }
   };
 
-  // Refresh Data
   const refreshData = useCallback(async () => {
     await Promise.all([fetchRegistrationStatus(), fetchPendingRequests()]);
     setLastUpdate(new Date());
@@ -219,29 +211,29 @@ export default function HostPage() {
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 h-screen flex flex-col">
+    <div className="bg-neutral-50 dark:bg-neutral-900 h-screen flex flex-col">
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex-1 overflow-y-auto">
         <div className="py-6 sm:py-8">
-          {/* Header */}
+          {}
           <div className="mb-8 flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Host Dashboard</h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Manage your charging stations</p>
+              <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-1">Host Dashboard</h1>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">Manage your charging stations</p>
             </div>
             {registrationStatus?.verificationStatus === 'approved' && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Map Visibility</span>
+                <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Map Visibility</span>
                 <button
                   onClick={toggleMapVisibility}
                   disabled={toggleLoading}
                   className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                    isVisibleOnMap ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 hover:bg-gray-400'
+                    isVisibleOnMap ? 'bg-blue-600 hover:bg-blue-700' : 'bg-neutral-300 hover:bg-neutral-400'
                   } ${toggleLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} focus:outline-none`}
                   title={isVisibleOnMap ? 'Hide from map' : 'Show on map'}
                 >
                   <span
                     className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                      isVisibleOnMap ? 'translate-x-6' : 'translate-x-1'
+                      isVisibleOnMap ? 'tranneutral-x-6' : 'tranneutral-x-1'
                     }`}
                   />
                 </button>
@@ -249,63 +241,67 @@ export default function HostPage() {
             )}
           </div>
 
-        {/* Quick Stats */}
+        {}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <p className="text-gray-600 dark:text-gray-400 text-xs font-medium mb-1">Pending</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.pendingRequests}</p>
+          <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 p-4">
+            <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-1">Pending</p>
+            <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.pendingRequests}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <p className="text-gray-600 dark:text-gray-400 text-xs font-medium mb-1">Chargers</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalChargers}</p>
+          <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 p-4">
+            <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-1">Chargers</p>
+            <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.totalChargers}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <p className="text-gray-600 dark:text-gray-400 text-xs font-medium mb-1">Earnings</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">₹{stats.totalEarnings}</p>
+          <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 p-4">
+            <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-1">Earnings</p>
+            <p className="text-2xl font-bold text-neutral-900 dark:text-white">₹{stats.totalEarnings}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-            <p className="text-gray-600 dark:text-gray-400 text-xs font-medium mb-1">Active</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.activeBookings}</p>
+          <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 p-4">
+            <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-1">Active</p>
+            <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.activeBookings}</p>
           </div>
         </div>
 
-        {/* Pending Booking Requests Section */}
+        {}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Pending Requests</h2>
-            <button onClick={refreshData} className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors">
+            <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Pending Requests</h2>
+            <button onClick={refreshData} className="px-3 py-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded transition-colors">
               Refresh
             </button>
           </div>
 
-          {requestsLoading ? (
+          {!registrationStatus || registrationStatus.verificationStatus !== 'approved' ? (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded p-6 text-center">
+              <p className="text-blue-800 dark:text-blue-300 text-sm font-medium">Complete Registration first</p>
+            </div>
+          ) : requestsLoading ? (
             <LoadingCard variant="table" title="Loading..." />
           ) : requestsError ? (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded p-4">
               <p className="text-red-800 dark:text-red-300 text-sm">{requestsError}</p>
             </div>
           ) : bookingRequests.length === 0 ? (
-            <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-6 text-center">
-              <p className="text-gray-600 dark:text-gray-400 text-sm">No pending requests</p>
+            <div className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded p-6 text-center">
+              <p className="text-neutral-600 dark:text-neutral-400 text-sm">No pending requests</p>
             </div>
           ) : (
             <div className="space-y-3">
               {bookingRequests.filter(req => req.status === 'pending').map(request => (
-                <div key={request._id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-4">
+                <div key={request._id} className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded p-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">User</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{request.userId?.name || 'User'}</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">{request.vehicleNumber}</p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">User</p>
+                      <p className="text-sm font-medium text-neutral-900 dark:text-white">{request.userId?.name || 'User'}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400">{request.vehicleNumber}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Booking</p>
-                      <p className="text-sm text-gray-900 dark:text-white">{request.estimatedDuration} min • ₹{request.estimatedCost}</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">{new Date(request.scheduledTime).toLocaleDateString()}</p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Booking</p>
+                      <p className="text-sm text-neutral-900 dark:text-white">{request.estimatedDuration} min • ₹{request.estimatedCost}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400">{new Date(request.scheduledTime).toLocaleDateString()}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Charger</p>
-                      <p className="text-sm text-gray-900 dark:text-white">{request.chargerType}</p>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Charger</p>
+                      <p className="text-sm text-neutral-900 dark:text-white">{request.chargerType}</p>
                     </div>
                   </div>
 
@@ -335,9 +331,9 @@ export default function HostPage() {
           )}
         </div>
 
-        {/* Registration Status Section */}
+        {}
         <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Host Status</h2>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-4">Host Status</h2>
 
           {regStatusLoading ? (
             <LoadingCard variant="table" title="Loading..." />
@@ -347,8 +343,8 @@ export default function HostPage() {
             </div>
           ) : !registrationStatus ? (
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded p-6 text-center">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Complete Registration</h3>
-              <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">Set up your charger to start earning</p>
+              <h3 className="font-semibold text-neutral-900 dark:text-white mb-2">Complete Registration</h3>
+              <p className="text-sm text-neutral-700 dark:text-neutral-300 mb-4">Set up your charger to start earning</p>
               <button
                 onClick={() => router.push('/host/register')}
                 className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors"
@@ -361,49 +357,44 @@ export default function HostPage() {
               <div className={`rounded border p-4 ${
                 registrationStatus.verificationStatus === 'approved'
                   ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+                  : registrationStatus.verificationStatus === 'rejected'
+                  ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
                   : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700'
               }`}>
                 <h3 className={`font-semibold text-sm mb-1 ${
                   registrationStatus.verificationStatus === 'approved'
                     ? 'text-green-900 dark:text-green-300'
+                    : registrationStatus.verificationStatus === 'rejected'
+                    ? 'text-red-900 dark:text-red-300'
                     : 'text-yellow-900 dark:text-yellow-300'
                 }`}>
-                  {registrationStatus.verificationStatus === 'approved' ? 'Approved' : 'Pending Review'}
+                  {registrationStatus.verificationStatus === 'approved' 
+                    ? 'Approved' 
+                    : registrationStatus.verificationStatus === 'rejected'
+                    ? 'Rejected'
+                    : 'Pending Review'}
                 </h3>
                 <p className={`text-xs ${
                   registrationStatus.verificationStatus === 'approved'
                     ? 'text-green-800 dark:text-green-400'
+                    : registrationStatus.verificationStatus === 'rejected'
+                    ? 'text-red-800 dark:text-red-400'
                     : 'text-yellow-800 dark:text-yellow-400'
                 }`}>
                   {registrationStatus.verificationStatus === 'approved'
                     ? 'You can accept bookings now'
+                    : registrationStatus.verificationStatus === 'rejected'
+                    ? 'Your application was rejected'
                     : 'Your registration is under review'}
                 </p>
+                {registrationStatus.verificationStatus === 'rejected' && registrationStatus.rejectionReason && (
+                  <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-700">
+                    <p className="text-xs font-semibold text-red-900 dark:text-red-300 mb-1">Reason:</p>
+                    <p className="text-xs text-red-800 dark:text-red-400">{registrationStatus.rejectionReason}</p>
+                  </div>
+                )}
               </div>
 
-              {registrationStatus && (
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-4">
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-3 text-sm">Charger Info</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400 mb-1">Type</p>
-                      <p className="text-gray-900 dark:text-white font-medium">{registrationStatus.chargerType || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400 mb-1">Rate</p>
-                      <p className="text-gray-900 dark:text-white font-medium">₹{registrationStatus.pricePerHour || '0'}/hr</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400 mb-1">Location</p>
-                      <p className="text-gray-900 dark:text-white font-medium">{registrationStatus.location?.address?.split(',')[0] || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400 mb-1">Rating</p>
-                      <p className="text-gray-900 dark:text-white font-medium">{registrationStatus.rating?.average || '0'}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>

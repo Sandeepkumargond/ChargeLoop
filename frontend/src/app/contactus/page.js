@@ -33,7 +33,7 @@ export default function ContactPage() {
     setShowModal(false);
     setModalContent({ status: '', message: '' });
     try {
-      // Use the backend API endpoint instead of client-side email service
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/contact`, {
         method: 'POST',
         headers: {
@@ -67,16 +67,12 @@ export default function ContactPage() {
     }
   };
 
- 
-
-
-
   return (
     <>
-      {/* Modal Pop-up for status */}
+      {}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className={`bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center border-2 ${modalContent.status === 'success' ? 'border-green-400' : 'border-red-400'}`}>
+          <div className={`bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center border-2 ${modalContent.status === 'success' ? 'border-green-400' : 'border-red-400'}`}>
             <div className="mb-4">
               {modalContent.status === 'success' ? (
                 <div className="text-green-500 text-4xl font-bold">✓</div>
@@ -85,7 +81,7 @@ export default function ContactPage() {
               )}
             </div>
             <h3 className={`text-xl font-bold mb-2 ${modalContent.status === 'success' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>{modalContent.status === 'success' ? 'Success' : 'Error'}</h3>
-            <p className="mb-6 text-gray-700 dark:text-gray-200">{modalContent.message}</p>
+            <p className="mb-6 text-neutral-700 dark:text-neutral-200">{modalContent.message}</p>
             <button
               onClick={() => setShowModal(false)}
               className="bg-green-500 dark:bg-green-700 text-white px-6 py-2 rounded-full font-semibold hover:bg-green-600 dark:hover:bg-green-800 transition-all duration-300"
@@ -95,47 +91,47 @@ export default function ContactPage() {
           </div>
         </div>
       )}
-      
-      {/* Contact Form */}
-      <div className="py-12 sm:py-16 lg:py-20 bg-white dark:bg-gray-800 px-4 sm:px-6">
+
+      {}
+      <div className="py-12 sm:py-16 lg:py-20 bg-white dark:bg-neutral-800 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto w-full">
           <div className="text-center mb-10 sm:mb-12 lg:mb-16 px-2">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-neutral-900 dark:text-white mb-3 sm:mb-4">
               We're Here to Help
             </h2>
-            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-neutral-600 dark:text-neutral-300 max-w-2xl mx-auto">
               Have questions about ChargeLoop? Reach out to our friendly support team.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mb-10 sm:mb-12 lg:mb-16">
-            {/* Contact Info Cards */}
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 sm:p-8 text-center border border-gray-200 dark:border-gray-600">
-              <div className="text-4xl mb-4 font-bold text-green-600 dark:text-green-400">✉</div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">Email</h3>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 break-all">support@chargeloop.com</p>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-2">Response within 24h</p>
+            {}
+            <div className="bg-neutral-50 dark:bg-neutral-700 rounded-lg p-6 sm:p-8 text-center border border-neutral-200 dark:border-neutral-600">
+              <div className="text-4xl mb-4 font-bold text-green-600 dark:text-green-400"></div>
+              <h3 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white mb-2">Email</h3>
+              <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-300 break-all">support@chargeloop.com</p>
+              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-2">Response within 24h</p>
             </div>
 
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 sm:p-8 text-center border border-gray-200 dark:border-gray-600">
-              <div className="text-4xl mb-4 font-bold text-green-600 dark:text-green-400">📱</div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">Phone</h3>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">+91 1234-567-890</p>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-2">9 AM - 6 PM IST</p>
+            <div className="bg-neutral-50 dark:bg-neutral-700 rounded-lg p-6 sm:p-8 text-center border border-neutral-200 dark:border-neutral-600">
+              <div className="text-4xl mb-4 font-bold text-green-600 dark:text-green-400"></div>
+              <h3 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white mb-2">Phone</h3>
+              <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-300">+91 1234-567-890</p>
+              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-2">9 AM - 6 PM IST</p>
             </div>
 
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 sm:p-8 text-center border border-gray-200 dark:border-gray-600 sm:col-span-2 lg:col-span-1">
-              <div className="text-4xl mb-4 font-bold text-green-600 dark:text-green-400">💬</div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">Live Chat</h3>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">Chat with us</p>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-2">Available 24/7</p>
+            <div className="bg-neutral-50 dark:bg-neutral-700 rounded-lg p-6 sm:p-8 text-center border border-neutral-200 dark:border-neutral-600 sm:col-span-2 lg:col-span-1">
+              <div className="text-4xl mb-4 font-bold text-green-600 dark:text-green-400"></div>
+              <h3 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white mb-2">Live Chat</h3>
+              <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-300">Chat with us</p>
+              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-2">Available 24/7</p>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl p-10 shadow-xl">
+          <form onSubmit={handleSubmit} className="bg-white dark:bg-neutral-800 rounded-2xl p-10 shadow-xl">
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-2">
                   Your Name *
                 </label>
                 <input
@@ -143,14 +139,14 @@ export default function ContactPage() {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-all duration-300"
+                  className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white transition-all duration-300"
                   placeholder="Enter your full name"
                   required
                   suppressHydrationWarning
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-2">
                   Email Address *
                 </label>
                 <input
@@ -158,7 +154,7 @@ export default function ContactPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-all duration-300"
+                  className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white transition-all duration-300"
                   placeholder="your@email.com"
                   required
                   suppressHydrationWarning
@@ -168,14 +164,14 @@ export default function ContactPage() {
 
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-200 mb-2">
                   Inquiry Type
                 </label>
                 <select
                   name="type"
                   value={formData.type}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-all duration-300"
+                  className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white transition-all duration-300"
                   suppressHydrationWarning
                 >
                   <option value="general">General Inquiry</option>
@@ -186,7 +182,7 @@ export default function ContactPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                <label className="block text-sm font-medium text-neutral-900 dark:text-white mb-2">
                   Subject *
                 </label>
                 <input
@@ -194,7 +190,7 @@ export default function ContactPage() {
                   name="subject"
                   value={formData.subject}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-300 font-semibold"
+                  className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white transition-all duration-300 font-semibold"
                   placeholder="Brief subject of your message"
                   required
                   suppressHydrationWarning
@@ -203,7 +199,7 @@ export default function ContactPage() {
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Message *
               </label>
               <textarea
@@ -211,7 +207,7 @@ export default function ContactPage() {
                 value={formData.message}
                 onChange={handleInputChange}
                 rows={6}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-all duration-300 resize-none"
+                className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white transition-all duration-300 resize-none"
                 placeholder="Tell us more about your inquiry..."
                 required
                 suppressHydrationWarning

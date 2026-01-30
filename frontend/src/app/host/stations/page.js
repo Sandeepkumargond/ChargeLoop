@@ -28,12 +28,12 @@ export default function StationsPage() {
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="bg-neutral-50 dark:bg-neutral-900 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Manage Chargers</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Add and manage your charging stations</p>
+            <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">Manage Chargers</h1>
+            <p className="text-neutral-600 dark:text-neutral-400 mt-1">Add and manage your charging stations</p>
           </div>
           <button className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all">
             Add Charger
@@ -51,9 +51,9 @@ export default function StationsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {stations.map(station => (
-              <div key={station._id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-all">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{station.name}</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">{station.location}</p>
+              <div key={station._id} className="bg-white dark:bg-neutral-800 rounded-lg shadow p-6 hover:shadow-lg transition-all">
+                <h3 className="text-lg font-bold text-neutral-900 dark:text-white mb-2">{station.name}</h3>
+                <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-4">{station.location}</p>
                 <div className="flex gap-3">
                   <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all text-sm">
                     Edit

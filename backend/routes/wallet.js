@@ -5,11 +5,10 @@ const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const authMiddleware = require('../middleware/auth');
 
-// Recharge wallet
 router.post('/recharge', authMiddleware, async (req, res) => {
   try {
     const { amount, paymentMethod = 'upi' } = req.body;
-    
+
     if (!amount || amount <= 0) {
       return res.status(400).json({ msg: 'Invalid amount' });
     }
@@ -27,7 +26,6 @@ router.post('/recharge', authMiddleware, async (req, res) => {
       return res.status(404).json({ msg: 'User not found' });
     }
 
-    // Create transaction record
     const transaction = new Transaction({
       userId: req.user.id,
       type: 'credit',
@@ -40,7 +38,6 @@ router.post('/recharge', authMiddleware, async (req, res) => {
 
     await transaction.save();
 
-    // Update wallet balance
     user.walletBalance = (user.walletBalance || 0) + parseFloat(amount);
     await user.save();
 
@@ -57,11 +54,10 @@ router.post('/recharge', authMiddleware, async (req, res) => {
   }
 });
 
-// Get transactions
 router.get('/transactions', authMiddleware, async (req, res) => {
   try {
     const { page = 1, limit = 20, type } = req.query;
-    
+
     const query = { userId: req.user.id };
     if (type && ['credit', 'debit'].includes(type)) {
       query.type = type;
@@ -73,7 +69,6 @@ router.get('/transactions', authMiddleware, async (req, res) => {
       .skip((page - 1) * limit)
       .lean();
 
-    // Format transactions for frontend
     const formattedTransactions = transactions.map(transaction => ({
       id: transaction._id,
       type: transaction.type,
@@ -102,7 +97,6 @@ router.get('/transactions', authMiddleware, async (req, res) => {
   }
 });
 
-// Get wallet balance
 router.get('/balance', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('walletBalance');
@@ -117,11 +111,10 @@ router.get('/balance', authMiddleware, async (req, res) => {
   }
 });
 
-// Deduct from wallet (for charging sessions)
 router.post('/deduct', authMiddleware, async (req, res) => {
   try {
     const { amount, description, sessionId, location, chargerId } = req.body;
-    
+
     if (!amount || amount <= 0) {
       return res.status(400).json({ msg: 'Invalid amount' });
     }
@@ -135,7 +128,6 @@ router.post('/deduct', authMiddleware, async (req, res) => {
       return res.status(400).json({ msg: 'Insufficient wallet balance' });
     }
 
-    // Create transaction record
     const transaction = new Transaction({
       userId: req.user.id,
       type: 'debit',
@@ -153,7 +145,6 @@ router.post('/deduct', authMiddleware, async (req, res) => {
 
     await transaction.save();
 
-    // Deduct from wallet balance
     user.walletBalance = (user.walletBalance || 0) - parseFloat(amount);
     await user.save();
 
@@ -170,7 +161,6 @@ router.post('/deduct', authMiddleware, async (req, res) => {
   }
 });
 
-// Get wallet statistics
 router.get('/stats', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;

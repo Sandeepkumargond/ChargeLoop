@@ -46,7 +46,7 @@ const bookingRequestSchema = new mongoose.Schema({
     required: true
   },
   estimatedDuration: {
-    type: Number, // in minutes
+    type: Number,
     required: true
   },
   estimatedCost: {
@@ -68,7 +68,7 @@ const bookingRequestSchema = new mongoose.Schema({
     unique: true,
     required: true
   },
-  // Actual charging session details (populated after accepted)
+
   startTime: {
     type: Date
   },
@@ -76,14 +76,14 @@ const bookingRequestSchema = new mongoose.Schema({
     type: Date
   },
   actualDuration: {
-    type: Number // in minutes
+    type: Number
   },
   energyConsumed: {
-    type: Number, // in kWh
+    type: Number,
     default: 0
   },
   actualCost: {
-    type: Number // actual cost after charging
+    type: Number
   },
   rating: {
     type: Number,
@@ -111,7 +111,6 @@ const bookingRequestSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Index for faster queries
 bookingRequestSchema.index({ userId: 1, createdAt: -1 });
 bookingRequestSchema.index({ hostId: 1, status: 1 });
 bookingRequestSchema.index({ status: 1 });

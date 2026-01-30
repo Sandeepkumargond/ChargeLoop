@@ -23,7 +23,7 @@ export default function VehiclesPage() {
     const fetchProfile = async () => {
       try {
         const token = localStorage.getItem('token');
-        
+
         if (!token) {
           router.push('/login');
           return;
@@ -130,11 +130,11 @@ export default function VehiclesPage() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-900 min-h-screen flex items-center justify-center">
+      <div className="bg-white dark:bg-neutral-900 min-h-screen flex items-center justify-center">
         <div className="w-full flex items-center justify-center">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded border border-gray-200 dark:border-gray-700">
-            <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-            <p className="text-gray-600 dark:text-gray-300 mt-3 text-sm">Loading...</p>
+          <div className="bg-white dark:bg-neutral-800 p-6 rounded border border-neutral-200 dark:border-neutral-700">
+            <div className="w-6 h-6 border-2 border-neutral-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+            <p className="text-neutral-600 dark:text-neutral-300 mt-3 text-sm">Loading...</p>
           </div>
         </div>
       </div>
@@ -142,16 +142,16 @@ export default function VehiclesPage() {
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="bg-neutral-50 dark:bg-neutral-900 min-h-screen">
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-            
-            {/* Header */}
+
+            {}
             <div className="mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">My Vehicles</h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Manage your vehicles</p>
+              <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-1">My Vehicles</h1>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">Manage your vehicles</p>
             </div>
 
-            {/* Add Vehicle Button */}
+            {}
             {!showAddForm && (
               <button
                 onClick={() => setShowAddForm(true)}
@@ -161,28 +161,28 @@ export default function VehiclesPage() {
               </button>
             )}
 
-            {/* Add Vehicle Form */}
+            {}
             {showAddForm && (
-              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded border border-gray-200 dark:border-gray-700 mb-6">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Add New Vehicle</h2>
-                
+              <div className="bg-neutral-50 dark:bg-neutral-800 p-4 rounded border border-neutral-200 dark:border-neutral-700 mb-6">
+                <h2 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">Add New Vehicle</h2>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Vehicle Number *</label>
+                    <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Vehicle Number *</label>
                     <input
                       type="text"
                       placeholder="e.g., MH02AB1234"
                       value={vehicleForm.vehicleNumber}
                       onChange={(e) => setVehicleForm({...vehicleForm, vehicleNumber: e.target.value.toUpperCase()})}
-                      className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-1.5 border border-neutral-300 dark:border-neutral-600 rounded dark:bg-neutral-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Vehicle Type *</label>
+                    <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Vehicle Type *</label>
                     <select
                       value={vehicleForm.vehicleType}
                       onChange={(e) => setVehicleForm({...vehicleForm, vehicleType: e.target.value})}
-                      className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-1.5 border border-neutral-300 dark:border-neutral-600 rounded dark:bg-neutral-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
                     >
                       <option value="sedan">Sedan</option>
                       <option value="suv">SUV</option>
@@ -192,23 +192,23 @@ export default function VehiclesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Model</label>
+                    <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Model</label>
                     <input
                       type="text"
                       placeholder="e.g., Tesla Model 3"
                       value={vehicleForm.model}
                       onChange={(e) => setVehicleForm({...vehicleForm, model: e.target.value})}
-                      className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-1.5 border border-neutral-300 dark:border-neutral-600 rounded dark:bg-neutral-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Battery Capacity (kWh)</label>
+                    <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Battery Capacity (kWh)</label>
                     <input
                       type="number"
                       placeholder="e.g., 60"
                       value={vehicleForm.batteryCapacity}
                       onChange={(e) => setVehicleForm({...vehicleForm, batteryCapacity: e.target.value})}
-                      className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-1.5 border border-neutral-300 dark:border-neutral-600 rounded dark:bg-neutral-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm"
                     />
                   </div>
                 </div>
@@ -226,7 +226,7 @@ export default function VehiclesPage() {
                       setShowAddForm(false);
                       resetForm();
                     }}
-                    className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-1.5 rounded text-sm font-medium transition"
+                    className="flex-1 bg-neutral-400 hover:bg-neutral-500 text-white py-1.5 rounded text-sm font-medium transition"
                   >
                     Cancel
                   </button>
@@ -234,46 +234,46 @@ export default function VehiclesPage() {
               </div>
             )}
 
-            {/* Vehicles List */}
+            {}
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Your Vehicles ({vehicles.length})</h2>
-              
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-4">Your Vehicles ({vehicles.length})</h2>
+
               {vehicles.length === 0 ? (
-                <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded border border-gray-200 dark:border-gray-700 text-center">
-                  <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">No vehicles added yet</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Add your first vehicle</p>
+                <div className="bg-neutral-50 dark:bg-neutral-800 p-6 rounded border border-neutral-200 dark:border-neutral-700 text-center">
+                  <p className="text-neutral-600 dark:text-neutral-400 text-sm font-medium">No vehicles added yet</p>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-1">Add your first vehicle</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {vehicles.map((vehicle) => (
-                    <div key={vehicle._id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-4">
+                    <div key={vehicle._id} className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <h3 className="text-base font-bold text-gray-900 dark:text-white">{vehicle.vehicleNumber}</h3>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                          <h3 className="text-base font-bold text-neutral-900 dark:text-white">{vehicle.vehicleNumber}</h3>
+                          <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
                             {vehicle.vehicleType.charAt(0).toUpperCase() + vehicle.vehicleType.slice(1)}
                           </p>
                         </div>
                       </div>
 
-                      <div className="space-y-1.5 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700 text-sm">
+                      <div className="space-y-1.5 mb-4 pb-4 border-b border-neutral-200 dark:border-neutral-700 text-sm">
                         {vehicle.model && (
                           <div>
-                            <p className="text-xs text-gray-600 dark:text-gray-400\">Model</p>
-                            <p className="text-gray-900 dark:text-white font-medium">{vehicle.model}</p>
+                            <p className="text-xs text-neutral-600 dark:text-neutral-400\">Model</p>
+                            <p className="text-neutral-900 dark:text-white font-medium">{vehicle.model}</p>
                           </div>
                         )}
                         {vehicle.batteryCapacity && (
                           <div>
-                            <p className="text-xs text-gray-600 dark:text-gray-400">Battery</p>
-                            <p className="text-gray-900 dark:text-white font-medium">{vehicle.batteryCapacity} kWh</p>
+                            <p className="text-xs text-neutral-600 dark:text-neutral-400">Battery</p>
+                            <p className="text-neutral-900 dark:text-white font-medium">{vehicle.batteryCapacity} kWh</p>
                           </div>
                         )}
                       </div>
 
                       <button
                         onClick={() => handleDeleteVehicle(vehicle._id)}
-                        className="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 py-1.5 rounded text-xs font-medium transition"
+                        className="w-full bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600 py-1.5 rounded text-xs font-medium transition"
                       >
                         Delete
                       </button>

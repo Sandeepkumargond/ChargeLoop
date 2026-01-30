@@ -20,6 +20,33 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Toast animation */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

@@ -7,7 +7,7 @@ const NotificationContext = createContext();
 export const useNotification = () => {
   const context = useContext(NotificationContext);
   if (!context) {
-    // Return default functions during SSR or when context is not available
+
     return {
       notifications: [],
       showNotification: () => {},
@@ -25,7 +25,6 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const idCounter = useRef(0);
 
-  // Generate unique IDs to avoid React key conflicts
   const generateUniqueId = () => {
     idCounter.current += 1;
     return `notification_${Date.now()}_${idCounter.current}`;
@@ -34,15 +33,15 @@ export const NotificationProvider = ({ children }) => {
   const showNotification = (message, type = 'info', duration = 5000) => {
     const id = generateUniqueId();
     const notification = { id, message, type, duration };
-    
+
     setNotifications(prev => [...prev, notification]);
-    
+
     if (duration > 0) {
       setTimeout(() => {
         removeNotification(id);
       }, duration);
     }
-    
+
     return id;
   };
 
@@ -75,7 +74,7 @@ const NotificationContainer = ({ notifications, removeNotification }) => {
   if (notifications.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
+    <div className="fixed top-4 right-4 z-50 flex flex-col gap-3 pointer-events-none">
       {notifications.map(notification => (
         <NotificationItem
           key={notification.id}
@@ -90,8 +89,8 @@ const NotificationContainer = ({ notifications, removeNotification }) => {
 const NotificationItem = ({ notification, onRemove }) => {
   const { id, message, type } = notification;
 
-  const baseClasses = "max-w-sm w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 transform transition-all duration-300 ease-in-out";
-  
+  const baseClasses = "w-96 bg-white dark:bg-neutral-800 shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 transform transition-all duration-300 ease-in-out animate-slideIn";
+
   const typeClasses = {
     error: "border-l-4 border-red-500",
     success: "border-l-4 border-green-500",
@@ -136,14 +135,14 @@ const NotificationItem = ({ notification, onRemove }) => {
           <div className={`flex-shrink-0 ${iconClasses[type]}`}>
             {icons[type]}
           </div>
-          <div className="ml-3 w-0 flex-1 pt-0.5">
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          <div className="ml-3 flex-1 pt-0.5 pr-2">
+            <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100 break-words">
               {message}
             </p>
           </div>
-          <div className="ml-4 flex-shrink-0 flex">
+          <div className="ml-2 flex-shrink-0 flex">
             <button
-              className="bg-white dark:bg-gray-800 rounded-md inline-flex text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="bg-white dark:bg-neutral-800 rounded-md inline-flex text-neutral-400 hover:text-neutral-500 dark:hover:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               onClick={() => onRemove(id)}
             >
               <span className="sr-only">Close</span>

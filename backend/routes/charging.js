@@ -6,14 +6,14 @@ const User = require('../models/User');
 const Host = require('../models/Host');
 const Transaction = require('../models/Transaction');
 const authMiddleware = require('../middleware/auth');
+const { sendBookingConfirmationEmail } = require('../services/emailService');
 
-// Get charging history for user
 router.get('/history', authMiddleware, async (req, res) => {
   try {
     const { page = 1, limit = 20, status, sortBy = 'newest' } = req.query;
-    
+
     const query = { userId: req.user.id };
-    // Accept all statuses for history
+
     if (status && ['ongoing', 'completed', 'cancelled', 'accepted', 'pending', 'declined'].includes(status)) {
       query.status = status;
     }
@@ -58,7 +58,6 @@ router.get('/history', authMiddleware, async (req, res) => {
   }
 });
 
-// Create booking request (Uber/Ola style - request sent to host for approval)
 router.post('/request-booking', authMiddleware, async (req, res) => {
   try {
     const {
@@ -78,7 +77,6 @@ router.post('/request-booking', authMiddleware, async (req, res) => {
       metadata
     } = req.body;
 
-    // Validate required fields
     if (!hostId || !hostName || !hostLocation || !chargerType || !vehicleNumber || !scheduledTime || !estimatedDuration) {
       return res.status(400).json({
         success: false,
@@ -86,7 +84,6 @@ router.post('/request-booking', authMiddleware, async (req, res) => {
       });
     }
 
-    // Validate user exists
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({
@@ -95,10 +92,8 @@ router.post('/request-booking', authMiddleware, async (req, res) => {
       });
     }
 
-    // Generate unique request ID
     const requestId = `REQ${Date.now()}${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-    // Create booking request
     const bookingRequest = new BookingRequest({
       userId: req.user.id,
       hostId: hostId,
@@ -136,7 +131,6 @@ router.post('/request-booking', authMiddleware, async (req, res) => {
   }
 });
 
-// Get user's booking requests
 router.get('/requests/my-requests', authMiddleware, async (req, res) => {
   try {
     const { status } = req.query;
@@ -164,7 +158,6 @@ router.get('/requests/my-requests', authMiddleware, async (req, res) => {
   }
 });
 
-// Get specific booking request
 router.get('/requests/:requestId', authMiddleware, async (req, res) => {
   try {
     const { requestId } = req.params;
@@ -194,7 +187,6 @@ router.get('/requests/:requestId', authMiddleware, async (req, res) => {
   }
 });
 
-// Cancel booking request
 router.put('/requests/:requestId/cancel', authMiddleware, async (req, res) => {
   try {
     const { requestId } = req.params;
@@ -229,14 +221,13 @@ router.put('/requests/:requestId/cancel', authMiddleware, async (req, res) => {
   }
 });
 
-// Create new charging session (booking)
 router.post('/book', authMiddleware, async (req, res) => {
   try {
-    const { 
-      hostId, 
-      hostName, 
-      hostLocation, 
-      chargerType, 
+    const {
+      hostId,
+      hostName,
+      hostLocation,
+      chargerType,
       scheduledTime,
       estimatedDuration,
       estimatedCost,
@@ -247,44 +238,37 @@ router.post('/book', authMiddleware, async (req, res) => {
       chargingType
     } = req.body;
 
-
-    // Validate required fields
     if (!hostId || !hostName || !hostLocation || !chargerType || !vehicleNumber || !scheduledTime || !estimatedDuration) {
       return res.status(400).json({ msg: 'Missing required booking information' });
     }
 
-    // Check user wallet balance
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ msg: 'User not found' });
     }
 
-    // Validate wallet balance
     if ((user.walletBalance || 0) < estimatedCost) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         msg: 'Insufficient wallet balance',
         required: estimatedCost,
         available: user.walletBalance || 0
       });
     }
 
-    // Find the host 
     let hostDocument = null;
     let hostObjectId = hostId;
-    
+
     if (mongoose.Types.ObjectId.isValid(hostId) && hostId.length === 24) {
       hostDocument = await Host.findById(hostId);
       hostObjectId = new mongoose.Types.ObjectId(hostId);
-      // Host document check
+
     } else {
-      // Invalid hostId format
+
       return res.status(400).json({ msg: 'Invalid host ID format' });
     }
 
-    // Generate unique request ID
     const requestId = `REQ${Date.now()}${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-    // Create booking request (pending approval from host)
     const bookingRequest = new BookingRequest({
       userId: req.user.id,
       hostId: hostObjectId,
@@ -311,8 +295,6 @@ router.post('/book', authMiddleware, async (req, res) => {
 
     await bookingRequest.save();
 
-    // BookingRequest created
-
     res.status(201).json({
       success: true,
       msg: 'Booking request sent successfully. Waiting for host approval.',
@@ -326,7 +308,6 @@ router.post('/book', authMiddleware, async (req, res) => {
   }
 });
 
-// Complete charging session
 router.put('/:sessionId/complete', authMiddleware, async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -342,11 +323,9 @@ router.put('/:sessionId/complete', authMiddleware, async (req, res) => {
       return res.status(404).json({ msg: 'Booking not found or already completed' });
     }
 
-    // Calculate duration
     const endTime = new Date();
-    const duration = Math.round((endTime - booking.startTime) / (1000 * 60)); // in minutes
+    const duration = Math.round((endTime - booking.startTime) / (1000 * 60));
 
-    // Update booking
     booking.endTime = endTime;
     booking.actualDuration = duration;
     booking.energyConsumed = energyConsumed || 0;
@@ -355,7 +334,6 @@ router.put('/:sessionId/complete', authMiddleware, async (req, res) => {
 
     await booking.save();
 
-    // Create transaction record
     if (actualCost > 0) {
       const transaction = new Transaction({
         userId: req.user.id,
@@ -374,7 +352,6 @@ router.put('/:sessionId/complete', authMiddleware, async (req, res) => {
 
       await transaction.save();
 
-      // Deduct from user wallet
       const user = await User.findById(req.user.id);
       user.walletBalance = (user.walletBalance || 0) - actualCost;
       user.chargingSessions = (user.chargingSessions || 0) + 1;
@@ -391,7 +368,6 @@ router.put('/:sessionId/complete', authMiddleware, async (req, res) => {
   }
 });
 
-// Cancel charging session
 router.put('/:sessionId/cancel', authMiddleware, async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -426,7 +402,6 @@ router.put('/:sessionId/cancel', authMiddleware, async (req, res) => {
   }
 });
 
-// Rate charging session
 router.put('/:sessionId/rate', authMiddleware, async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -463,19 +438,16 @@ router.put('/:sessionId/rate', authMiddleware, async (req, res) => {
   }
 });
 
-// Accept booking request (Host accepts)
 router.put('/requests/:requestId/accept', authMiddleware, async (req, res) => {
   try {
     const { requestId } = req.params;
 
-    // First, check if request exists at all
     const existingRequest = await BookingRequest.findById(requestId);
 
-    // Look for pending OR accepted (in case of retry)
     const request = await BookingRequest.findOne({
       _id: requestId,
       status: { $in: ['pending', 'accepted'] }
-    });
+    }).populate('userId', 'name email phone');
 
     if (!request) {
       return res.status(404).json({
@@ -484,7 +456,6 @@ router.put('/requests/:requestId/accept', authMiddleware, async (req, res) => {
       });
     }
 
-    // Verify host is the one accepting
     const userHost = await Host.findOne({ userId: req.user.id });
     if (!userHost) {
       return res.status(403).json({
@@ -493,7 +464,6 @@ router.put('/requests/:requestId/accept', authMiddleware, async (req, res) => {
       });
     }
 
-    // Compare IDs - handle both ObjectId and string formats
     const userHostIdStr = userHost._id.toString();
     const requestHostIdStr = request.hostId.toString ? request.hostId.toString() : String(request.hostId);
 
@@ -504,7 +474,6 @@ router.put('/requests/:requestId/accept', authMiddleware, async (req, res) => {
       });
     }
 
-    // If already accepted, just return success (handle retry)
     if (request.status === 'accepted') {
       return res.json({
         success: true,
@@ -514,13 +483,34 @@ router.put('/requests/:requestId/accept', authMiddleware, async (req, res) => {
       });
     }
 
-    // Update booking request status to accepted
     request.status = 'accepted';
-    request.startTime = request.scheduledTime; // Set start time for the booking
+    request.startTime = request.scheduledTime;
     request.hostResponse = {
       respondedAt: new Date(),
       acceptedAt: new Date()
     };
+
+    try {
+      const bookingDetails = {
+        userName: request.userId?.name || 'Customer',
+        chargerType: request.chargerType,
+        hostName: request.hostName,
+        hostLocation: request.hostLocation,
+        scheduledTime: request.scheduledTime,
+        estimatedDuration: request.estimatedDuration,
+        estimatedCost: request.estimatedCost,
+        requestId: request.requestId,
+        powerOutput: request.metadata?.powerOutput || 'N/A',
+        pricePerHour: request.pricePerHour
+      };
+
+      await sendBookingConfirmationEmail(request.userId?.email, bookingDetails);
+      console.log('Booking confirmation email sent to:', request.userId?.email);
+    } catch (emailError) {
+      console.error('Error sending booking confirmation email:', emailError.message);
+
+    }
+
     await request.save();
 
     res.json({
@@ -538,7 +528,6 @@ router.put('/requests/:requestId/accept', authMiddleware, async (req, res) => {
   }
 });
 
-// Decline booking request (Host declines)
 router.put('/requests/:requestId/decline', authMiddleware, async (req, res) => {
   try {
     const { requestId } = req.params;
@@ -556,7 +545,6 @@ router.put('/requests/:requestId/decline', authMiddleware, async (req, res) => {
       });
     }
 
-    // Verify host is the one declining
     const userHost = await Host.findOne({ userId: req.user.id });
     if (!userHost || userHost._id.toString() !== request.hostId.toString()) {
       return res.status(403).json({
@@ -573,7 +561,6 @@ router.put('/requests/:requestId/decline', authMiddleware, async (req, res) => {
     };
     await request.save();
 
-    // Refund user if they were charged
     const user = await User.findById(request.userId);
     if (user && request.estimatedCost > 0) {
       user.walletBalance = (user.walletBalance || 0) + request.estimatedCost;
@@ -594,11 +581,10 @@ router.put('/requests/:requestId/decline', authMiddleware, async (req, res) => {
   }
 });
 
-// Get pending booking requests for host
 router.get('/requests/host/pending', authMiddleware, async (req, res) => {
   try {
     const userHost = await Host.findOne({ userId: req.user.id });
-    
+
     if (!userHost) {
       return res.status(404).json({
         success: false,
@@ -628,7 +614,6 @@ router.get('/requests/host/pending', authMiddleware, async (req, res) => {
   }
 });
 
-// Get current bookings for user (accepted bookings only)
 router.get('/current-bookings', authMiddleware, async (req, res) => {
   try {
     const currentBookings = await BookingRequest.find({
@@ -645,7 +630,6 @@ router.get('/current-bookings', authMiddleware, async (req, res) => {
   }
 });
 
-// Get session details
 router.get('/:sessionId', authMiddleware, async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -667,4 +651,3 @@ router.get('/:sessionId', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
-

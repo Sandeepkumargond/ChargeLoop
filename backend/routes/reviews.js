@@ -3,26 +3,22 @@ const router = express.Router();
 const BookingRequest = require('../models/BookingRequest');
 const auth = require('../middleware/auth');
 
-// Submit a review for a charging session
 router.post('/', auth, async (req, res) => {
   try {
     const { sessionId, hostId, rating, review, chargerLocation } = req.body;
 
-    // Validate required fields
     if (!sessionId || !rating) {
       return res.status(400).json({
         error: 'Session ID and rating are required'
       });
     }
 
-    // Validate rating
     if (rating < 1 || rating > 5) {
       return res.status(400).json({
         error: 'Rating must be between 1 and 5'
       });
     }
 
-    // Find the booking request
     const session = await BookingRequest.findById(sessionId);
     if (!session) {
       return res.status(404).json({
@@ -30,7 +26,6 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    // Update session with review
     session.rating = rating;
     if (review) {
       session.review = review;
@@ -66,7 +61,6 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// Get all reviews for a host
 router.get('/host/:hostId', async (req, res) => {
   try {
     const { hostId } = req.params;
@@ -80,7 +74,7 @@ router.get('/host/:hostId', async (req, res) => {
       success: true,
       reviews: reviews || [],
       totalReviews: reviews.length,
-      averageRating: reviews.length > 0 
+      averageRating: reviews.length > 0
         ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1)
         : 0
     });
@@ -93,7 +87,6 @@ router.get('/host/:hostId', async (req, res) => {
   }
 });
 
-// Get all reviews submitted by current user
 router.get('/my-reviews', auth, async (req, res) => {
   try {
     const reviews = await BookingRequest.find({

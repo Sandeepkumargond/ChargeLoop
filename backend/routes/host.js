@@ -2,18 +2,16 @@ const express = require('express');
 const router = express.Router();
 const Host = require('../models/Host');
 const BookingRequest = require('../models/BookingRequest');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
-const { sendHostOnboardingEmail } = require('../services/emailService');
+const { sendHostOnboardingEmail, sendBookingConfirmationEmail } = require('../services/emailService');
 const { getNearbyHosts, getAllHosts, updateHostAvailability, toggleMapVisibility } = require('../controllers/hostController');
 
-// New real-time host endpoints
 router.get('/nearby', getNearbyHosts);
 router.get('/all', getAllHosts);
 router.put('/:hostId/availability', auth, updateHostAvailability);
 router.put('/:hostId/visibility', auth, toggleMapVisibility);
 
-// Update host profile with additional details (charger info, pricing, etc.)
-// Can only be updated before admin approval or by host after approval for certain fields
 router.post('/register', auth, async (req, res) => {
   try {
     const {
@@ -21,18 +19,15 @@ router.post('/register', auth, async (req, res) => {
       availableFrom, availableTo, coordinates, address, city, state, pincode
     } = req.body;
 
-    // Find existing host profile
     const host = await Host.findOne({ userId: req.user.id });
     if (!host) {
       return res.status(404).json({ message: 'Host profile not found. Please submit registration form first.' });
     }
 
-    // Only allow updates if pending or approved
     if (host.verificationStatus === 'rejected') {
       return res.status(400).json({ message: 'Please resubmit your registration request' });
     }
 
-    // Validate inputs
     if (chargerType && !['Regular Charging (22kW)', 'Fast Charging (50kW)', 'Super Fast (100kW)', 'Ultra Fast (150kW)', 'Tesla Supercharger'].includes(chargerType)) {
       return res.status(400).json({ message: 'Invalid charger type' });
     }
@@ -43,15 +38,13 @@ router.post('/register', auth, async (req, res) => {
       return res.status(400).json({ message: 'Amenities must be an array' });
     }
 
-    // Update fields
     if (chargerType) host.chargerType = chargerType;
     if (pricePerHour) host.pricePerHour = pricePerHour;
     if (amenities) host.amenities = amenities;
     if (description) host.description = description;
     if (availableFrom) host.availableFrom = availableFrom;
     if (availableTo) host.availableTo = availableTo;
-    
-    // Update location if provided
+
     if (coordinates || address || city || state || pincode) {
       if (coordinates) {
         host.location.coordinates.lat = coordinates.lat;
@@ -64,9 +57,9 @@ router.post('/register', auth, async (req, res) => {
     }
 
     await host.save();
-    
-    res.json({ 
-      message: 'Host profile updated successfully', 
+
+    res.json({
+      message: 'Host profile updated successfully',
       hostId: host._id,
       verificationStatus: host.verificationStatus
     });
@@ -75,7 +68,6 @@ router.post('/register', auth, async (req, res) => {
   }
 });
 
-// Get host profile
 router.get('/profile', auth, async (req, res) => {
   try {
     const host = await Host.findOne({ userId: req.user.id });
@@ -88,7 +80,6 @@ router.get('/profile', auth, async (req, res) => {
   }
 });
 
-// Get host bookings
 router.get('/bookings', auth, async (req, res) => {
   try {
     const host = await Host.findOne({ userId: req.user.id });
@@ -107,7 +98,6 @@ router.get('/bookings', auth, async (req, res) => {
       averageRating: host.rating.average || 0
     };
 
-    // Format bookings for frontend
     const formattedBookings = bookings.map(booking => ({
       _id: booking._id,
       customerName: booking.userId?.name || 'Unknown',
@@ -128,7 +118,6 @@ router.get('/bookings', auth, async (req, res) => {
   }
 });
 
-// Update booking status
 router.put('/bookings/:bookingId/status', auth, async (req, res) => {
   try {
     const { bookingId } = req.params;
@@ -139,37 +128,70 @@ router.put('/bookings/:bookingId/status', auth, async (req, res) => {
       return res.status(404).json({ message: 'Host profile not found' });
     }
 
-    const booking = await BookingRequest.findOne({ 
-      _id: bookingId, 
-      hostId: host._id 
-    });
+    const booking = await BookingRequest.findOne({
+      _id: bookingId,
+      hostId: host._id
+    }).populate('userId', 'name email phone');
 
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
+    if (status === 'accepted' && booking.status === 'pending') {
+      try {
+
+        const bookingDetails = {
+          userName: booking.userId?.name || 'Customer',
+          chargerType: booking.chargerType,
+          hostName: booking.hostName,
+          hostLocation: booking.hostLocation,
+          scheduledTime: booking.scheduledTime,
+          estimatedDuration: booking.estimatedDuration,
+          estimatedCost: booking.estimatedCost,
+          requestId: booking.requestId,
+          powerOutput: booking.metadata?.powerOutput || 'N/A',
+          pricePerHour: booking.pricePerHour
+        };
+
+        await sendBookingConfirmationEmail(booking.userId?.email, bookingDetails);
+        console.log('Booking confirmation email sent to:', booking.userId?.email);
+      } catch (emailError) {
+        console.error('Error sending booking confirmation email:', emailError.message);
+
+      }
+
+      booking.hostResponse = {
+        respondedAt: new Date(),
+        acceptedAt: new Date()
+      };
+    }
+
     booking.status = status;
-    
-    // If completing the booking, set end time and update host earnings
+
     if (status === 'completed' && !booking.endTime) {
       booking.endTime = new Date();
-      booking.duration = Math.ceil((booking.endTime - booking.startTime) / (1000 * 60)); // minutes
-      booking.cost = Math.ceil((booking.duration / 60) * host.pricePerHour);
-      
-      // Update host earnings and booking count
-      host.totalEarnings += booking.cost;
+      booking.actualDuration = Math.ceil((booking.endTime - booking.startTime) / (1000 * 60));
+      booking.actualCost = Math.ceil((booking.actualDuration / 60) * host.pricePerHour);
+
+      host.totalEarnings += booking.actualCost;
       host.totalBookings += 1;
       await host.save();
     }
 
     await booking.save();
-    res.json({ message: 'Booking status updated successfully' });
+    res.json({
+      message: 'Booking status updated successfully',
+      booking: {
+        _id: booking._id,
+        status: booking.status,
+        requestId: booking.requestId
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-// Toggle host availability
 router.put('/toggle-availability', auth, async (req, res) => {
   try {
     const host = await Host.findOne({ userId: req.user.id });
@@ -186,7 +208,6 @@ router.put('/toggle-availability', auth, async (req, res) => {
   }
 });
 
-// Update host profile
 router.put('/profile', auth, async (req, res) => {
   try {
     const host = await Host.findOne({ userId: req.user.id });
@@ -195,7 +216,7 @@ router.put('/profile', auth, async (req, res) => {
     }
 
     const allowedUpdates = [
-      'hostName', 'email', 'phone', 'pricePerHour', 'amenities', 
+      'hostName', 'email', 'phone', 'pricePerHour', 'amenities',
       'description', 'availableFrom', 'availableTo'
     ];
 
@@ -212,7 +233,6 @@ router.put('/profile', auth, async (req, res) => {
   }
 });
 
-// Get pending booking requests for host
 router.get('/booking-requests/pending', auth, async (req, res) => {
   try {
     const host = await Host.findOne({ userId: req.user.id });
@@ -239,12 +259,11 @@ router.get('/booking-requests/pending', auth, async (req, res) => {
   }
 });
 
-// Get all booking requests history for host
 router.get('/booking-requests/history', auth, async (req, res) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
     const host = await Host.findOne({ userId: req.user.id });
-    
+
     if (!host) {
       return res.status(404).json({ message: 'Host profile not found' });
     }

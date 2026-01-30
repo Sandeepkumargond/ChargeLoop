@@ -15,7 +15,7 @@ export default function GoogleOAuthWrapper({ children }) {
   }
 
   return (
-    <GoogleOAuthProvider 
+    <GoogleOAuthProvider
       clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}
       onScriptProps={{
         async: true,

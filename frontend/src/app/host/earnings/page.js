@@ -27,31 +27,31 @@ export default function EarningsPage() {
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="bg-neutral-50 dark:bg-neutral-900 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Earnings & Payouts</h1>
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-8">Earnings & Payouts</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">Total Earnings</p>
+          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow p-6">
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-2">Total Earnings</p>
             <p className="text-4xl font-bold text-green-600 dark:text-green-400">₹0</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">All time</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">All time</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">This Month</p>
+          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow p-6">
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-2">This Month</p>
             <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">₹0</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Current period</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">Current period</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">Available Balance</p>
+          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow p-6">
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-2">Available Balance</p>
             <p className="text-4xl font-bold text-orange-600 dark:text-orange-400">₹0</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Ready to withdraw</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">Ready to withdraw</p>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Earning Transactions</h2>
-          <p className="text-gray-600 dark:text-gray-400">No transactions yet</p>
+        <div className="bg-white dark:bg-neutral-800 rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-4">Earning Transactions</h2>
+          <p className="text-neutral-600 dark:text-neutral-400">No transactions yet</p>
         </div>
       </div>
     </div>

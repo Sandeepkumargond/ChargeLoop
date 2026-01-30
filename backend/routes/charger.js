@@ -11,11 +11,9 @@ const {
   getChargerStationDetails
 } = require('../controllers/chargerController');
 
-// Public routes
 router.get('/nearby', getNearbyChargerStations);
 router.get('/:id', getChargerStationDetails);
 
-// Protected routes
 router.post('/', auth, createChargerStation);
 router.get('/host/stations', auth, getHostChargerStations);
 router.put('/:id', auth, updateChargerStation);

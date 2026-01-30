@@ -29,7 +29,7 @@ export default function RootLayout({ children }) {
           <ClientNotificationProvider>
             <ClientReviewsProvider>
               <GoogleOAuthWrapper>
-                <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors flex flex-col">
+                <div className="min-h-screen bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 transition-colors flex flex-col">
                   <NavbarFooterWrapper />
                   <main className="flex-1">{children}</main>
                   <FooterWrapper />

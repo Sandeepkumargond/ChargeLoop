@@ -1,7 +1,6 @@
 const ChargerStation = require('../models/ChargerStation');
 const { sendHostOnboardingEmail } = require('../services/emailService');
 
-// Create new charger station
 const createChargerStation = async (req, res) => {
   try {
     const {
@@ -16,7 +15,6 @@ const createChargerStation = async (req, res) => {
       images
     } = req.body;
 
-    // Validate required fields
     if (!name || !location || !chargerType || !powerOutput || !pricePerUnit || !operatingHours) {
       return res.status(400).json({
         success: false,
@@ -24,7 +22,6 @@ const createChargerStation = async (req, res) => {
       });
     }
 
-    // Validate coordinates
     if (!location.coordinates || !location.coordinates.lat || !location.coordinates.lng) {
       return res.status(400).json({
         success: false,
@@ -32,7 +29,6 @@ const createChargerStation = async (req, res) => {
       });
     }
 
-    // Create new charger station
     const chargerStation = new ChargerStation({
       hostId: req.user.id,
       name,
@@ -48,7 +44,6 @@ const createChargerStation = async (req, res) => {
 
     await chargerStation.save();
 
-    // Send onboarding email
     try {
       await sendHostOnboardingEmail(req.user.email, {
         hostName: req.user.name,
@@ -71,11 +66,10 @@ const createChargerStation = async (req, res) => {
   }
 };
 
-// Get all charger stations for a host
 const getHostChargerStations = async (req, res) => {
   try {
     const chargerStations = await ChargerStation.find({ hostId: req.user.id });
-    
+
     res.json({
       success: true,
       data: chargerStations
@@ -88,7 +82,6 @@ const getHostChargerStations = async (req, res) => {
   }
 };
 
-// Get all nearby charger stations
 const getNearbyChargerStations = async (req, res) => {
   try {
     const { lat, lng, radius = 10 } = req.query;
@@ -100,7 +93,6 @@ const getNearbyChargerStations = async (req, res) => {
       });
     }
 
-    // Convert radius from km to meters
     const radiusInMeters = radius * 1000;
 
     const chargerStations = await ChargerStation.find({
@@ -129,7 +121,6 @@ const getNearbyChargerStations = async (req, res) => {
   }
 };
 
-// Update charger station
 const updateChargerStation = async (req, res) => {
   try {
     const { id } = req.params;
@@ -163,7 +154,6 @@ const updateChargerStation = async (req, res) => {
   }
 };
 
-// Update availability status
 const updateAvailability = async (req, res) => {
   try {
     const { id } = req.params;
@@ -202,7 +192,6 @@ const updateAvailability = async (req, res) => {
   }
 };
 
-// Delete charger station
 const deleteChargerStation = async (req, res) => {
   try {
     const { id } = req.params;
@@ -231,7 +220,6 @@ const deleteChargerStation = async (req, res) => {
   }
 };
 
-// Get charger station details
 const getChargerStationDetails = async (req, res) => {
   try {
     const { id } = req.params;

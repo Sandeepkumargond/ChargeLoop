@@ -1,24 +1,24 @@
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
-  userId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
-  type: { 
-    type: String, 
-    enum: ['credit', 'debit'], 
-    required: true 
+  type: {
+    type: String,
+    enum: ['credit', 'debit'],
+    required: true
   },
-  amount: { 
-    type: Number, 
+  amount: {
+    type: Number,
     required: true,
     min: 0
   },
-  description: { 
-    type: String, 
-    required: true 
+  description: {
+    type: String,
+    required: true
   },
   paymentMethod: {
     type: String,
@@ -38,7 +38,6 @@ const transactionSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Index for faster queries
 transactionSchema.index({ userId: 1, createdAt: -1 });
 transactionSchema.index({ type: 1 });
 

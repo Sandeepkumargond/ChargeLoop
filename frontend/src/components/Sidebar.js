@@ -10,24 +10,21 @@ export default function Sidebar() {
   const [userRole, setUserRole] = useState(null);
   const [isOpen, setIsOpen] = useState(true);
 
-  // Load initial state on mount only
   useEffect(() => {
     setMounted(true);
     const savedState = localStorage.getItem('sidebarOpen');
     setIsOpen(savedState !== null ? JSON.parse(savedState) : true);
-    
+
     const role = localStorage.getItem('userRole');
     setUserRole(role);
   }, []);
 
-  // Save sidebar state to localStorage when it changes
   useEffect(() => {
     if (mounted) {
       localStorage.setItem('sidebarOpen', JSON.stringify(isOpen));
     }
   }, [isOpen, mounted]);
 
-  // Determine if we're in user or host section based on stored role
   const isHostSection = userRole === 'host';
   const isUserSection = userRole === 'user';
 
@@ -81,25 +78,24 @@ export default function Sidebar() {
     }
   };
 
-  // Don't render if not mounted to avoid hydration mismatch
   if (!mounted) {
     return null;
   }
 
   return (
     <>
-      {/* Mobile Menu Button */}
+      {}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-4 left-4 z-40 bg-gray-800 text-white p-2 rounded"
+        className="lg:hidden fixed top-4 left-4 z-40 bg-neutral-800 text-white p-2 rounded"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
         </svg>
       </button>
 
-      {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 bottom-0 w-52 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-40 flex flex-col transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+      {}
+      <aside className={`fixed left-0 top-0 bottom-0 w-52 bg-white dark:bg-neutral-800 border-r border-neutral-200 dark:border-neutral-700 z-40 flex flex-col transition-transform duration-300 ${isOpen ? 'tranneutral-x-0' : '-tranneutral-x-full'} lg:tranneutral-x-0`}>
         <div className="flex-1 overflow-y-auto p-3">
           <nav className="space-y-0.5">
             {menuItems
@@ -111,7 +107,7 @@ export default function Sidebar() {
                   className={`w-full text-left px-3 py-2 text-sm rounded transition-colors ${
                     isActive(item.href)
                       ? 'bg-blue-600 text-white font-medium'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700'
                   }`}
                 >
                   {item.label}
@@ -120,18 +116,18 @@ export default function Sidebar() {
           </nav>
         </div>
 
-        {/* Logout Button at Bottom */}
-        <div className="border-t border-gray-200 dark:border-gray-700 p-3">
+        {}
+        <div className="border-t border-neutral-200 dark:border-neutral-700 p-3">
           <button
             onClick={() => handleMenuClick({ label: 'Logout' })}
-            className="w-full text-left px-3 py-2 text-sm rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium"
+            className="w-full text-left px-3 py-2 text-sm rounded text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors font-medium"
           >
             Logout
           </button>
         </div>
       </aside>
 
-      {/* Mobile Overlay */}
+      {}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-20 lg:hidden"

@@ -19,7 +19,7 @@ export default function ProfilePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Get user role from localStorage
+
     if (typeof window !== 'undefined') {
       const role = localStorage.getItem('userRole');
       setUserRole(role);
@@ -30,7 +30,7 @@ export default function ProfilePage() {
     const fetchProfile = async () => {
       try {
         const token = localStorage.getItem('token');
-        
+
         if (!token) {
           router.push('/login');
           return;
@@ -55,7 +55,7 @@ export default function ProfilePage() {
         }
 
         const userData = await response.json();
-        
+
         const enhancedUser = {
           ...userData,
           chargingSessions: Array.isArray(userData.chargingSessions) ? userData.chargingSessions : [],
@@ -66,10 +66,10 @@ export default function ProfilePage() {
         const chargingSessionsArray = enhancedUser.chargingSessions;
 
         enhancedUser.totalBookings = chargingSessionsArray.length;
-        enhancedUser.totalSpent = chargingSessionsArray.reduce((total, session) => 
+        enhancedUser.totalSpent = chargingSessionsArray.reduce((total, session) =>
           total + (session.amount || 0), 0);
         enhancedUser.memberSince = userData.createdAt ? new Date(userData.createdAt).getFullYear() : new Date().getFullYear();
-        
+
         setUser(enhancedUser);
         setFormData({
           name: userData.name || '',
@@ -100,13 +100,18 @@ export default function ProfilePage() {
       return;
     }
 
+    if (!formData.phone || formData.phone.trim().length === 0) {
+      setError('Mobile number is required');
+      return;
+    }
+
     setError('');
     setSuccess('');
     setIsSaving(true);
 
     try {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         router.push('/login');
         return;
@@ -136,14 +141,14 @@ export default function ProfilePage() {
 
       const chargingSessionsArray = enhancedUser.chargingSessions;
       enhancedUser.totalBookings = chargingSessionsArray.length;
-      enhancedUser.totalSpent = chargingSessionsArray.reduce((total, session) => 
+      enhancedUser.totalSpent = chargingSessionsArray.reduce((total, session) =>
         total + (session.amount || 0), 0);
       enhancedUser.memberSince = updatedUser.createdAt ? new Date(updatedUser.createdAt).getFullYear() : new Date().getFullYear();
 
       setUser(enhancedUser);
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
-      
+
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       setError(error.message);
@@ -165,10 +170,10 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
-          <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-          <p className="text-gray-600 dark:text-gray-300 mt-4">Loading profile...</p>
+      <div className="min-h-screen flex items-center justify-center bg-neutral-100 dark:bg-neutral-900">
+        <div className="bg-white dark:bg-neutral-800 p-8 rounded-lg shadow-lg">
+          <div className="w-8 h-8 border-2 border-neutral-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+          <p className="text-neutral-600 dark:text-neutral-300 mt-4">Loading profile...</p>
         </div>
       </div>
     );
@@ -176,8 +181,8 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg text-center">
+      <div className="min-h-screen flex items-center justify-center bg-neutral-100 dark:bg-neutral-900">
+        <div className="bg-white dark:bg-neutral-800 p-8 rounded-lg shadow-lg text-center">
           <p className="text-red-600 dark:text-red-400 mb-4">Error: {error}</p>
           <button
             onClick={() => router.push('/')}
@@ -192,43 +197,43 @@ export default function ProfilePage() {
 
   return (
     <>
-      {/* Main Content */}
-      <div className="min-h-screen bg-white dark:bg-gray-900 py-8 sm:py-12 flex items-center justify-center">
+      {}
+      <div className="min-h-screen bg-white dark:bg-neutral-900 py-8 sm:py-12 flex items-center justify-center">
         <div className="w-full max-w-4xl mx-auto px-4 sm:px-6">
-          {/* Profile Card */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 sm:p-8">
-            {/* Success Message */}
+          {}
+          <div className="border border-neutral-200 dark:border-neutral-700 rounded-lg p-6 sm:p-8">
+            {}
             {success && (
               <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                 <p className="text-green-800 dark:text-green-200 text-sm">{success}</p>
               </div>
             )}
 
-            {/* Error Message */}
+            {}
             {error && (
               <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                 <p className="text-red-800 dark:text-red-200 text-sm">{error}</p>
               </div>
             )}
 
-            {/* Profile Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
+            {}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8 pb-8 border-b border-neutral-200 dark:border-neutral-700">
               <div className="h-24 w-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-white font-bold text-3xl">
                   {(isEditing ? formData.name : user?.name)
-                    ? (isEditing ? formData.name : user?.name).split(' ').map(n => n[0]).join('').toUpperCase() 
+                    ? (isEditing ? formData.name : user?.name).split(' ').map(n => n[0]).join('').toUpperCase()
                     : 'U'}
                 </span>
               </div>
               <div className="flex-1">
-                <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">{isEditing ? formData.name : user?.name || 'User'}</h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">{user?.email}</p>
-                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-1">
+                <h1 className="text-3xl sm:text-4xl font-bold text-neutral-900 dark:text-white">{isEditing ? formData.name : user?.name || 'User'}</h1>
+                <p className="text-neutral-600 dark:text-neutral-400 mt-1">{user?.email}</p>
+                <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mt-1">
                   {userRole ? userRole.charAt(0).toUpperCase() + userRole.slice(1) : 'User'}
                 </p>
               </div>
               {!isEditing && (
-                <button 
+                <button
                   type="button"
                   onClick={() => setIsEditing(true)}
                   className="bg-blue-600 dark:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 dark:hover:bg-blue-600 transition w-full sm:w-auto"
@@ -238,55 +243,55 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Key Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
+            {}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 pb-8 border-b border-neutral-200 dark:border-neutral-700">
               <div>
-                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Charging Sessions</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{user?.chargingSessions?.length || 0}</p>
+                <p className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide mb-1">Charging Sessions</p>
+                <p className="text-3xl font-bold text-neutral-900 dark:text-white">{user?.chargingSessions?.length || 0}</p>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Wallet Balance</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">₹{user?.walletBalance || 0}</p>
+                <p className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide mb-1">Wallet Balance</p>
+                <p className="text-3xl font-bold text-neutral-900 dark:text-white">₹{user?.walletBalance || 0}</p>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Total Spent</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">₹{user?.totalSpent || 0}</p>
+                <p className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide mb-1">Total Spent</p>
+                <p className="text-3xl font-bold text-neutral-900 dark:text-white">₹{user?.totalSpent || 0}</p>
               </div>
             </div>
 
-            {/* Personal Information - View Mode */}
+            {}
             {!isEditing && (
-              <div className="mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Personal Information</h2>
+              <div className="mb-8 pb-8 border-b border-neutral-200 dark:border-neutral-700">
+                <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-6">Personal Information</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Full Name</p>
-                    <p className="text-gray-900 dark:text-white">{user?.name || '-'}</p>
+                    <p className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 mb-2">Full Name</p>
+                    <p className="text-neutral-900 dark:text-white">{user?.name || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Email</p>
-                    <p className="text-gray-900 dark:text-white">{user?.email || '-'}</p>
+                    <p className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 mb-2">Email</p>
+                    <p className="text-neutral-900 dark:text-white">{user?.email || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Phone</p>
-                    <p className="text-gray-900 dark:text-white">{user?.phone || '-'}</p>
+                    <p className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 mb-2">Phone</p>
+                    <p className="text-neutral-900 dark:text-white">{user?.phone || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Location</p>
-                    <p className="text-gray-900 dark:text-white">{user?.location || '-'}</p>
+                    <p className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 mb-2">Location</p>
+                    <p className="text-neutral-900 dark:text-white">{user?.location || '-'}</p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Personal Information - Edit Mode */}
+            {}
             {isEditing && (
               <div className="mb-8">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Edit Personal Information</h2>
+                <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-6">Edit Personal Information</h2>
                 <form className="space-y-6">
-                  {/* Full Name */}
+                  {}
                   <div>
-                    <label htmlFor="name" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="name" className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
                       Full Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -296,15 +301,15 @@ export default function ProfilePage() {
                       value={formData.name}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                      className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                       placeholder="Enter your full name"
                     />
                   </div>
 
-                  {/* Phone */}
+                  {}
                   <div>
-                    <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      Phone Number
+                    <label htmlFor="phone" className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+                      Mobile Number <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="tel"
@@ -312,14 +317,15 @@ export default function ProfilePage() {
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-                      placeholder="Enter your phone number"
+                      required
+                      className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                      placeholder="Enter your mobile number"
                     />
                   </div>
 
-                  {/* Location */}
+                  {}
                   <div>
-                    <label htmlFor="location" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="location" className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
                       Location
                     </label>
                     <input
@@ -328,14 +334,14 @@ export default function ProfilePage() {
                       name="location"
                       value={formData.location}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                      className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                       placeholder="Enter your location"
                     />
                   </div>
 
-                  {/* Email (Read-only) */}
+                  {}
                   <div>
-                    <label htmlFor="email" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="email" className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
                       Email Address
                     </label>
                     <input
@@ -343,17 +349,17 @@ export default function ProfilePage() {
                       id="email"
                       value={user?.email || ''}
                       disabled
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 cursor-not-allowed opacity-75"
+                      className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-neutral-100 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 cursor-not-allowed opacity-75"
                     />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Email address cannot be changed</p>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Email address cannot be changed</p>
                   </div>
 
-                  {/* Buttons */}
-                  <div className="flex gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+                  {}
+                  <div className="flex gap-3 pt-6 border-t border-neutral-200 dark:border-neutral-700">
                     <button
                       type="button"
                       onClick={handleCancelEdit}
-                      className="flex-1 px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                      className="flex-1 px-6 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg text-neutral-700 dark:text-neutral-300 font-semibold hover:bg-neutral-50 dark:hover:bg-neutral-800 transition"
                     >
                       Cancel
                     </button>

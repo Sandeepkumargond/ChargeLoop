@@ -18,7 +18,6 @@ export const ReviewsProvider = ({ children }) => {
   const [currentSession, setCurrentSession] = useState(null);
   const [reviews, setReviews] = useState([]);
 
-  // Load pending reviews from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('pendingReviews');
     if (saved) {
@@ -31,12 +30,10 @@ export const ReviewsProvider = ({ children }) => {
     }
   }, []);
 
-  // Save to localStorage whenever pendingReviews changes
   useEffect(() => {
     localStorage.setItem('pendingReviews', JSON.stringify(pendingReviews));
   }, [pendingReviews]);
 
-  // Save reviews to localStorage
   useEffect(() => {
     localStorage.setItem('userReviews', JSON.stringify(reviews));
   }, [reviews]);
@@ -54,17 +51,16 @@ export const ReviewsProvider = ({ children }) => {
     };
 
     setPendingReviews(prev => [...prev, session]);
-    
-    // Show rating modal immediately after session completion
+
     setTimeout(() => {
       setCurrentSession(session);
       setShowRatingModal(true);
-    }, 1000); // Small delay for better UX
+    }, 1000);
   };
 
   const submitReview = async (reviewData) => {
     try {
-      // Simulate API call
+
       const newReview = {
         id: Date.now().toString(),
         sessionId: reviewData.sessionId,
@@ -76,15 +72,12 @@ export const ReviewsProvider = ({ children }) => {
         userName: localStorage.getItem('userEmail') || 'Anonymous'
       };
 
-      // Add to reviews
       setReviews(prev => [...prev, newReview]);
 
-      // Remove from pending reviews
-      setPendingReviews(prev => 
+      setPendingReviews(prev =>
         prev.filter(session => session.id !== reviewData.sessionId)
       );
 
-      // Send to backend (simulated)
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/reviews`, {
         method: 'POST',
         headers: {
@@ -101,9 +94,9 @@ export const ReviewsProvider = ({ children }) => {
   };
 
   const skipReview = (sessionId) => {
-    setPendingReviews(prev => 
-      prev.map(session => 
-        session.id === sessionId 
+    setPendingReviews(prev =>
+      prev.map(session =>
+        session.id === sessionId
           ? { ...session, needsReview: false }
           : session
       )
@@ -120,7 +113,6 @@ export const ReviewsProvider = ({ children }) => {
     setCurrentSession(null);
   };
 
-  // Simulate completing a charging session (for testing)
   const simulateChargingSession = (location = "Test Charger Location") => {
     const mockSession = {
       id: `session_${Date.now()}`,
@@ -131,7 +123,7 @@ export const ReviewsProvider = ({ children }) => {
       cost: '₹285',
       completedAt: new Date().toISOString()
     };
-    
+
     addChargingSession(mockSession);
   };
 
@@ -145,7 +137,7 @@ export const ReviewsProvider = ({ children }) => {
     skipReview,
     triggerRatingForSession,
     closeRatingModal,
-    simulateChargingSession // For testing purposes
+    simulateChargingSession
   };
 
   return (
@@ -155,7 +147,6 @@ export const ReviewsProvider = ({ children }) => {
   );
 };
 
-// Client-side wrapper component
 export const ClientReviewsProvider = ({ children }) => {
   const [mounted, setMounted] = useState(false);
 
