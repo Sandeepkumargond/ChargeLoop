@@ -27,7 +27,6 @@ app.use(cors({
   maxAge: 3600
 }));
 
-app.use(securityMiddleware.rateLimiter);
 app.use(express.json({ limit: '10kb' }));
 app.use(securityMiddleware.mongoSanitize);
 app.use(securityMiddleware.inputLengthValidator);
