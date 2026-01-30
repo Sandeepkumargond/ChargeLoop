@@ -317,7 +317,7 @@ export default function HomePage() {
               </div>
 
               <button
-                onClick={() => router.push('/host/register')}
+                onClick={() => router.push('/signup')}
                 className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors duration-300"
               >
                 Join as Host

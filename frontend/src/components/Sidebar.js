@@ -6,50 +6,48 @@ import { useState, useEffect } from 'react';
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const [userRole, setUserRole] = useState(null);
-  const [isOpen, setIsOpen] = useState(() => {
-    // Initialize from localStorage on first render
-    if (typeof window !== 'undefined') {
-      const savedState = localStorage.getItem('sidebarOpen');
-      return savedState !== null ? JSON.parse(savedState) : true;
-    }
-    return true;
-  });
+  const [isOpen, setIsOpen] = useState(true);
 
-  // Get user role from localStorage
+  // Load initial state on mount only
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const role = localStorage.getItem('userRole');
-      setUserRole(role);
-    }
+    setMounted(true);
+    const savedState = localStorage.getItem('sidebarOpen');
+    setIsOpen(savedState !== null ? JSON.parse(savedState) : true);
+    
+    const role = localStorage.getItem('userRole');
+    setUserRole(role);
   }, []);
 
   // Save sidebar state to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem('sidebarOpen', JSON.stringify(isOpen));
-  }, [isOpen]);
+    if (mounted) {
+      localStorage.setItem('sidebarOpen', JSON.stringify(isOpen));
+    }
+  }, [isOpen, mounted]);
 
   // Determine if we're in user or host section based on stored role
   const isHostSection = userRole === 'host';
   const isUserSection = userRole === 'user';
 
   const userMenuItems = [
-    { label: 'Dashboard', href: '/user', icon: '' },
-    { label: 'Find Chargers', href: '/user/chargers', icon: '' },
-    { label: 'Charging History', href: '/user/charging-history', icon: '' },
-    { label: 'My Wallet', href: '/user/wallet', icon: '' },
-    { label: 'My Vehicles', href: '/user/vehicles', icon: '' },
-    { label: 'Account', href: '/profile', icon: '' },
-    { label: 'Logout', href: '', icon: '' },
+    { label: 'Dashboard', href: '/user' },
+    { label: 'Find Chargers', href: '/user/chargers' },
+    { label: 'Charging History', href: '/user/charging-history' },
+    { label: 'My Wallet', href: '/user/wallet' },
+    { label: 'My Vehicles', href: '/user/vehicles' },
+    { label: 'Account', href: '/profile' },
+    { label: 'Logout', href: '' },
   ];
 
   const hostMenuItems = [
-    { label: 'Dashboard', href: '/host', icon: '' },
-    { label: 'Manage Chargers', href: '/host/stations', icon: '' },
-    { label: 'Bookings & Requests', href: '/host/bookings', icon: '' },
-    { label: 'Earnings & Payouts', href: '/host/earnings', icon: '' },
-    { label: 'Account', href: '/profile', icon: '' },
-    { label: 'Logout', href: '', icon: '' },
+    { label: 'Dashboard', href: '/host' },
+    { label: 'Manage Chargers', href: '/host/stations' },
+    { label: 'Bookings & Requests', href: '/host/bookings' },
+    { label: 'Earnings & Payouts', href: '/host/earnings' },
+    { label: 'Account', href: '/profile' },
+    { label: 'Logout', href: '' },
   ];
 
   const menuItems = isHostSection ? hostMenuItems : userMenuItems;
@@ -83,6 +81,11 @@ export default function Sidebar() {
     }
   };
 
+  // Don't render if not mounted to avoid hydration mismatch
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <>
       {/* Mobile Menu Button */}
@@ -96,42 +99,34 @@ export default function Sidebar() {
       </button>
 
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 bottom-0 w-56 bg-gray-100 dark:bg-gray-800 border-r border-gray-300 dark:border-gray-700 z-40 flex flex-col transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        <div className="flex-1 overflow-y-auto p-4">
-          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 px-2">
-            {isHostSection ? '' : ''}
-          </h3>
-          
-          <nav className="space-y-1">
+      <aside className={`fixed left-0 top-0 bottom-0 w-52 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-40 flex flex-col transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+        <div className="flex-1 overflow-y-auto p-3">
+          <nav className="space-y-0.5">
             {menuItems
               .filter(item => item.label !== 'Logout')
               .map((item) => (
                 <button
                   key={item.label}
                   onClick={() => handleMenuClick(item)}
-                  className={`w-full flex items-center gap-3 px-4 py-2 text-sm rounded ${
+                  className={`w-full text-left px-3 py-2 text-sm rounded transition-colors ${
                     isActive(item.href)
-                      ? isHostSection
-                        ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-900 dark:text-orange-200 font-medium border-l-4 border-orange-600'
-                        : 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200 font-medium border-l-4 border-blue-600'
-                      : 'text-gray-700 dark:text-gray-400'
+                      ? 'bg-blue-600 text-white font-medium'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
-                  <span className="text-lg">{item.icon}</span>
-                  <span>{item.label}</span>
+                  {item.label}
                 </button>
               ))}
           </nav>
         </div>
 
         {/* Logout Button at Bottom */}
-        <div className="border-t border-gray-300 dark:border-gray-600 p-4">
+        <div className="border-t border-gray-200 dark:border-gray-700 p-3">
           <button
             onClick={() => handleMenuClick({ label: 'Logout' })}
-            className="w-full flex items-center gap-3 px-4 py-2 text-sm rounded text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            className="w-full text-left px-3 py-2 text-sm rounded text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium"
           >
-            <span className="text-lg"></span>
-            <span>Logout</span>
+            Logout
           </button>
         </div>
       </aside>

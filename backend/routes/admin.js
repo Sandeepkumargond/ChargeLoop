@@ -12,10 +12,7 @@ const {
   adminLogin,
   getAllAdmins,
   addAdmin,
-  deleteAdmin,
-  getPendingHostRegistrations,
-  approveHostRegistration,
-  denyHostRegistration
+  deleteAdmin
 } = require('../controllers/adminController');
 
 // Admin login route (no auth required)
@@ -46,10 +43,5 @@ router.put('/hosts/:hostId/approve', approveHost);
 
 // Reject a host
 router.put('/hosts/:hostId/reject', rejectHost);
-
-// Host registration request routes
-router.get('/host-registration-requests/pending', getPendingHostRegistrations);
-router.put('/host-registration-requests/:requestId/approve', approveHostRegistration);
-router.put('/host-registration-requests/:requestId/deny', denyHostRegistration);
 
 module.exports = router;

@@ -49,12 +49,19 @@ const handleSubmit = async (e) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          loginType: loginType,
+        }),
       });
         
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.msg || 'Login failed');
+        setError(errorData.msg || 'Login failed');
+        showErrorToast(errorData.msg || 'Login failed');
+        setLoading(false);
+        return;
       }
         
       const result = await response.json();
@@ -63,22 +70,23 @@ const handleSubmit = async (e) => {
       if (result.token) {
         localStorage.setItem('token', result.token);
         localStorage.setItem('userEmail', data.email);
-        localStorage.setItem('userRole', loginType); // Store the login type as role preference
+        localStorage.setItem('userRole', result.user.role); // Store the actual user role from backend
         
         // Dispatch auth change event to update navbar
         window.dispatchEvent(new Event('authChange'));
         
         showSuccess('Login successful! Redirecting...');
         
-        // Redirect based on login type
-        if (loginType === 'host') {
+        // Redirect based on actual user role from backend
+        if (result.user.role === 'host') {
           router.push('/host');
+        } else if (result.user.role === 'admin') {
+          router.push('/admin/dashboard');
         } else {
           router.push('/user');
         }
       }
     } catch (error) {
-      console.error('Error during login:', error);
       setError(error.message);
       showErrorToast(error.message);
     } finally {
@@ -101,7 +109,8 @@ const handleSubmit = async (e) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          credential: credentialResponse.credential
+          credential: credentialResponse.credential,
+          loginType: loginType
         }),
       });
 
@@ -137,7 +146,6 @@ const handleSubmit = async (e) => {
             userType = userTypeData.userType || 'user'; // 'user', 'host', or 'admin'
           }
         } catch (error) {
-          console.log('Could not determine user type, defaulting to user');
         }
 
         // Store the token and user info
@@ -160,7 +168,6 @@ const handleSubmit = async (e) => {
         }
       }
     } catch (error) {
-      console.error('Error during Google login:', error);
       const errorMsg = error.message || 'Failed to login with Google. Check console for details.';
       setError(errorMsg);
       showErrorToast(errorMsg);
@@ -211,7 +218,7 @@ const handleSubmit = async (e) => {
                 <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
-                <p className="text-red-800 dark:text-red-300 text-sm font-medium">{error}</p>
+                <p className="text-red-800 dark:text-red-300 text-sm font-medium break-words">{error}</p>
               </div>
             </div>
           )}

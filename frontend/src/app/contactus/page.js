@@ -61,8 +61,7 @@ export default function ContactPage() {
       const errorMsg = "Failed to send message! Please try again or contact us directly at errorincode404@gmail.com";
       setModalContent({ status: 'error', message: errorMsg });
       setShowModal(true);
-      showError("Failed to send message. Please try again.");
-      console.error('Error sending message:', error);
+      showError("Failed to send message. Please try again");
     } finally {
       setIsSubmitting(false);
     }

@@ -97,10 +97,8 @@ const sendHostOnboardingEmail = async (hostData) => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log('Host onboarding email sent successfully to:', hostData.email);
     return { success: true };
   } catch (error) {
-    console.error('Error sending host onboarding email:', error);
     return { success: false, error: error.message };
   }
 };
@@ -187,10 +185,8 @@ const sendBookingNotificationToHost = async (hostData, bookingData) => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log('Booking notification sent successfully to:', hostData.email);
     return { success: true };
   } catch (error) {
-    console.error('Error sending booking notification:', error);
     return { success: false, error: error.message };
   }
 };
@@ -219,7 +215,6 @@ const verifyEmailAddress = async (email) => {
     // For now, we'll do basic validation
     return { valid: true, reason: 'Email format is valid' };
   } catch (error) {
-    console.error('Error verifying email:', error);
     return { valid: false, reason: 'Unable to verify email' };
   }
 };
@@ -262,10 +257,8 @@ const sendContactEmail = async (contactData) => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log('Contact email sent successfully from:', email);
     return true;
   } catch (error) {
-    console.error('Error sending contact email:', error);
     throw error;
   }
 };
@@ -340,9 +333,7 @@ const sendHostApprovalEmail = async (email, name) => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log('Host approval email sent to:', email);
   } catch (error) {
-    console.error('Error sending host approval email:', error);
     throw error;
   }
 };
@@ -411,9 +402,7 @@ const sendHostDenialEmail = async (email, name, denialReason) => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log('Host denial email sent to:', email);
   } catch (error) {
-    console.error('Error sending host denial email:', error);
     throw error;
   }
 };

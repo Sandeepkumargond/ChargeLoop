@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function ChargingHistoryPage() {
-  const [chargingSessions, setChargingSessions] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("all"); // all, completed, ongoing, cancelled
+  const [filter, setFilter] = useState("all"); // all, completed, ongoing, cancelled, accepted, pending
   const [sortBy, setSortBy] = useState("newest"); // newest, oldest, duration, cost
   const router = useRouter();
 
@@ -38,20 +38,18 @@ export default function ChargingHistoryPage() {
             router.push("/login");
             return;
           }
-          // Check if it's an HTML response (server not running)
           const contentType = response.headers.get("content-type");
           if (contentType?.includes("text/html")) {
             throw new Error(
               "Backend server is not running. Please start the backend server first."
             );
           }
-          throw new Error("Failed to fetch charging history");
+          throw new Error("Failed to fetch booking history");
         }
 
         const historyData = await response.json();
-        setChargingSessions(historyData.sessions || []);
+        setBookings(historyData.sessions || []);
       } catch (error) {
-        console.error("Error fetching charging history:", error);
         setError(error.message);
       } finally {
         setLoading(false);
@@ -123,21 +121,21 @@ export default function ChargingHistoryPage() {
     return `${rating}/5 stars`;
   };
 
-  const filteredSessions = chargingSessions.filter((session) => {
+  const filteredSessions = bookings.filter((booking) => {
     if (filter === "all") return true;
-    return session.status === filter;
+    return booking.status === filter;
   });
 
   const sortedSessions = [...filteredSessions].sort((a, b) => {
     switch (sortBy) {
       case "newest":
-        return new Date(b.startTime) - new Date(a.startTime);
+        return new Date(b.createdAt) - new Date(a.createdAt);
       case "oldest":
-        return new Date(a.startTime) - new Date(b.startTime);
+        return new Date(a.createdAt) - new Date(b.createdAt);
       case "duration":
-        return b.duration - a.duration;
+        return (b.actualDuration || b.estimatedDuration || 0) - (a.actualDuration || a.estimatedDuration || 0);
       case "cost":
-        return b.cost - a.cost;
+        return (b.actualCost || b.estimatedCost || 0) - (a.actualCost || a.estimatedCost || 0);
       default:
         return 0;
     }
@@ -145,11 +143,11 @@ export default function ChargingHistoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
-          <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-          <p className="text-gray-600 dark:text-gray-300 mt-4">
-            Loading charging history...
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded border border-gray-200 dark:border-gray-700">
+          <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+          <p className="text-gray-600 dark:text-gray-300 mt-3 text-sm">
+            Loading...
           </p>
         </div>
       </div>
@@ -158,18 +156,13 @@ export default function ChargingHistoryPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg max-w-md w-full">
-          <div className="text-red-600 dark:text-red-400 text-center mb-4">
-            <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-2">Error Loading History</h2>
-          <p className="text-gray-600 dark:text-gray-400 text-center mb-6">{error}</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded border border-gray-200 dark:border-gray-700 max-w-md w-full mx-4">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white mb-2">Error Loading History</h2>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200 font-medium"
+            className="w-full bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 transition font-medium"
           >
             Try Again
           </button>
@@ -182,44 +175,44 @@ export default function ChargingHistoryPage() {
     <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
             {/* Header Section */}
-            <div className="pb-8 border-b border-gray-200 dark:border-gray-700">
-              <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-3">Charging History</h1>
-              <p className="text-lg text-gray-600 dark:text-gray-300">View and manage all your charging sessions</p>
+            <div className="pb-6 border-b border-gray-200 dark:border-gray-700 mb-6">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Charging History</h1>
+              <p className="text-sm text-gray-600 dark:text-gray-300">View all your charging sessions</p>
         </div>
 
         {/* Quick Stats - Inline */}
-        <div className="py-8 grid grid-cols-2 md:grid-cols-4 gap-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="py-6 grid grid-cols-2 md:grid-cols-4 gap-4 border-b border-gray-200 dark:border-gray-700 mb-6">
           <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Sessions</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{chargingSessions.length}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Total Bookings</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">{bookings.length}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">{chargingSessions.filter((s) => s.status === "completed").length}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Completed</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">{bookings.filter((s) => s.status === "completed").length}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Energy Used</p>
-            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">{chargingSessions.reduce((sum, s) => sum + (s.energyConsumed || 0), 0).toFixed(1)} kWh</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Energy Used</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">{bookings.reduce((sum, s) => sum + (s.energyConsumed || 0), 0).toFixed(1)} kWh</p>
           </div>
           <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Spent</p>
-            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400 mt-1">₹{chargingSessions.reduce((sum, s) => sum + (s.cost || 0), 0)}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Total Spent</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">₹{bookings.reduce((sum, s) => sum + (s.actualCost || s.estimatedCost || 0), 0)}</p>
           </div>
         </div>
 
         {/* Filters Section */}
-        <div className="py-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between border-b border-gray-200 dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+        <div className="py-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between border-b border-gray-200 dark:border-gray-700 mb-6">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-2 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
-                <option value="all">All Sessions</option>
-                <option value="pending">Pending Requests</option>
-                <option value="accepted">Accepted Requests</option>
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="accepted">Accepted</option>
                 <option value="ongoing">Ongoing</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
@@ -227,85 +220,82 @@ export default function ChargingHistoryPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Sort By</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Sort</label>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-2 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="duration">By Duration</option>
-                <option value="cost">By Cost</option>
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="duration">Duration</option>
+                <option value="cost">Cost</option>
               </select>
             </div>
           </div>
-          <span className="text-sm text-gray-600 dark:text-gray-400">{sortedSessions.length} of {chargingSessions.length} sessions</span>
+          <span className="text-xs text-gray-600 dark:text-gray-400">{sortedSessions.length} of {bookings.length}</span>
         </div>
 
         {/* Sessions Table */}
-        <div className="py-8">
+        <div>
           {sortedSessions.length === 0 ? (
-            <div className="text-center py-16">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Charging Sessions</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">You haven't booked any charging sessions yet</p>
+            <div className="text-center py-12">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">No Charging Sessions</h3>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">No bookings yet</p>
               <button
                 onClick={() => router.push("/map")}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition duration-200 text-sm font-medium"
+                className="bg-blue-600 text-white px-4 py-1.5 rounded hover:bg-blue-700 transition text-sm font-medium"
               >
                 Find Chargers
               </button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {sortedSessions.map((session) => (
+            <div className="space-y-3">
+              {sortedSessions.map((booking) => (
                 <div
-                  key={session._id || session.id}
-                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:shadow-md transition-shadow"
+                  key={booking._id || booking.id}
+                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-4"
                 >
-                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                    {/* Session Details */}
-                    <div className="lg:col-span-2">
-                      <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{session.hostName}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{session.hostLocation}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">{session.chargerType}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    {/* Booking Details */}
+                    <div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Station</p>
+                      <h3 className="font-medium text-gray-900 dark:text-white text-sm">{booking.hostName}</h3>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{booking.hostLocation}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{booking.chargerType}</p>
                     </div>
                     
                     {/* Time & Duration */}
                     <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Duration</p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">{formatDuration(session.duration)}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">{formatDateTime(session.startTime)}</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Duration</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{formatDuration(booking.actualDuration || booking.estimatedDuration)}</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{formatDateTime(booking.scheduledTime)}</p>
                     </div>
                     
                     {/* Energy & Cost */}
                     <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Energy</p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">{session.energyConsumed || 0} kWh</p>
-                      <p className="text-xs text-green-600 dark:text-green-400 font-semibold mt-2">₹{session.cost || 0}</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Energy • Cost</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{booking.energyConsumed || 0} kWh • ₹{booking.actualCost || booking.estimatedCost || 0}</p>
                     </div>
                     
-                    {/* Status & Actions */}
-                    <div className="flex flex-col items-start lg:items-end justify-between">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
-                        {getStatusIcon(session.status)}
+                    {/* Status */}
+                    <div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">Status</p>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium inline-block ${getStatusColor(booking.status)}`}>
+                        {getStatusIcon(booking.status)}
                       </span>
-                      {session.status === "pending" && (
-                        <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">Waiting for host approval</p>
-                      )}
-                      {session.status === "accepted" && (
-                        <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">Request approved by host</p>
-                      )}
-                      <div className="flex gap-2 mt-3 w-full lg:justify-end">
-                        <button className="text-xs px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition">
-                          Details
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 items-center justify-start lg:justify-end">
+                      <button className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                        Details
+                      </button>
+                      {booking.status === "completed" && (
+                        <button className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                          Receipt
                         </button>
-                        {session.status === "completed" && (
-                          <button className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition">
-                            Receipt
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -316,9 +306,9 @@ export default function ChargingHistoryPage() {
 
         {/* Load More */}
         {sortedSessions.length > 0 && (
-          <div className="text-center py-8">
-            <button className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition text-sm font-medium">
-              Load More Sessions
+          <div className="text-center py-4">
+            <button className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition text-xs font-medium">
+              Load More
             </button>
           </div>
         )}

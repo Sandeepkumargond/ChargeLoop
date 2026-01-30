@@ -94,10 +94,8 @@ export const ReviewsProvider = ({ children }) => {
         body: JSON.stringify(newReview)
       });
 
-      console.log('Review submitted successfully:', newReview);
       return newReview;
     } catch (error) {
-      console.error('Error submitting review:', error);
       throw error;
     }
   };

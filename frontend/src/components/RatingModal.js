@@ -30,7 +30,6 @@ const RatingModal = ({ isOpen, onClose, chargingSession, onSubmitReview }) => {
       setReview('');
       onClose();
     } catch (error) {
-      console.error('Error submitting review:', error);
       alert('Failed to submit review. Please try again.');
     } finally {
       setIsSubmitting(false);

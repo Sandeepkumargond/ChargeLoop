@@ -26,7 +26,7 @@ router.post('/vehicles', authMiddleware, addVehicle);
 router.get('/vehicles', authMiddleware, getVehicles);
 router.delete('/vehicles/:vehicleId', authMiddleware, deleteVehicle);
 
-// Host registration request routes
+// Host registration request routes - Now uses Host model directly
 router.post('/request-host-registration', authMiddleware, requestHostRegistration);
 router.get('/host-registration-status', authMiddleware, getHostRegistrationStatus);
 

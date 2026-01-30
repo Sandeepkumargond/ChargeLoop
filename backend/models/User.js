@@ -39,7 +39,7 @@ const userSchema = new mongoose.Schema({
   chargingSessions: { type: Number, default: 0 },
   hostSessions: { type: Number, default: 0 },
   emailVerified: { type: Boolean, default: false },
-  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  role: { type: String, enum: ['user', 'host', 'admin'], default: 'user' },
   vehicles: [vehicleSchema],
   lastLogin: { type: Date, default: Date.now }
 }, { timestamps: true });

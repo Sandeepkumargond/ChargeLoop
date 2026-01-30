@@ -53,7 +53,6 @@ router.post('/recharge', authMiddleware, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Recharge error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -99,7 +98,6 @@ router.get('/transactions', authMiddleware, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Transactions fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -115,7 +113,6 @@ router.get('/balance', authMiddleware, async (req, res) => {
     res.json({ walletBalance: user.walletBalance || 0 });
 
   } catch (error) {
-    console.error('Balance fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -169,7 +166,6 @@ router.post('/deduct', authMiddleware, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Deduction error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -208,7 +204,6 @@ router.get('/stats', authMiddleware, async (req, res) => {
     res.json(result);
 
   } catch (error) {
-    console.error('Stats fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 });

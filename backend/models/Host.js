@@ -50,8 +50,8 @@ const HostSchema = new mongoose.Schema({
   },
   pricePerHour: {
     type: Number,
-    required: true,
-    min: 1
+    default: 0,
+    min: 0
   },
   amenities: [{
     type: String,
@@ -64,6 +64,10 @@ const HostSchema = new mongoose.Schema({
   availableFrom: String, // Time format: "09:00"
   availableTo: String,   // Time format: "21:00"
   available: {
+    type: Boolean,
+    default: true
+  },
+  isVisibleOnMap: {
     type: Boolean,
     default: true
   },

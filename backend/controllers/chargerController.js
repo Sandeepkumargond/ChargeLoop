@@ -56,7 +56,6 @@ const createChargerStation = async (req, res) => {
         stationId: chargerStation._id
       });
     } catch (emailError) {
-      console.error('Failed to send onboarding email:', emailError);
     }
 
     res.status(201).json({
@@ -65,7 +64,6 @@ const createChargerStation = async (req, res) => {
       data: chargerStation
     });
   } catch (error) {
-    console.error('Error creating charger station:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -83,7 +81,6 @@ const getHostChargerStations = async (req, res) => {
       data: chargerStations
     });
   } catch (error) {
-    console.error('Error fetching host charger stations:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -125,7 +122,6 @@ const getNearbyChargerStations = async (req, res) => {
       data: chargerStations
     });
   } catch (error) {
-    console.error('Error fetching nearby charger stations:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -160,7 +156,6 @@ const updateChargerStation = async (req, res) => {
       data: chargerStation
     });
   } catch (error) {
-    console.error('Error updating charger station:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -200,7 +195,6 @@ const updateAvailability = async (req, res) => {
       data: chargerStation
     });
   } catch (error) {
-    console.error('Error updating availability:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -230,7 +224,6 @@ const deleteChargerStation = async (req, res) => {
       message: 'Charger station deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting charger station:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -258,7 +251,6 @@ const getChargerStationDetails = async (req, res) => {
       data: chargerStation
     });
   } catch (error) {
-    console.error('Error fetching charger station details:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'

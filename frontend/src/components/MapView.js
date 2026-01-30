@@ -35,11 +35,9 @@
         
         // Re-add user markers if they were accidentally removed
         if (!userMarkerExists && userMarkerRef.current) {
-          console.log("User marker was missing - restoring it!");
           userMarkerRef.current.addTo(map);
         }
         if (!userCircleExists && userCircleRef.current) {
-          console.log("User circle was missing - restoring it!");
           userCircleRef.current.addTo(map);
         }
       }
@@ -277,7 +275,6 @@
           });
           
           tileLayer.on('tileerror', function(error) {
-            console.warn('Tile loading error:', error);
           });
           
           tileLayer.addTo(map);
@@ -298,7 +295,6 @@
             permanent: true
           }).addTo(map);
           userMarkerRef.current = userMarker;
-          console.log("User location marker created and protected");
           
           // Add backup circle marker for better visibility
           const circleMarker = window.L.circleMarker(center, {
@@ -313,7 +309,6 @@
             permanent: true
           }).addTo(map);
           userCircleRef.current = circleMarker;
-          console.log("User location circle created and protected");
           userMarker.bindPopup(`
             <div style="text-align: center; padding: 10px;">
               <strong> Your Location</strong><br>
@@ -402,7 +397,6 @@
             delete mapElement._leaflet_map;
           }
         } catch (error) {
-          console.error('Error cleaning up map:', error);
         }
       };
     }, [mapReady]);
@@ -432,7 +426,6 @@
         if (response.ok) {
           const data = await response.json();
           allHosts = data.hosts || [];
-          console.log(`Fetched ${allHosts.length} total hosts from API`);
         } else {
           const errorText = await response.text();
           throw new Error(`API call failed: ${response.status} - ${errorText}`);
@@ -440,13 +433,11 @@
 
         // Use radiusOverride if provided, otherwise use current searchRadius
         const currentRadius = radiusOverride !== null ? radiusOverride : searchRadius;
-        console.log(`Filtering with radius: ${currentRadius}, User location:`, userCenter);
         
         // Filter hosts based on radius if user location is available
         let filteredHosts = allHosts;
         if (userCenter && currentRadius !== 'all') {
           const [userLat, userLng] = userCenter;
-          console.log(`User location: [${userLat}, ${userLng}], Filtering for ${currentRadius}km`);
           
           filteredHosts = allHosts.filter((host, index) => {
             // Get host coordinates
@@ -458,17 +449,12 @@
               hostLat = host.location.coordinates.lat;
               hostLng = host.location.coordinates.lng;
             } else {
-              console.log(`Host ${index} has invalid coordinates:`, host.location);
               return false; // Skip hosts without valid coordinates
             }
 
             // Calculate distance
             const distance = calculateDistance(userLat, userLng, hostLat, hostLng);
             host.distance = distance; // Add distance to host object for display
-            
-            if (index < 3) { // Log first 3 hosts for debugging
-              console.log(`Host ${index}: ${host.hostName} at [${hostLat}, ${hostLng}] - Distance: ${distance.toFixed(2)}km`);
-            }
             
             return distance <= currentRadius;
           });
@@ -503,23 +489,6 @@
         
         // Always ensure user location markers remain visible
         ensureUserLocationVisible(map);
-        
-        console.log(`Total hosts received: ${allHosts.length}`);
-        console.log(`Filtered to ${filteredHosts.length} hosts within ${currentRadius}km radius`);
-        
-        if (filteredHosts.length > 0) {
-          console.log("Sample filtered hosts:", filteredHosts.slice(0, 3).map(h => ({
-            name: h.hostName,
-            distance: h.distance ? h.distance.toFixed(2) + 'km' : 'N/A'
-          })));
-        } else {
-          console.log("No hosts found within radius - checking data...");
-          console.log("First 3 total hosts:", allHosts.slice(0, 3).map(h => ({
-            name: h.hostName,
-            coordinates: h.location?.coordinates,
-            address: h.address
-          })));
-        }
         
         // Show alert only if there's real data but no matches within radius
         if (showAlert && allHosts.length > 0 && filteredHosts.length === 0 && currentRadius !== 'all') {
@@ -625,7 +594,6 @@
 
     // Function to update search radius with auto-refresh
     const updateSearchRadius = async (newRadius) => {
-      console.log(`Updating search radius to: ${newRadius}`);
       
       // Update state immediately for real-time feedback
       setSearchRadius(newRadius);
@@ -640,7 +608,6 @@
               !layer.options?.permanent) {
             mapInstance.removeLayer(layer);
           } else if (layer instanceof window.L.Marker && layer === userMarkerRef.current) {
-            console.log(" User location marker protected from removal");
           }
           // Also clear circle markers except user location circle with multiple protections
           if (layer instanceof window.L.CircleMarker && 
@@ -945,6 +912,39 @@
     });
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
+    const [savedVehicles, setSavedVehicles] = useState([]);
+    const [loadingVehicles, setLoadingVehicles] = useState(true);
+
+    // Fetch saved vehicles on component mount
+    useEffect(() => {
+      const fetchSavedVehicles = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setSavedVehicles(data.vehicles || []);
+          }
+        } catch (err) {
+        } finally {
+          setLoadingVehicles(false);
+        }
+      };
+
+      fetchSavedVehicles();
+    }, []);
+
+    // Handle vehicle autofill
+    const handleVehicleSelect = (vehicle) => {
+      setBookingDetails(prev => ({
+        ...prev,
+        vehicleNumber: vehicle.vehicleNumber,
+        vehicleType: vehicle.vehicleType || 'car'
+      }));
+    };
 
     // Validate form
     const validateForm = () => {
@@ -1138,24 +1138,46 @@
 
           {/* Booking Form */}
           <div className="space-y-4">
-            {/* Vehicle Number */}
+            {/* Vehicle Number with Autofill */}
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Vehicle Number <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                placeholder="e.g., BR-1AB1234"
-                value={bookingDetails.vehicleNumber}
-                onChange={(e) => {
-                  setBookingDetails({...bookingDetails, vehicleNumber: e.target.value.toUpperCase()});
-                  if (errors.vehicleNumber) {
-                    setErrors({...errors, vehicleNumber: ''});
-                  }
-                }}
-                className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${errors.vehicleNumber ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-transparent'}`}
-                required
-              />
+              <div className="space-y-2">
+                {/* Saved Vehicles Autofill */}
+                {!loadingVehicles && savedVehicles.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {savedVehicles.map((vehicle) => (
+                      <button
+                        key={vehicle._id}
+                        onClick={() => handleVehicleSelect(vehicle)}
+                        className={`px-3 py-2 rounded-lg text-xs font-medium border-2 transition ${
+                          bookingDetails.vehicleNumber === vehicle.vehicleNumber
+                            ? 'border-blue-600 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="font-semibold">{vehicle.vehicleNumber}</div>
+                        <div className="text-xs opacity-75">{vehicle.vehicleType}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Input Field */}
+                <input
+                  type="text"
+                  placeholder="e.g., BR-1AB1234"
+                  value={bookingDetails.vehicleNumber}
+                  onChange={(e) => {
+                    setBookingDetails({...bookingDetails, vehicleNumber: e.target.value.toUpperCase()});
+                    if (errors.vehicleNumber) {
+                      setErrors({...errors, vehicleNumber: ''});
+                    }
+                  }}
+                  className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${errors.vehicleNumber ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-transparent'}`}
+                  required
+                />
+              </div>
               {errors.vehicleNumber && (
                 <p className="text-red-500 text-xs mt-1 font-medium">{errors.vehicleNumber}</p>
               )}

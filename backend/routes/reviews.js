@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const ChargingSession = require('../models/ChargingSession');
+const BookingRequest = require('../models/BookingRequest');
 const auth = require('../middleware/auth');
 
 // Submit a review for a charging session
@@ -22,11 +22,11 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    // Find the charging session
-    const session = await ChargingSession.findById(sessionId);
+    // Find the booking request
+    const session = await BookingRequest.findById(sessionId);
     if (!session) {
       return res.status(404).json({
-        error: 'Charging session not found'
+        error: 'Booking request not found'
       });
     }
 
@@ -59,7 +59,6 @@ router.post('/', auth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error submitting review:', error);
     return res.status(500).json({
       error: 'Failed to submit review',
       details: error.message
@@ -72,7 +71,7 @@ router.get('/host/:hostId', async (req, res) => {
   try {
     const { hostId } = req.params;
 
-    const reviews = await ChargingSession.find({
+    const reviews = await BookingRequest.find({
       hostId: hostId,
       reviewSubmitted: true
     }).select('rating review chargerLocation reviewSubmittedAt userId');
@@ -87,7 +86,6 @@ router.get('/host/:hostId', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching reviews:', error);
     return res.status(500).json({
       error: 'Failed to fetch reviews',
       details: error.message
@@ -98,7 +96,7 @@ router.get('/host/:hostId', async (req, res) => {
 // Get all reviews submitted by current user
 router.get('/my-reviews', auth, async (req, res) => {
   try {
-    const reviews = await ChargingSession.find({
+    const reviews = await BookingRequest.find({
       userId: req.user.id,
       reviewSubmitted: true
     }).select('rating review chargerLocation reviewSubmittedAt hostId');
@@ -110,7 +108,6 @@ router.get('/my-reviews', auth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching user reviews:', error);
     return res.status(500).json({
       error: 'Failed to fetch reviews',
       details: error.message

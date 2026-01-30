@@ -4,8 +4,7 @@ const hostRegistrationRequestSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    unique: true
+    required: true
   },
   email: {
     type: String,
@@ -16,12 +15,26 @@ const hostRegistrationRequestSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  phone: {
+  mobile: {
     type: String,
     required: true
   },
+  phone: {
+    type: String
+  },
   companyName: {
+    type: String
+  },
+  address: {
     type: String,
+    required: true
+  },
+  latitude: {
+    type: Number,
+    required: true
+  },
+  longitude: {
+    type: Number,
     required: true
   },
   location: {
@@ -32,7 +45,6 @@ const hostRegistrationRequestSchema = new mongoose.Schema({
   },
   numberOfChargers: {
     type: Number,
-    required: true,
     min: 1
   },
   chargerTypes: [{
@@ -52,7 +64,10 @@ const hostRegistrationRequestSchema = new mongoose.Schema({
   documents: {
     companyRegistration: String,
     taxId: String,
-    identityProof: String
+    identityProof: String,
+    addressProofUrl: String,
+    aadharCardUrl: String,
+    lightConnectionProofUrl: String
   },
   status: {
     type: String,

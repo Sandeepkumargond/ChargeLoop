@@ -77,7 +77,6 @@ export default function ProfilePage() {
           location: userData.location || '',
         });
       } catch (error) {
-        console.error('Error fetching profile:', error);
         setError(error.message);
       } finally {
         setLoading(false);
@@ -147,7 +146,6 @@ export default function ProfilePage() {
       
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
-      console.error('Error updating profile:', error);
       setError(error.message);
     } finally {
       setIsSaving(false);

@@ -29,7 +29,6 @@ export default function AdminLogin() {
       });
 
       const data = await response.json();
-      console.log('Login response:', { status: response.status, data });
 
       if (response.ok) {
         // Store admin token and info

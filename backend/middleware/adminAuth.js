@@ -15,7 +15,6 @@ const adminAuth = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Admin auth middleware error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };

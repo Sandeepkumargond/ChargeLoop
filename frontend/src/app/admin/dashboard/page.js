@@ -27,6 +27,13 @@ export default function AdminDashboard() {
   const [addingAdmin, setAddingAdmin] = useState(false);
   const [adminSuccess, setAdminSuccess] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [registrationRequests, setRegistrationRequests] = useState([]);
+  const [selectedRegistration, setSelectedRegistration] = useState(null);
+  const [currentAdminEmail, setCurrentAdminEmail] = useState('');
+  const [currentAdminName, setCurrentAdminName] = useState('');
+  const [documentLoadingError, setDocumentLoadingError] = useState({});
+  const [documentViewerModal, setDocumentViewerModal] = useState({ open: false, url: null, title: null, type: null });
+  const [showAddAdminModal, setShowAddAdminModal] = useState(false);
   const router = useRouter();
   const { showSuccess, showError: showErrorToast } = useNotification();
 
@@ -34,6 +41,8 @@ export default function AdminDashboard() {
     fetchAdminData();
     fetchHosts();
     fetchAdmins();
+    fetchRegistrationRequests();
+    fetchCurrentAdmin();
   }, []);
 
   const fetchHosts = async () => {
@@ -60,7 +69,6 @@ export default function AdminDashboard() {
         setRejectedHosts(hosts.filter(host => host.verificationStatus === 'rejected'));
       }
     } catch (err) {
-      console.error('Error fetching hosts:', err);
     } finally {
       setHostsLoading(false);
     }
@@ -82,7 +90,143 @@ export default function AdminDashboard() {
         setAdmins(data.admins || []);
       }
     } catch (err) {
-      console.error('Error fetching admins:', err);
+    }
+  };
+
+  const fetchRegistrationRequests = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      // Fetch pending hosts from the consolidated hosts endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/hosts/pending`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        const pendingHostsList = data.hosts ? data.hosts.filter(host => host.verificationStatus === 'pending') : [];
+        setRegistrationRequests(pendingHostsList);
+        if (pendingHostsList && pendingHostsList.length > 0) {
+          setSelectedRegistration(pendingHostsList[0]);
+        }
+      } else {
+      }
+    } catch (err) {
+    }
+  };
+
+  const fetchCurrentAdmin = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      // Decode JWT token to extract admin info
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
+        const payload = JSON.parse(jsonPayload);
+        
+        if (payload.email) {
+          setCurrentAdminEmail(payload.email);
+        }
+        if (payload.name) {
+          setCurrentAdminName(payload.name);
+        }
+        if (payload.email && !payload.name) {
+          setCurrentAdminName(payload.email.split('@')[0]);
+        }
+      } catch (err) {
+        setCurrentAdminName('Admin');
+      }
+    } catch (err) {
+    }
+  };
+
+  const approveRegistration = async (registrationId) => {
+    try {
+      setProcessingHost(registrationId);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Authentication required');
+        return;
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/host-registration-requests/${registrationId}/approve`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setError('');
+        await fetchRegistrationRequests();
+        await fetchHosts();
+        setSelectedRegistration(null);
+        showSuccess('Registration approved successfully!');
+      } else {
+        const errorMsg = data.message || 'Failed to approve registration';
+        setError(errorMsg);
+        showErrorToast(errorMsg);
+      }
+    } catch (err) {
+      const errorMsg = 'Failed to approve registration';
+      setError(errorMsg);
+      showErrorToast(errorMsg);
+    } finally {
+      setProcessingHost(null);
+    }
+  };
+
+  const denyRegistration = async (registrationId) => {
+    const reason = prompt('Enter reason for rejection:');
+    if (!reason) return;
+
+    try {
+      setProcessingHost(registrationId);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Authentication required');
+        return;
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/host-registration-requests/${registrationId}/deny`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setError('');
+        await fetchRegistrationRequests();
+        setSelectedRegistration(null);
+        showSuccess('Registration rejected successfully!');
+      } else {
+        const errorMsg = data.message || 'Failed to reject registration';
+        setError(errorMsg);
+        showErrorToast(errorMsg);
+      }
+    } catch (err) {
+      const errorMsg = 'Failed to reject registration';
+      setError(errorMsg);
+      showErrorToast(errorMsg);
+    } finally {
+      setProcessingHost(null);
     }
   };
 
@@ -134,7 +278,6 @@ export default function AdminDashboard() {
         showErrorToast(errorMsg);
       }
     } catch (err) {
-      console.error('Error adding admin:', err);
       const errorMsg = 'Error creating admin';
       setError(errorMsg);
       showErrorToast(errorMsg);
@@ -175,7 +318,6 @@ export default function AdminDashboard() {
         showErrorToast(errorMsg);
       }
     } catch (err) {
-      console.error('Error deleting admin:', err);
       const errorMsg = 'Error deleting admin';
       setError(errorMsg);
       showErrorToast(errorMsg);
@@ -212,13 +354,16 @@ export default function AdminDashboard() {
         showErrorToast(errorMsg);
       }
     } catch (err) {
-      console.error('Error approving host:', err);
       const errorMsg = 'Failed to approve host';
       setError(errorMsg);
       showErrorToast(errorMsg);
     } finally {
       setProcessingHost(null);
     }
+  };
+
+  const downloadDocument = (url, filename) => {
+    window.open(url, '_blank');
   };
 
   const openRejectModal = (host) => {
@@ -266,7 +411,6 @@ export default function AdminDashboard() {
         showErrorToast(errorMsg);
       }
     } catch (err) {
-      console.error('Error rejecting host:', err);
       const errorMsg = 'Failed to reject host';
       setError(errorMsg);
       showErrorToast(errorMsg);
@@ -279,31 +423,25 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        console.log('No token found, redirecting to admin login');
         router.push('/admin/login');
         return;
       }
 
-      console.log('Token found, fetching admin data...');
       const headers = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       };
 
       // Fetch admin stats first (most important)
-      console.log('Fetching admin stats...');
       const statsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/stats`, { headers });
-      console.log('Stats response status:', statsResponse.status);
       
       if (statsResponse.status === 403) {
-        console.log('Access forbidden - not admin');
         setError('Admin access required. Please login with admin credentials.');
         setTimeout(() => router.push('/admin/login'), 3000);
         return;
       }
       
       if (statsResponse.status === 401) {
-        console.log('Unauthorized - invalid token');
         localStorage.removeItem('token');
         localStorage.removeItem('userEmail');
         localStorage.removeItem('userRole');
@@ -313,7 +451,6 @@ export default function AdminDashboard() {
       
       if (statsResponse.ok) {
         const stats = await statsResponse.json();
-        console.log('Admin stats loaded:', stats);
         setAdminStats(stats);
         setLoading(false);
         setError(''); // Clear any errors
@@ -322,7 +459,6 @@ export default function AdminDashboard() {
       }
 
     } catch (err) {
-      console.error('Error fetching admin data:', err);
       setError(`Error: ${err.message}`);
       setLoading(false);
     }
@@ -430,9 +566,9 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="w-full h-screen bg-gray-50 dark:bg-gray-900 flex">
       {/* SIDEBAR */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-gray-800 shadow-lg border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col`}>
+      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-gray-800 shadow-lg border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col h-screen fixed left-0 top-0`}>
         {/* Toggle Button */}
         <div className="p-4 flex items-center justify-between">
           {sidebarOpen && <h2 className="text-xl font-bold text-gray-900 dark:text-white">ChargeLoop</h2>}
@@ -445,7 +581,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stats in Sidebar */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+        <div className="flex-1 px-4 py-6 space-y-4 overflow-hidden">
           {sidebarOpen && <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase px-2">Navigation</h3>}
           
           {/* Pending Hosts Button */}
@@ -504,11 +640,11 @@ export default function AdminDashboard() {
           {sidebarOpen && (
             <div className="flex items-center space-x-3 p-2">
               <div className="h-10 w-10 rounded-full bg-blue-500 dark:bg-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0">
-                A
+                {currentAdminName ? currentAdminName.charAt(0).toUpperCase() : 'A'}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">Admin</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">admin@chargeloop.com</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{currentAdminName || 'Admin'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{currentAdminEmail || 'Loading...'}</p>
               </div>
             </div>
           )}
@@ -531,13 +667,41 @@ export default function AdminDashboard() {
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Header */}
+      <div className={`flex-1 flex flex-col overflow-hidden ${sidebarOpen ? 'ml-64' : 'ml-20'} transition-all duration-300`}>
+        {/* Top Header with Stats */}
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Manage host verifications and platform settings</p>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            {/* Title and Stats Row */}
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Manage host verifications and platform settings</p>
+              </div>
+
+              {/* Compact Stats */}
+              {adminStats && (
+                <div className="flex gap-3">
+                  <div className="bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 min-w-max">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">HOSTS</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{adminStats.totalHosts || 0}</p>
+                  </div>
+
+                  <div className="bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 min-w-max">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">PENDING</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{adminStats.pendingHosts || 0}</p>
+                  </div>
+
+                  <div className="bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 min-w-max">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">USERS</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{adminStats.totalUsers || 0}</p>
+                  </div>
+
+                  <div className="bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 min-w-max">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">APPROVED</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{approvedHosts.length || 0}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -545,47 +709,6 @@ export default function AdminDashboard() {
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Stats Cards */}
-            {adminStats && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-700 dark:to-blue-800 text-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-3xl"></span>
-                    <span className="bg-blue-400 dark:bg-blue-600 bg-opacity-30 text-blue-100 text-xs font-semibold px-3 py-1 rounded-full">HOSTS</span>
-                  </div>
-                  <p className="text-4xl font-bold">{adminStats.totalHosts || 0}</p>
-                  <p className="text-blue-100 text-sm mt-2">Total Host Registrations</p>
-                </div>
-
-                <div className="bg-gradient-to-br from-yellow-500 to-orange-600 dark:from-yellow-700 dark:to-orange-800 text-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-3xl"></span>
-                    <span className="bg-yellow-400 dark:bg-yellow-600 bg-opacity-30 text-yellow-100 text-xs font-semibold px-3 py-1 rounded-full">PENDING</span>
-                  </div>
-                  <p className="text-4xl font-bold">{adminStats.pendingHosts || 0}</p>
-                  <p className="text-yellow-100 text-sm mt-2">Awaiting Approval</p>
-                </div>
-
-                <div className="bg-gradient-to-br from-green-500 to-emerald-600 dark:from-green-700 dark:to-emerald-800 text-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-3xl"></span>
-                    <span className="bg-green-400 dark:bg-green-600 bg-opacity-30 text-green-100 text-xs font-semibold px-3 py-1 rounded-full">USERS</span>
-                  </div>
-                  <p className="text-4xl font-bold">{adminStats.totalUsers || 0}</p>
-                  <p className="text-green-100 text-sm mt-2">Registered Users</p>
-                </div>
-
-                <div className="bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-700 dark:to-pink-800 text-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-3xl"></span>
-                    <span className="bg-purple-400 dark:bg-purple-600 bg-opacity-30 text-purple-100 text-xs font-semibold px-3 py-1 rounded-full">APPROVED</span>
-                  </div>
-                  <p className="text-4xl font-bold">{approvedHosts.length || 0}</p>
-                  <p className="text-purple-100 text-sm mt-2">Approved Hosts</p>
-                </div>
-              </div>
-            )}
-
             {/* Host Management Content */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700">
               {/* Tab Content */}
@@ -599,90 +722,200 @@ export default function AdminDashboard() {
                 ) : (
                   <>
                     {activeTab === 'pending' && (
-                      <div>
-                        {pendingHosts.length > 0 ? (
-                          <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                              <thead className="bg-gray-50 dark:bg-gray-700">
-                                <tr>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Host Info</th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Business</th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Location</th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Registered</th>
-                                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                {pendingHosts.map((host, index) => (
-                                  <tr key={host._id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                      <div className="flex items-center">
-                                        <div className="flex-shrink-0 h-10 w-10">
-                                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold">
-                                            {host.userId?.name ? host.userId.name.charAt(0).toUpperCase() : 'H'}
+                      <div className="h-full flex flex-col">
+                        {/* Registration Requests Section */}
+                        {registrationRequests.length > 0 && (
+                          <>
+                            <div className="flex-shrink-0">
+                              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Host Registration Requests ({registrationRequests.length})</h3>
+                            </div>
+                            <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+                              {/* List Panel */}
+                              <div className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-y-auto">
+                                <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                                  {registrationRequests.map((reg) => (
+                                    <div
+                                      key={reg._id}
+                                      onClick={() => setSelectedRegistration(reg)}
+                                      className={`p-4 cursor-pointer transition-colors ${
+                                        selectedRegistration?._id === reg._id
+                                          ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500'
+                                          : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                                      }`}
+                                    >
+                                      <p className="font-medium text-gray-900 dark:text-white">{reg.hostName || reg.name}</p>
+                                      <p className="text-sm text-gray-500 dark:text-gray-400">{reg.phone || reg.mobile}</p>
+                                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                        {new Date(reg.createdAt).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Details Panel */}
+                              {selectedRegistration && (
+                                <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6 overflow-y-auto flex flex-col">
+                                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Registration Details</h3>
+
+                                  {/* Basic Info */}
+                                  <div className="space-y-4 mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Name</label>
+                                      <p className="text-gray-900 dark:text-white mt-1">{selectedRegistration.hostName || selectedRegistration.name}</p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Email</label>
+                                      <p className="text-gray-900 dark:text-white mt-1">{selectedRegistration.email}</p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Phone</label>
+                                      <p className="text-gray-900 dark:text-white mt-1">{selectedRegistration.phone || selectedRegistration.mobile}</p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Address</label>
+                                      <p className="text-gray-900 dark:text-white mt-1">{selectedRegistration.location?.address || selectedRegistration.address}</p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Location Coordinates</label>
+                                      <p className="text-gray-900 dark:text-white mt-1">
+                                        {selectedRegistration.location?.latitude || selectedRegistration.latitude}, {selectedRegistration.location?.longitude || selectedRegistration.longitude}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Charger Type</label>
+                                      <p className="text-gray-900 dark:text-white mt-1">{selectedRegistration.chargerType || 'Not specified'}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Documents Section */}
+                                  <div className="mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+                                    <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Documents</h4>
+                                    <div className="space-y-3">
+                                      {/* Address Proof */}
+                                      {selectedRegistration.documents?.addressProofUrl && (
+                                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                              <span className="text-lg font-semibold text-gray-400">Doc</span>
+                                              <div>
+                                                <p className="font-medium text-gray-900 dark:text-white">Address Proof</p>
+                                                <p className="text-xs text-gray-600 dark:text-gray-400">Document</p>
+                                              </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                              <a
+                                                href={`https://docs.google.com/gview?url=${encodeURIComponent(selectedRegistration.documents.addressProofUrl)}&embedded=true`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+                                              >
+                                                View
+                                              </a>
+                                              <a
+                                                href={selectedRegistration.documents.addressProofUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs font-medium transition-colors"
+                                              >
+                                                Download
+                                              </a>
+                                            </div>
                                           </div>
                                         </div>
-                                        <div className="ml-4">
-                                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                            {host.userId?.name || 'Unknown'}
-                                          </div>
-                                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                                            {host.userId?.email || 'No email'}
+                                      )}
+
+                                      {/* Aadhar Card */}
+                                      {selectedRegistration.documents?.aadharCardUrl && (
+                                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                              <span className="text-lg font-semibold text-gray-400">Doc</span>
+                                              <div>
+                                                <p className="font-medium text-gray-900 dark:text-white">Aadhar Card</p>
+                                                <p className="text-xs text-gray-600 dark:text-gray-400">Document</p>
+                                              </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                              <a
+                                                href={`https://docs.google.com/gview?url=${encodeURIComponent(selectedRegistration.documents.aadharCardUrl)}&embedded=true`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+                                              >
+                                                View
+                                              </a>
+                                              <a
+                                                href={selectedRegistration.documents.aadharCardUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs font-medium transition-colors"
+                                              >
+                                                Download
+                                              </a>
+                                            </div>
                                           </div>
                                         </div>
-                                      </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                      <div className="text-sm font-medium text-gray-900 dark:text-white">{host.hostName || 'Not provided'}</div>
-                                      <div className="text-sm text-gray-500 dark:text-gray-400">{host.chargerType || 'Not specified'}</div>
-                                      <div className="text-xs text-blue-600 dark:text-blue-400">₹{host.pricePerHour}/hour</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                      <div className="text-sm text-gray-900 dark:text-white">{host.location?.address || 'Not provided'}</div>
-                                      <div className="text-sm text-gray-500 dark:text-gray-400">{host.location?.city || ''} {host.location?.state || ''}</div>
-                                      <div className="text-xs text-gray-400 dark:text-gray-500">{host.location?.pincode || ''}</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                      <div className="flex flex-col space-y-1">
-                                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300">
-                                          {host.verificationStatus || 'pending'}
-                                        </span>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                                          {host.createdAt ? `Applied ${new Date(host.createdAt).toLocaleDateString()}` : 'Date unknown'}
+                                      )}
+
+                                      {/* Light Bill / Connection Proof */}
+                                      {selectedRegistration.documents?.lightConnectionProofUrl && (
+                                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                              <span className="text-lg font-semibold text-gray-400">Doc</span>
+                                              <div>
+                                                <p className="font-medium text-gray-900 dark:text-white">Light Bill / Connection Proof</p>
+                                                <p className="text-xs text-gray-600 dark:text-gray-400">Document</p>
+                                              </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                              <a
+                                                href={`https://docs.google.com/gview?url=${encodeURIComponent(selectedRegistration.documents.lightConnectionProofUrl)}&embedded=true`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium transition-colors"
+                                              >
+                                                View
+                                              </a>
+                                              <a
+                                                href={selectedRegistration.documents.lightConnectionProofUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs font-medium transition-colors"
+                                              >
+                                                Download
+                                              </a>
+                                            </div>
+                                          </div>
                                         </div>
-                                      </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                      {host.createdAt ? new Date(host.createdAt).toLocaleDateString() : 'Unknown'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                      <div className="flex space-x-2 justify-end">
-                                        <button
-                                          onClick={() => approveHost(host._id)}
-                                          disabled={processingHost === host._id}
-                                          className="bg-green-600 dark:bg-green-700 hover:bg-green-700 dark:hover:bg-green-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                                        >
-                                          {processingHost === host._id ? 'Processing...' : 'Approve'}
-                                        </button>
-                                        <button
-                                          onClick={() => openRejectModal(host)}
-                                          disabled={processingHost === host._id}
-                                          className="bg-red-600 dark:bg-red-700 hover:bg-red-700 dark:hover:bg-red-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                                        >
-                                          {processingHost === host._id ? 'Processing...' : 'Reject'}
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                            <p>No pending host applications</p>
-                          </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Action Buttons */}
+                                  <div className="mt-auto pt-6 border-t border-gray-200 dark:border-gray-700">
+                                    <div className="flex gap-3">
+                                      <button
+                                        onClick={() => approveHost(selectedRegistration._id)}
+                                        disabled={processingHost === selectedRegistration._id}
+                                        className="flex-1 bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                                      >
+                                        {processingHost === selectedRegistration._id ? 'Processing...' : 'Approve'}
+                                      </button>
+                                      <button
+                                        onClick={() => openRejectModal(selectedRegistration)}
+                                        disabled={processingHost === selectedRegistration._id}
+                                        className="flex-1 bg-gray-600 dark:bg-gray-700 hover:bg-gray-700 dark:hover:bg-gray-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                                      >
+                                        {processingHost === selectedRegistration._id ? 'Processing...' : 'Reject'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </>
                         )}
                       </div>
                     )}
@@ -838,75 +1071,14 @@ export default function AdminDashboard() {
 
                     {activeTab === 'admins' && (
                       <div>
-                        {/* Add New Admin Form */}
-                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 mb-6">
-                          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-300 mb-4">Add New Admin</h3>
-                          
-                          {error && (
-                            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                              <p className="text-red-800 dark:text-red-300 text-sm">{error}</p>
-                            </div>
-                          )}
-
-                          {adminSuccess && (
-                            <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                              <p className="text-green-800 dark:text-green-300 text-sm">{adminSuccess}</p>
-                            </div>
-                          )}
-
-                          <form onSubmit={addNewAdmin} className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                  Full Name
-                                </label>
-                                <input
-                                  type="text"
-                                  value={newAdminName}
-                                  onChange={(e) => setNewAdminName(e.target.value)}
-                                  placeholder="Admin name"
-                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                  Email Address
-                                </label>
-                                <input
-                                  type="email"
-                                  value={newAdminEmail}
-                                  onChange={(e) => setNewAdminEmail(e.target.value)}
-                                  placeholder="admin@example.com"
-                                  required
-                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                  Password
-                                </label>
-                                <input
-                                  type="password"
-                                  value={newAdminPassword}
-                                  onChange={(e) => setNewAdminPassword(e.target.value)}
-                                  placeholder="••••••••"
-                                  required
-                                  minLength="6"
-                                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-                                />
-                              </div>
-                            </div>
-
-                            <button
-                              type="submit"
-                              disabled={addingAdmin || !newAdminEmail || !newAdminPassword}
-                              className="w-full px-4 py-2 bg-green-600 dark:bg-green-700 text-white rounded-md hover:bg-green-700 dark:hover:bg-green-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors font-medium"
-                            >
-                              {addingAdmin ? 'Creating Admin...' : 'Add Admin'}
-                            </button>
-                          </form>
+                        {/* Add Admin Button */}
+                        <div className="mb-6">
+                          <button
+                            onClick={() => setShowAddAdminModal(true)}
+                            className="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors font-medium text-sm"
+                          >
+                            Add New Admin
+                          </button>
                         </div>
 
                         {/* Admin List */}
@@ -922,8 +1094,8 @@ export default function AdminDashboard() {
                                     className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
                                   >
                                     <div className="flex items-center space-x-4">
-                                      <div className="flex-shrink-0 h-12 w-12">
-                                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-lg font-bold">
+                                      <div className="flex-shrink-0 h-10 w-10">
+                                        <div className="h-10 w-10 rounded-full bg-blue-500 dark:bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
                                           {admin.name ? admin.name.charAt(0).toUpperCase() : admin.email.charAt(0).toUpperCase()}
                                         </div>
                                       </div>
@@ -938,7 +1110,7 @@ export default function AdminDashboard() {
                                     {admins.length > 1 && (
                                       <button
                                         onClick={() => deleteAdminUser(admin._id, admin.email)}
-                                        className="px-3 py-1 bg-red-600 dark:bg-red-700 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 transition-colors text-sm font-medium"
+                                        className="px-3 py-1 bg-gray-600 dark:bg-gray-700 text-white rounded-md hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors text-xs font-medium"
                                       >
                                         Delete
                                       </button>
@@ -975,7 +1147,7 @@ export default function AdminDashboard() {
             <div className="mb-4">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white">Reject Host Application</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                You are about to reject the application from <strong>{hostToReject.userId?.name || 'Unknown'}</strong>
+                You are about to reject the application from <strong>{hostToReject.hostName || hostToReject.name || 'Unknown'}</strong>
               </p>
             </div>
             
@@ -1004,18 +1176,130 @@ export default function AdminDashboard() {
                   setHostToReject(null);
                   setRejectionReason('');
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={rejectHost}
                 disabled={!rejectionReason.trim() || processingHost === hostToReject._id}
-                className="flex-1 px-4 py-2 bg-red-600 dark:bg-red-700 text-white rounded-md hover:bg-red-700 dark:hover:bg-red-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors font-medium"
+                className="flex-1 px-4 py-2 bg-gray-600 dark:bg-gray-700 text-white rounded-md hover:bg-gray-700 dark:hover:bg-gray-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors font-medium text-sm"
               >
-                {processingHost === hostToReject._id ? 'Processing...' : 'Reject Application'}
+                {processingHost === hostToReject._id ? 'Processing...' : 'Reject'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Admin Modal */}
+      {showAddAdminModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Add New Admin</h3>
+              <button
+                onClick={() => {
+                  setShowAddAdminModal(false);
+                  setNewAdminName('');
+                  setNewAdminEmail('');
+                  setNewAdminPassword('');
+                  setError('');
+                  setAdminSuccess('');
+                }}
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-red-800 dark:text-red-300 text-sm">{error}</p>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {adminSuccess && (
+              <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <p className="text-green-800 dark:text-green-300 text-sm">{adminSuccess}</p>
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={addNewAdmin} className="space-y-4">
+              {/* Full Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={newAdminName}
+                  onChange={(e) => setNewAdminName(e.target.value)}
+                  placeholder="Admin name"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                />
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={newAdminEmail}
+                  onChange={(e) => setNewAdminEmail(e.target.value)}
+                  placeholder="founder@chargeloop.com"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  required
+                  minLength="6"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddAdminModal(false);
+                    setNewAdminName('');
+                    setNewAdminEmail('');
+                    setNewAdminPassword('');
+                    setError('');
+                    setAdminSuccess('');
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingAdmin || !newAdminEmail || !newAdminPassword}
+                  className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                >
+                  {addingAdmin ? 'Creating...' : 'Add Admin'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -8,7 +8,7 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 exports.signup = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, userType } = req.body;
 
     // Verify email address
     const emailVerification = await verifyEmailAddress(email);
@@ -19,8 +19,11 @@ exports.signup = async (req, res) => {
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ msg: 'Email already exists' });
 
+    // Determine role based on userType
+    const role = userType === 'host' ? 'host' : 'user';
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await User.create({ name, email, password: hashedPassword, phone });
+    const newUser = await User.create({ name, email, password: hashedPassword, phone, role });
 
     // Generate token for immediate login
     const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -37,7 +40,7 @@ exports.signup = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, loginType } = req.body;
 
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ msg: 'User not found' });
@@ -45,8 +48,40 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: 'Invalid credentials' });
 
+    // Strict role validation - one email can only have one role
+    if (loginType === 'host') {
+      if (user.role !== 'host') {
+        return res.status(400).json({ 
+          msg: `This email is registered as a ${user.role}, not a host. Please login as ${user.role}.`,
+          correctRole: user.role 
+        });
+      }
+    } else if (loginType === 'admin') {
+      if (user.role !== 'admin') {
+        return res.status(400).json({ 
+          msg: `This email is registered as a ${user.role}, not an admin. Please login as ${user.role}.`,
+          correctRole: user.role 
+        });
+      }
+    } else if (loginType === 'user') {
+      if (user.role !== 'user') {
+        return res.status(400).json({ 
+          msg: `This email is registered as a ${user.role}, not a user. Please login as ${user.role}.`,
+          correctRole: user.role 
+        });
+      }
+    }
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.status(200).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    res.status(200).json({ 
+      token, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role 
+      } 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -97,7 +132,7 @@ exports.updateProfile = async (req, res) => {
 // Google OAuth login
 exports.googleLogin = async (req, res) => {
   try {
-    const { credential } = req.body;
+    const { credential, loginType } = req.body;
 
     // Verify Google token
     const ticket = await client.verifyIdToken({
@@ -123,13 +158,29 @@ exports.googleLogin = async (req, res) => {
         user.profilePicture = picture;
         await user.save();
       }
+
+      // Validate role matches login type
+      if (loginType === 'host' && user.role !== 'host') {
+        return res.status(400).json({ msg: 'User not found' });
+      }
+      
+      if (loginType === 'admin' && user.role !== 'admin') {
+        return res.status(400).json({ msg: 'User not found' });
+      }
+      
+      if (loginType === 'user' && user.role !== 'user') {
+        return res.status(400).json({ msg: 'User not found' });
+      }
     } else {
-      // Create new user
+      // Create new user - default role based on loginType
+      const defaultRole = loginType === 'host' ? 'host' : (loginType === 'admin' ? 'admin' : 'user');
+      
       user = await User.create({
         name,
         email,
         googleId,
         profilePicture: picture,
+        role: defaultRole,
         // No password needed for Google users
         password: undefined
       });
@@ -150,7 +201,6 @@ exports.googleLogin = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Google login error:', err);
     res.status(500).json({ error: 'Google authentication failed' });
   }
 };
@@ -267,10 +317,19 @@ exports.deleteVehicle = async (req, res) => {
   }
 };
 
-// Host registration request
+// Host registration request - Creates Host document with pending status
 exports.requestHostRegistration = async (req, res) => {
   try {
+    const Host = require('../models/Host');
     const { 
+      name,
+      mobile,
+      address,
+      latitude,
+      longitude,
+      addressProofUrl,
+      aadharCardUrl,
+      lightConnectionProofUrl,
       companyName, 
       phone, 
       location, 
@@ -279,25 +338,30 @@ exports.requestHostRegistration = async (req, res) => {
       businessDescription 
     } = req.body;
 
-    // Validate required fields
-    if (!companyName || !phone || !numberOfChargers || !chargerTypes || chargerTypes.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        msg: 'Please provide all required information' 
-      });
+    // Validate required fields with specific error messages
+    if (!name) {
+      return res.status(400).json({ success: false, msg: 'Name is required' });
     }
-
-    // Check if user already has a pending request
-    const HostRegistrationRequest = require('../models/HostRegistrationRequest');
-    const existingRequest = await HostRegistrationRequest.findOne({ 
-      userId: req.user.id 
-    });
-
-    if (existingRequest && existingRequest.status === 'pending') {
-      return res.status(400).json({ 
-        success: false, 
-        msg: 'You already have a pending host registration request' 
-      });
+    if (!mobile) {
+      return res.status(400).json({ success: false, msg: 'Mobile is required' });
+    }
+    if (!address) {
+      return res.status(400).json({ success: false, msg: 'Address is required' });
+    }
+    if (latitude === undefined || latitude === null || latitude === '') {
+      return res.status(400).json({ success: false, msg: 'Latitude is required' });
+    }
+    if (longitude === undefined || longitude === null || longitude === '') {
+      return res.status(400).json({ success: false, msg: 'Longitude is required' });
+    }
+    if (!addressProofUrl) {
+      return res.status(400).json({ success: false, msg: 'Address proof URL is required' });
+    }
+    if (!aadharCardUrl) {
+      return res.status(400).json({ success: false, msg: 'Aadhar card URL is required' });
+    }
+    if (!lightConnectionProofUrl) {
+      return res.status(400).json({ success: false, msg: 'Light connection proof URL is required' });
     }
 
     const user = await User.findById(req.user.id);
@@ -305,32 +369,74 @@ exports.requestHostRegistration = async (req, res) => {
       return res.status(404).json({ success: false, msg: 'User not found' });
     }
 
-    // Create host registration request
-    const hostRequest = new HostRegistrationRequest({
-      userId: req.user.id,
-      email: user.email,
-      name: user.name,
-      phone: phone,
-      companyName: companyName,
-      location: location || {},
-      numberOfChargers: numberOfChargers,
-      chargerTypes: chargerTypes,
-      businessDescription: businessDescription || '',
-      status: 'pending'
+    // Check if user already has a pending/approved host registration
+    const existingHost = await Host.findOne({ 
+      userId: req.user.id 
     });
 
-    await hostRequest.save();
+    if (existingHost) {
+      if (existingHost.verificationStatus === 'pending') {
+        return res.status(400).json({ 
+          success: false, 
+          msg: 'You already have a pending host registration request' 
+        });
+      }
+      if (existingHost.verificationStatus === 'approved') {
+        return res.status(400).json({ 
+          success: false, 
+          msg: 'You are already registered as an approved host' 
+        });
+      }
+      // If rejected, allow resubmission - delete old record
+      if (existingHost.verificationStatus === 'rejected') {
+        await Host.deleteOne({ _id: existingHost._id });
+      }
+    }
+
+    // Create Host document with pending status
+    const newHost = new Host({
+      userId: req.user.id,
+      hostName: name || user.name,
+      email: user.email,
+      phone: mobile || phone,
+      location: {
+        address: address,
+        city: location?.city || '',
+        state: location?.state || '',
+        pincode: location?.pincode || '',
+        coordinates: {
+          lat: parseFloat(latitude),
+          lng: parseFloat(longitude)
+        }
+      },
+      chargerType: chargerTypes && chargerTypes[0] ? chargerTypes[0] : 'Regular Charging (22kW)',
+      pricePerHour: 0, // Will be set later
+      amenities: [],
+      description: businessDescription || '',
+      verificationStatus: 'pending',
+      isVerified: false,
+      isActive: false, // Not discoverable until approved
+      documents: {
+        companyRegistration: companyName,
+        addressProofUrl: addressProofUrl,
+        aadharCardUrl: aadharCardUrl,
+        lightConnectionProofUrl: lightConnectionProofUrl
+      }
+    });
+
+    await newHost.save();
 
     res.status(201).json({
       success: true,
       msg: 'Host registration request submitted successfully. Admin will review your request shortly.',
-      requestId: hostRequest._id
+      requestId: newHost._id,
+      hostId: newHost._id
     });
 
   } catch (err) {
     res.status(500).json({ 
       success: false, 
-      error: err.message 
+      msg: err.message 
     });
   }
 };
@@ -338,24 +444,37 @@ exports.requestHostRegistration = async (req, res) => {
 // Get host registration status
 exports.getHostRegistrationStatus = async (req, res) => {
   try {
-    const HostRegistrationRequest = require('../models/HostRegistrationRequest');
+    const Host = require('../models/Host');
     
-    const request = await HostRegistrationRequest.findOne({ 
+    const host = await Host.findOne({ 
       userId: req.user.id 
-    }).select('-documents');
+    });
 
-    if (!request) {
+    if (!host) {
       return res.json({
         success: true,
         status: 'none',
-        msg: 'No registration request found'
+        msg: 'No host registration found'
       });
     }
 
     res.json({
       success: true,
-      status: request.status,
-      request: request
+      status: host.verificationStatus,
+      hostId: host._id,
+      host: {
+        _id: host._id,
+        hostName: host.hostName,
+        verificationStatus: host.verificationStatus,
+        isVerified: host.isVerified,
+        rejectionReason: host.rejectionReason,
+        isVisibleOnMap: host.isVisibleOnMap,
+        email: host.email,
+        phone: host.phone,
+        chargerType: host.chargerType,
+        pricePerHour: host.pricePerHour,
+        location: host.location
+      }
     });
 
   } catch (err) {
@@ -380,26 +499,14 @@ exports.checkUserType = async (req, res) => {
       return res.status(404).json({ msg: 'User not found', userType: 'user' });
     }
 
-    // Determine user type based on role
-    let userType = user.role || 'user';
-
-    // If role is not set, check if they have a host registration request that's approved
-    if (!user.role || user.role === 'user') {
-      const HostRegistrationRequest = require('../models/HostRegistrationRequest');
-      const hostRequest = await HostRegistrationRequest.findOne({ 
-        userId: user._id, 
-        status: 'approved' 
-      });
-      
-      if (hostRequest) {
-        userType = 'host';
-      }
-    }
+    // Return the actual role from the database - one email = one role only
+    const userType = user.role || 'user';
 
     res.json({
       success: true,
       userType: userType,
-      email: email
+      email: email,
+      role: user.role
     });
 
   } catch (err) {

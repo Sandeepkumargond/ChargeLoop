@@ -60,13 +60,38 @@ const bookingRequestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'declined', 'expired'],
+    enum: ['pending', 'accepted', 'declined', 'expired', 'ongoing', 'completed', 'cancelled'],
     default: 'pending'
   },
   requestId: {
     type: String,
     unique: true,
     required: true
+  },
+  // Actual charging session details (populated after accepted)
+  startTime: {
+    type: Date
+  },
+  endTime: {
+    type: Date
+  },
+  actualDuration: {
+    type: Number // in minutes
+  },
+  energyConsumed: {
+    type: Number, // in kWh
+    default: 0
+  },
+  actualCost: {
+    type: Number // actual cost after charging
+  },
+  rating: {
+    type: Number,
+    min: 1,
+    max: 5
+  },
+  review: {
+    type: String
   },
   hostResponse: {
     respondedAt: Date,

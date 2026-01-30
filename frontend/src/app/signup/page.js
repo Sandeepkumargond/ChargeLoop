@@ -61,23 +61,29 @@ export default function SignupPage() {
     }
 
     try {
+      const payloadData = {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        phone: data.phone,
+        userType: userType,
+      };
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: data.name,
-          email: data.email,
-          password: data.password,
-          phone: data.phone,
-          userType: userType,
-        }),
+        body: JSON.stringify(payloadData),
       });
         
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.msg || 'Signup failed');
+        const errorMsg = errorData.msg || 'Signup failed';
+        setError(errorMsg);
+        showErrorToast(errorMsg);
+        setLoading(false);
+        return;
       }
         
       const result = await response.json();
@@ -88,7 +94,6 @@ export default function SignupPage() {
         router.push('/login');
       }, 2000);
     } catch (error) {
-      console.error('Error during signup:', error);
       setError(error.message);
       showErrorToast(error.message);
     } finally {
@@ -111,7 +116,8 @@ export default function SignupPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          credential: credentialResponse.credential
+          credential: credentialResponse.credential,
+          loginType: userType
         }),
       });
 
@@ -125,14 +131,20 @@ export default function SignupPage() {
       if (result.token) {
         localStorage.setItem('token', result.token);
         localStorage.setItem('userEmail', result.user.email);
+        localStorage.setItem('userRole', result.user.role);
         
         window.dispatchEvent(new Event('authChange'));
         
         showSuccessToast('Signup successful! Redirecting...');
-        router.push('/');
+        
+        // Redirect based on role
+        if (result.user.role === 'host') {
+          router.push('/host');
+        } else {
+          router.push('/user');
+        }
       }
     } catch (error) {
-      console.error('Error during Google signup:', error);
       const errorMsg = error.message || 'Failed to signup with Google.';
       setError(errorMsg);
       showErrorToast(errorMsg);

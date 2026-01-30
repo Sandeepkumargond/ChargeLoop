@@ -1,124 +1,76 @@
 const express = require('express');
 const router = express.Router();
 const Host = require('../models/Host');
-const ChargingSession = require('../models/ChargingSession');
+const BookingRequest = require('../models/BookingRequest');
 const auth = require('../middleware/auth');
 const { sendHostOnboardingEmail } = require('../services/emailService');
-const { getNearbyHosts, getAllHosts, updateHostAvailability } = require('../controllers/hostController');
+const { getNearbyHosts, getAllHosts, updateHostAvailability, toggleMapVisibility } = require('../controllers/hostController');
 
 // New real-time host endpoints
 router.get('/nearby', getNearbyHosts);
 router.get('/all', getAllHosts);
 router.put('/:hostId/availability', auth, updateHostAvailability);
+router.put('/:hostId/visibility', auth, toggleMapVisibility);
 
-// Register as a host
+// Update host profile with additional details (charger info, pricing, etc.)
+// Can only be updated before admin approval or by host after approval for certain fields
 router.post('/register', auth, async (req, res) => {
   try {
     const {
-      hostName, email, phone, address, city, state, pincode,
       chargerType, pricePerHour, amenities, description,
-      availableFrom, availableTo, coordinates
+      availableFrom, availableTo, coordinates, address, city, state, pincode
     } = req.body;
 
-    // Check if user is already a host
-    const existingHost = await Host.findOne({ userId: req.user.id });
-    if (existingHost) {
-      return res.status(400).json({ message: 'You are already registered as a host' });
+    // Find existing host profile
+    const host = await Host.findOne({ userId: req.user.id });
+    if (!host) {
+      return res.status(404).json({ message: 'Host profile not found. Please submit registration form first.' });
     }
 
-    // Validate coordinates
-    if (!coordinates || typeof coordinates.lat !== 'number' || typeof coordinates.lng !== 'number' || isNaN(coordinates.lat) || isNaN(coordinates.lng)) {
-      console.error('Invalid coordinates in registration:', coordinates);
-      return res.status(400).json({ message: 'Please provide valid latitude and longitude.' });
-    }
-    // Validate phone
-    if (!phone || typeof phone !== 'string' || phone.trim().length < 10) {
-      console.error('Invalid phone in registration:', phone);
-      return res.status(400).json({ message: 'Please provide a valid phone number.' });
-    }
-    // Validate amenities
-    if (!Array.isArray(amenities)) {
-      console.error('Invalid amenities in registration:', amenities);
-      return res.status(400).json({ message: 'Amenities must be an array.' });
+    // Only allow updates if pending or approved
+    if (host.verificationStatus === 'rejected') {
+      return res.status(400).json({ message: 'Please resubmit your registration request' });
     }
 
-    // Log payload for debugging
-    console.log('Registering new host with payload:', {
-      userId: req.user.id,
-      hostName,
-      email,
-      phone,
-      location: {
-        address,
-        city,
-        state,
-        pincode,
-        coordinates
-      },
-      chargerType,
-      pricePerHour,
-      amenities,
-      description,
-      availableFrom,
-      availableTo,
-      isActive: true
-    });
-
-    const newHost = new Host({
-      userId: req.user.id,
-      hostName,
-      email,
-      phone,
-      location: {
-        address,
-        city,
-        state,
-        pincode,
-        coordinates: {
-          lat: coordinates.lat,
-          lng: coordinates.lng
-        }
-      },
-      chargerType,
-      pricePerHour,
-      amenities: amenities || [],
-      description,
-      availableFrom,
-      availableTo,
-      verificationStatus: 'pending', // Set as pending for admin approval
-      isActive: false // Host won't be discoverable until approved
-    });
-
-    try {
-      await newHost.save();
-    } catch (dbError) {
-      console.error('Error saving new host to DB:', dbError);
-      return res.status(500).json({ message: 'Server error', error: dbError.message });
+    // Validate inputs
+    if (chargerType && !['Regular Charging (22kW)', 'Fast Charging (50kW)', 'Super Fast (100kW)', 'Ultra Fast (150kW)', 'Tesla Supercharger'].includes(chargerType)) {
+      return res.status(400).json({ message: 'Invalid charger type' });
     }
+    if (pricePerHour && (isNaN(pricePerHour) || pricePerHour <= 0)) {
+      return res.status(400).json({ message: 'Price per hour must be positive' });
+    }
+    if (amenities && !Array.isArray(amenities)) {
+      return res.status(400).json({ message: 'Amenities must be an array' });
+    }
+
+    // Update fields
+    if (chargerType) host.chargerType = chargerType;
+    if (pricePerHour) host.pricePerHour = pricePerHour;
+    if (amenities) host.amenities = amenities;
+    if (description) host.description = description;
+    if (availableFrom) host.availableFrom = availableFrom;
+    if (availableTo) host.availableTo = availableTo;
     
-    // Send onboarding email
-    try {
-      await sendHostOnboardingEmail({
-        hostName,
-        email,
-        phone,
-        chargerType,
-        pricePerHour,
-        location: { address }
-      });
-      console.log('Onboarding email sent successfully to:', email);
-    } catch (emailError) {
-      console.error('Failed to send onboarding email:', emailError);
-      // Don't fail the registration if email fails
+    // Update location if provided
+    if (coordinates || address || city || state || pincode) {
+      if (coordinates) {
+        host.location.coordinates.lat = coordinates.lat;
+        host.location.coordinates.lng = coordinates.lng;
+      }
+      if (address) host.location.address = address;
+      if (city) host.location.city = city;
+      if (state) host.location.state = state;
+      if (pincode) host.location.pincode = pincode;
     }
+
+    await host.save();
     
-    res.status(201).json({ 
-      message: 'Host registration successful! Your application is now pending admin approval. You will be notified once verified.', 
-      hostId: newHost._id,
-      verificationStatus: 'pending'
+    res.json({ 
+      message: 'Host profile updated successfully', 
+      hostId: host._id,
+      verificationStatus: host.verificationStatus
     });
   } catch (error) {
-    console.error('Error registering host:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -132,7 +84,6 @@ router.get('/profile', auth, async (req, res) => {
     }
     res.json(host);
   } catch (error) {
-    console.error('Error fetching host profile:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -145,9 +96,9 @@ router.get('/bookings', auth, async (req, res) => {
       return res.status(404).json({ message: 'Host profile not found' });
     }
 
-    const bookings = await ChargingSession.find({ hostId: host._id })
+    const bookings = await BookingRequest.find({ hostId: host._id })
       .populate('userId', 'name phone')
-      .sort({ startTime: -1 });
+      .sort({ createdAt: -1 });
 
     const stats = {
       totalBookings: host.totalBookings || 0,
@@ -173,7 +124,6 @@ router.get('/bookings', auth, async (req, res) => {
 
     res.json({ bookings: formattedBookings, stats });
   } catch (error) {
-    console.error('Error fetching host bookings:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -189,7 +139,7 @@ router.put('/bookings/:bookingId/status', auth, async (req, res) => {
       return res.status(404).json({ message: 'Host profile not found' });
     }
 
-    const booking = await ChargingSession.findOne({ 
+    const booking = await BookingRequest.findOne({ 
       _id: bookingId, 
       hostId: host._id 
     });
@@ -215,7 +165,6 @@ router.put('/bookings/:bookingId/status', auth, async (req, res) => {
     await booking.save();
     res.json({ message: 'Booking status updated successfully' });
   } catch (error) {
-    console.error('Error updating booking status:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -233,7 +182,6 @@ router.put('/toggle-availability', auth, async (req, res) => {
 
     res.json({ available: host.available, message: `Charger is now ${host.available ? 'available' : 'unavailable'}` });
   } catch (error) {
-    console.error('Error toggling availability:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -260,8 +208,71 @@ router.put('/profile', auth, async (req, res) => {
     await host.save();
     res.json({ message: 'Profile updated successfully', host });
   } catch (error) {
-    console.error('Error updating host profile:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get pending booking requests for host
+router.get('/booking-requests/pending', auth, async (req, res) => {
+  try {
+    const host = await Host.findOne({ userId: req.user.id });
+    if (!host) {
+      return res.status(404).json({ message: 'Host profile not found' });
+    }
+
+    const pendingRequests = await BookingRequest.find({
+      hostId: host._id,
+      status: 'pending'
+    })
+      .populate('userId', 'name email phone')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({
+      success: true,
+      requests: pendingRequests,
+      count: pendingRequests.length,
+      hostId: host._id.toString()
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get all booking requests history for host
+router.get('/booking-requests/history', auth, async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const host = await Host.findOne({ userId: req.user.id });
+    
+    if (!host) {
+      return res.status(404).json({ message: 'Host profile not found' });
+    }
+
+    const query = { hostId: host._id };
+    if (status) {
+      query.status = status;
+    }
+
+    const total = await BookingRequest.countDocuments(query);
+    const requests = await BookingRequest.find(query)
+      .populate('userId', 'name email phone')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .lean();
+
+    res.json({
+      success: true,
+      requests: requests,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / limit),
+        total: total
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 

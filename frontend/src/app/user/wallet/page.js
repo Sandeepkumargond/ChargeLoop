@@ -62,7 +62,6 @@ export default function WalletPage() {
         await fetchTransactions(token);
 
       } catch (error) {
-        console.error('Error fetching wallet data:', error);
         setError(error.message);
       } finally {
         setLoading(false);
@@ -105,7 +104,6 @@ export default function WalletPage() {
           setStats({ totalRecharged: 0, totalSpent: 0, transactionCount: 0 });
         }
       } catch (error) {
-        console.error('Error fetching transactions:', error);
         // Don't throw error for transactions, just set empty state
         setTransactions([]);
         setStats({ totalRecharged: 0, totalSpent: 0, transactionCount: 0 });
@@ -199,7 +197,6 @@ export default function WalletPage() {
       alert(`Wallet recharged successfully! New balance: ₹${result.newBalance}`);
 
     } catch (error) {
-      console.error('Error during recharge:', error);
       alert(`Recharge failed: ${error.message}`);
     } finally {
       setRechargeLoading(false);

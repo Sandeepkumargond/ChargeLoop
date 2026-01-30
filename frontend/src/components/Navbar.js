@@ -85,8 +85,8 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16 sm:h-20">
           {/* Logo */}
           <a href="/" className="flex items-center space-x-2">
-            <img src="/logo.png" alt="ChargeLoop Logo" className="h-10 sm:h-12 w-auto" />
-            <span className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400 hidden sm:inline">
+            <img src="/logo.png" alt="ChargeLoop Logo" className="h-9 w-auto" />
+            <span className="text-lg font-bold text-blue-600 dark:text-blue-400 hidden sm:inline">
               ChargeLoop
             </span>
           </a>
@@ -108,15 +108,13 @@ export default function Navbar() {
             )}
 
             <div className="flex items-center space-x-2">
-              <a href="/register-host" className="px-4 py-2 rounded-lg bg-orange-600 text-white font-medium text-sm shadow-sm">
-                Become a Host
-              </a>
+             
               {!isLoggedIn ? (
                 <>
-                  <a href="/login" className="px-4 py-2 rounded-lg text-gray-700 dark:text-gray-200 font-medium text-sm">
+                  <a href="/login" className="px-3 py-1.5 text-gray-700 dark:text-gray-200 font-medium text-sm hover:text-gray-900 dark:hover:text-white transition">
                     Login
                   </a>
-                  <a href="/signup" className="px-4 py-2 rounded-lg bg-green-600 text-white font-medium text-sm shadow-sm">
+                  <a href="/signup" className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded transition">
                     Sign Up
                   </a>
                 </>
@@ -125,21 +123,21 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-md"
+                    className="w-9 h-9 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center transition"
                   >
-                    <span className="text-white font-bold text-sm">
+                    <span className="text-white font-bold text-xs">
                       {userEmail ? userEmail.charAt(0).toUpperCase() : 'U'}
                     </span>
                   </button>
 
                   {/* Dropdown Menu */}
                   {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl ring-1 ring-black ring-opacity-10 dark:ring-gray-700 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                    <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 shadow-lg z-50">
                       <div className="py-1">
                         <button
                           type="button"
                           onClick={handleDashboardClick}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200"
+                          className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                         >
                           Dashboard
                         </button>
@@ -149,14 +147,14 @@ export default function Navbar() {
                             router.push('/profile');
                             setShowUserMenu(false);
                           }}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200"
+                          className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                         >
                           Profile
                         </button>
                         <button
                           type="button"
                           onClick={handleLogout}
-                          className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 border-t border-gray-200 dark:border-gray-700"
+                          className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border-t border-gray-200 dark:border-gray-700"
                         >
                           Logout
                         </button>
@@ -192,25 +190,22 @@ export default function Navbar() {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 animate-in slide-in-from-top duration-200">
-            <div className="px-3 py-4 space-y-2">
+          <div className="lg:hidden border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+            <div className="px-3 py-3 space-y-1.5">
               {NAV_LINKS.map(link => (
-                <a key={link.href} href={link.href} className="block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 font-medium">
+                <a key={link.href} href={link.href} className="block px-3 py-2 text-gray-700 dark:text-gray-200 font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
                   {link.label}
                 </a>
               ))}
               
-              <div className="py-2"></div>
+              <div className="py-1"></div>
 
-              <a href="/register-host" className="block px-4 py-3 rounded-lg bg-orange-600 text-white font-medium text-center shadow-sm">
-                Become a Host
-              </a>
               {!isLoggedIn ? (
                 <>
-                  <a href="/login" className="block px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 font-medium text-center border border-gray-300 dark:border-gray-600">
+                  <a href="/login" className="block px-3 py-2 text-gray-700 dark:text-gray-200 font-medium text-sm text-center hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
                     Login
                   </a>
-                  <a href="/signup" className="block px-4 py-3 rounded-lg bg-green-600 text-white font-medium text-center shadow-sm">
+                  <a href="/signup" className="block px-3 py-2 bg-blue-600 text-white font-medium text-sm text-center rounded hover:bg-blue-700 transition">
                     Sign Up
                   </a>
                 </>
@@ -219,7 +214,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={handleDashboardClick}
-                    className="w-full px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 font-medium border border-gray-300 dark:border-gray-600"
+                    className="w-full px-3 py-2 text-gray-700 dark:text-gray-200 font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
                   >
                     Dashboard
                   </button>
@@ -229,7 +224,7 @@ export default function Navbar() {
                       router.push('/profile');
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 font-medium border border-gray-300 dark:border-gray-600"
+                    className="w-full px-3 py-2 text-gray-700 dark:text-gray-200 font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
                   >
                     Profile
                   </button>
@@ -239,7 +234,7 @@ export default function Navbar() {
                       handleLogout();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full px-4 py-3 rounded-lg text-red-600 dark:text-red-400 font-medium border border-red-300 dark:border-red-600"
+                    className="w-full px-3 py-2 text-gray-700 dark:text-gray-200 font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
                   >
                     Logout
                   </button>
