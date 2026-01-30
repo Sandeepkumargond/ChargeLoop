@@ -118,26 +118,15 @@ export default function Navbar() {
             </button>
 
             <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2">
               {!isLoggedIn ? (
-                <>
+                <div className="flex items-center space-x-2">
                   <a href="/login" className="px-3 py-1.5 text-neutral-700 dark:text-neutral-200 font-medium text-sm hover:text-blue-600 transition">
                     Login
                   </a>
                   <a href="/signup" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-lg transition shadow-sm">
                     Sign Up
                   </a>
-                  {healthStatus && (
-                    <div className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
-                      healthStatus.mongoStatus === 'Connected'
-                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
-                        : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${healthStatus.mongoStatus === 'Connected' ? 'bg-green-600 dark:bg-green-400' : 'bg-red-600 dark:bg-red-400'}`}></span>
-                      <span>{healthStatus.mongoStatus === 'Connected' ? 'Server On' : 'Server Off'}</span>
-                    </div>
-                  )}
-                </>
+                </div>
               ) : (
                 <div className="relative">
                   <button
@@ -166,7 +155,16 @@ export default function Navbar() {
                   )}
                 </div>
               )}
-              </div>
+              {healthStatus && (
+                <div className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
+                  healthStatus.mongoStatus === 'Connected'
+                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+                    : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${healthStatus.mongoStatus === 'Connected' ? 'bg-green-600 dark:bg-green-400' : 'bg-red-600 dark:bg-red-400'}`}></span>
+                  <span>{healthStatus.mongoStatus === 'Connected' ? 'Server On' : 'Server Off'}</span>
+                </div>
+              )}
             </div>
           </div>
 
