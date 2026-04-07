@@ -29,7 +29,7 @@ export default function VehiclesPage() {
           return;
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -79,7 +79,7 @@ export default function VehiclesPage() {
     setSavingVehicle(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/vehicles`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/vehicles`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -109,7 +109,7 @@ export default function VehiclesPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/vehicles/${vehicleId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/vehicles/${vehicleId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

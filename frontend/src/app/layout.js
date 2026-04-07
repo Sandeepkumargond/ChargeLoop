@@ -3,7 +3,7 @@ import './globals.css';
 import NavbarFooterWrapper, { FooterWrapper } from '../components/NavbarFooterWrapper';
 import GoogleOAuthWrapper from '../components/GoogleOAuthWrapper';
 import ClientThemeProvider from '../components/ClientThemeProvider';
-import { ClientReviewsProvider } from '../contexts/ReviewsContext';
+import { SidebarProvider } from '../contexts/SidebarContext';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -25,15 +25,15 @@ export default function RootLayout({ children }) {
     <html lang="en" className="scroll-smooth">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ClientThemeProvider>
-          <ClientReviewsProvider>
-            <GoogleOAuthWrapper>
+          <GoogleOAuthWrapper>
+            <SidebarProvider>
               <div className="min-h-screen bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 transition-colors flex flex-col">
                 <NavbarFooterWrapper />
                 <main className="flex-1">{children}</main>
                 <FooterWrapper />
               </div>
-            </GoogleOAuthWrapper>
-          </ClientReviewsProvider>
+            </SidebarProvider>
+          </GoogleOAuthWrapper>
         </ClientThemeProvider>
       </body>
     </html>

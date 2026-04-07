@@ -303,12 +303,14 @@ exports.requestHostRegistration = async (req, res) => {
       addressProofUrl,
       aadharCardUrl,
       lightConnectionProofUrl,
-      companyName,
       phone,
       location,
-      numberOfChargers,
       chargerTypes,
-      businessDescription
+      chargerPowerKw,
+      socketMaxCapacity,
+      pricePerKwh,
+      pricePerUnit,
+      convenienceFee
     } = req.body;
 
     if (!name) {
@@ -380,14 +382,14 @@ exports.requestHostRegistration = async (req, res) => {
         }
       },
       chargerType: chargerTypes && chargerTypes[0] ? chargerTypes[0] : 'Regular Charging (22kW)',
-      pricePerHour: 0,
-      amenities: [],
-      description: businessDescription || '',
+      // NEW: Charger power and pricing fields (from user input only)
+      chargerPowerKw: parseFloat(chargerPowerKw) || 22,
+      socketMaxCapacity: parseFloat(socketMaxCapacity) || 3.3,
+      pricePerKwh: parseFloat(pricePerKwh || pricePerUnit) || 0,
+      pricePerUnit: parseFloat(pricePerUnit || pricePerKwh) || 0,
+      convenienceFee: parseFloat(convenienceFee) || 0,
       verificationStatus: 'pending',
-      isVerified: false,
-      isActive: false,
       documents: {
-        companyRegistration: companyName,
         addressProofUrl: addressProofUrl,
         aadharCardUrl: aadharCardUrl,
         lightConnectionProofUrl: lightConnectionProofUrl

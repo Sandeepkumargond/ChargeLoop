@@ -13,12 +13,13 @@ export default function UserDashboardPage() {
   const [bookings, setBookings] = useState([]);
   const [bookingRequests, setBookingRequests] = useState([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
-  const [userData, setUserData] = useState({ chargingSessions: 0, walletBalance: 0 });
+  const [userData, setUserData] = useState({ chargingSessions: 0 });
+  const [cancellingId, setCancellingId] = useState(null);
 
   const fetchCurrentBookings = useCallback(async (token) => {
     try {
       setBookingsLoading(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/charging/current-bookings`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/bookings/current`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -39,7 +40,7 @@ export default function UserDashboardPage() {
 
   const fetchMyBookingRequests = useCallback(async (token) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/charging/requests/my-requests`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/bookings/requests/my-requests`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -58,7 +59,7 @@ export default function UserDashboardPage() {
 
   const fetchUserData = useCallback(async (token) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -69,13 +70,36 @@ export default function UserDashboardPage() {
       if (response.ok) {
         const data = await response.json();
         setUserData({
-          chargingSessions: data.chargingSessions || 0,
-          walletBalance: data.walletBalance || 0
+          chargingSessions: data.chargingSessions || 0
         });
       }
     } catch (error) {
     }
   }, []);
+
+  const cancelBookingRequest = useCallback(async (requestId) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      setCancellingId(requestId);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/bookings/requests/${requestId}/cancel`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Refresh the booking requests after successful cancellation
+        await fetchMyBookingRequests(token);
+      }
+    } catch (error) {
+    } finally {
+      setCancellingId(null);
+    }
+  }, [fetchMyBookingRequests]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -141,15 +165,10 @@ export default function UserDashboardPage() {
           {}
           <div className="mb-8">
             <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-4">Quick Stats</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-white dark:bg-neutral-800 rounded border border-neutral-200 dark:border-neutral-700 p-4">
                 <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-1">Total Charges</p>
                 <p className="text-2xl font-bold text-neutral-900 dark:text-white">{userData.chargingSessions}</p>
-              </div>
-
-              <div className="bg-white dark:bg-neutral-800 rounded border border-neutral-200 dark:border-neutral-700 p-4">
-                <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-1">Wallet Balance</p>
-                <p className="text-2xl font-bold text-neutral-900 dark:text-white">₹{userData.walletBalance}</p>
               </div>
 
               <div className="bg-white dark:bg-neutral-800 rounded border border-neutral-200 dark:border-neutral-700 p-4">
@@ -166,31 +185,59 @@ export default function UserDashboardPage() {
               <div className="space-y-3">
                 {bookingRequests
                   .filter(req => req.status === 'pending')
-                  .map((request) => (
+                  .map((request) => {
+                    const scheduledDate = request.scheduledTime ? new Date(request.scheduledTime).toLocaleDateString('en-IN', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }) : 'N/A';
+                    
+                    return (
                     <div key={request._id} className="bg-white dark:bg-neutral-800 rounded border border-neutral-200 dark:border-neutral-700 p-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3 text-xs">
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-3 text-xs">
                         <div>
-                          <p className="text-neutral-600 dark:text-neutral-400 mb-1">Host</p>
+                          <p className="text-neutral-600 dark:text-neutral-400 mb-1 font-semibold">Host Name</p>
                           <p className="text-neutral-900 dark:text-white font-medium">{request.hostName}</p>
                         </div>
                         <div>
-                          <p className="text-neutral-600 dark:text-neutral-400 mb-1">Location</p>
-                          <p className="text-neutral-900 dark:text-white font-medium">{request.hostLocation}</p>
+                          <p className="text-neutral-600 dark:text-neutral-400 mb-1 font-semibold">Mobile</p>
+                          <p className="text-neutral-900 dark:text-white font-medium">{request.hostPhone || 'N/A'}</p>
                         </div>
                         <div>
-                          <p className="text-neutral-600 dark:text-neutral-400 mb-1">Charger</p>
-                          <p className="text-neutral-900 dark:text-white font-medium">{request.chargerType}</p>
+                          <p className="text-neutral-600 dark:text-neutral-400 mb-1 font-semibold">Location</p>
+                          <p className="text-neutral-900 dark:text-white font-medium text-xs line-clamp-2">{request.hostLocation}</p>
                         </div>
                         <div>
-                          <p className="text-neutral-600 dark:text-neutral-400 mb-1">Duration • Cost</p>
-                          <p className="text-neutral-900 dark:text-white font-medium">{request.estimatedDuration} min • ₹{request.estimatedCost}</p>
+                          <p className="text-neutral-600 dark:text-neutral-400 mb-1 font-semibold">Energy</p>
+                          <p className="text-neutral-900 dark:text-white font-medium">{request.totalUnitsKwh || request.desiredKwh || 'N/A'} kWh</p>
+                        </div>
+                        <div>
+                          <p className="text-neutral-600 dark:text-neutral-400 mb-1 font-semibold">Price</p>
+                          <p className="text-green-600 dark:text-green-400 font-bold">₹{request.totalBill || 0}</p>
                         </div>
                       </div>
-                      <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded inline-block">
-                        Waiting for approval
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                          📅 {scheduledDate}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded inline-block">
+                            Waiting for approval
+                          </span>
+                          <button
+                            onClick={() => cancelBookingRequest(request._id)}
+                            disabled={cancellingId === request._id}
+                            className="text-xs bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 px-3 py-1 rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {cancellingId === request._id ? 'Cancelling...' : 'Cancel'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  ))}
+                    );
+                  })}
               </div>
             </div>
           )}
@@ -244,9 +291,9 @@ export default function UserDashboardPage() {
                       </div>
 
                       {}
-                      <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Cost</div>
+                      <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Energy</div>
                       <div className="font-medium text-neutral-900 dark:text-white">
-                        ₹{booking.actualCost || booking.estimatedCost || '0'}
+                        {booking.energyConsumed || 0} kWh
                       </div>
 
                       {}

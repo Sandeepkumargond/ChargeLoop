@@ -43,14 +43,14 @@ const getNearbyHosts = async (req, res) => {
 const getAllHosts = async (req, res) => {
   try {
     const { city, state, chargerType } = req.query;
-  let filter = {
-    verificationStatus: 'approved',
-    isVisibleOnMap: true
-  };
-  if (city) filter['location.city'] = new RegExp(city, 'i');
-  if (state) filter['location.state'] = new RegExp(state, 'i');
-  if (chargerType) filter.chargerType = chargerType;
-  const hosts = await Host.find(filter).populate('userId', 'name email phone');
+    let filter = {
+      verificationStatus: 'approved',
+      isVisibleOnMap: true
+    };
+    if (city) filter['location.city'] = new RegExp(city, 'i');
+    if (state) filter['location.state'] = new RegExp(state, 'i');
+    if (chargerType) filter.chargerType = chargerType;
+    const hosts = await Host.find(filter).populate('userId', 'name email phone');
 
     const formattedHosts = hosts.map(host => {
       const h = host.toObject();
@@ -75,7 +75,7 @@ const updateHostAvailability = async (req, res) => {
       return res.status(404).json({ error: 'Host not found' });
     }
 
-    if (host.userId.toString() !== req.user.userId) {
+    if (host.userId.toString() !== req.user.id.toString()) {
       return res.status(403).json({ error: 'Unauthorized to update this host' });
     }
 

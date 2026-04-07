@@ -14,12 +14,12 @@ const vehicleSchema = new mongoose.Schema({
   },
   model: {
     type: String,
-    required: true
+    description: 'Vehicle model (e.g., Tesla Model 3)'
   },
   batteryCapacity: {
     type: Number,
-    required: true,
-    min: 0
+    min: 0,
+    description: 'Battery capacity in kWh'
   },
   createdAt: {
     type: Date,

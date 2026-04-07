@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@chargeloop.com';
 
 let transporter;
 
@@ -25,7 +26,7 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
 const sendHostOnboardingEmail = async (hostData) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'errorincode404@gmail.com',
+      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
       to: hostData.email,
       subject: 'Welcome to ChargeLoop - Host Registration Successful!',
       html: `
@@ -99,7 +100,7 @@ const sendHostOnboardingEmail = async (hostData) => {
 
             <div class="footer">
               <p>Thank you for joining ChargeLoop!</p>
-              <p>Need help? Contact us at errorincode404@gmail.com</p>
+              <p>Need help? Contact us at ${SUPPORT_EMAIL}</p>
               <p>© 2025 ChargeLoop. All rights reserved.</p>
             </div>
           </div>
@@ -118,7 +119,7 @@ const sendHostOnboardingEmail = async (hostData) => {
 const sendBookingNotificationToHost = async (hostData, bookingData) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'errorincode404@gmail.com',
+      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
       to: hostData.email,
       subject: 'New Charging Request - ChargeLoop',
       html: `
@@ -187,7 +188,7 @@ const sendBookingNotificationToHost = async (hostData, bookingData) => {
 
             <div class="footer">
               <p>ChargeLoop - Powering the future of EV charging</p>
-              <p>Need help? Contact us at errorincode404@gmail.com</p>
+              <p>Need help? Contact us at ${SUPPORT_EMAIL}</p>
             </div>
           </div>
         </body>
@@ -231,8 +232,8 @@ const sendContactEmail = async (contactData) => {
     const { name, email, subject, message, type, to } = contactData;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'errorincode404@gmail.com',
-      to: to || 'errorincode404@gmail.com',
+      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
+      to: to || SUPPORT_EMAIL,
       replyTo: email,
       subject: `ChargeLoop Contact Form: ${subject}`,
       html: `
@@ -272,7 +273,7 @@ const sendContactEmail = async (contactData) => {
 const sendHostApprovalEmail = async (email, name) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'errorincode404@gmail.com',
+      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
       to: email,
       subject: ' Your Host Registration Request Has Been Approved!',
       html: `
@@ -346,7 +347,7 @@ const sendHostApprovalEmail = async (email, name) => {
 const sendHostDenialEmail = async (email, name, denialReason) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'errorincode404@gmail.com',
+      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
       to: email,
       subject: ' Your Host Registration Request - Action Required',
       html: `
@@ -414,7 +415,7 @@ const sendHostDenialEmail = async (email, name, denialReason) => {
 const sendOtpEmail = async (email, otp) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'errorincode404@gmail.com',
+      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
       to: email,
       subject: 'ChargeLoop - Email Verification OTP',
       html: `
@@ -459,7 +460,7 @@ const sendOtpEmail = async (email, otp) => {
 
             <div class="footer">
               <p>© 2025 ChargeLoop. All rights reserved.</p>
-              <p>Need help? Contact us at errorincode404@gmail.com</p>
+              <p>Need help? Contact us at ${SUPPORT_EMAIL}</p>
             </div>
           </div>
         </body>
@@ -513,7 +514,7 @@ const sendBookingConfirmationEmail = async (userEmail, bookingDetails) => {
     });
 
     const mailOptions = {
-      from: process.env.EMAIL_USER || 'errorincode404@gmail.com',
+      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
       to: userEmail,
       subject: 'Booking Confirmed! - ChargeLoop Charging Station Reservation',
       html: `
@@ -642,7 +643,7 @@ const sendBookingConfirmationEmail = async (userEmail, bookingDetails) => {
 
             <div class="footer">
               <p>&copy; 2025 ChargeLoop. All rights reserved.</p>
-              <p>Questions? Contact us at errorincode404@gmail.com</p>
+              <p>Questions? Contact us at ${SUPPORT_EMAIL}</p>
             </div>
           </div>
         </body>

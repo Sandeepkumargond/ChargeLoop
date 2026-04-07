@@ -2,19 +2,28 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
+const compression = require('compression');
+const fileUpload = require('express-fileupload');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/user');
 const hostRoutes = require('./routes/host');
-const walletRoutes = require('./routes/wallet');
-const chargingRoutes = require('./routes/charging');
-const chargerRoutes = require('./routes/charger');
 const adminRoutes = require('./routes/admin');
 const contactRoutes = require('./routes/contact');
-const reviewsRoutes = require('./routes/reviews');
 const securityMiddleware = require('./middleware/security');
 
 const app = express();
+
+// ===== SCALING CONFIGURATIONS =====
+// Increase max event listeners to handle high concurrency
+process.setMaxListeners(100);
+
+// Enable compression for all responses
+app.use(compression({
+  level: 6,
+  threshold: 1024
+}));
 
 app.use(securityMiddleware.helmet);
 app.use(securityMiddleware.securityHeaders);
@@ -27,24 +36,39 @@ app.use(cors({
   maxAge: 3600
 }));
 
-app.use(express.json({ limit: '10kb' }));
+// Increased JSON parsing limit for bulk operations
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// File upload middleware
+app.use(fileUpload({
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max
+  useTempFiles: false,
+  safeFileNames: true,
+  preserveExtension: true
+}));
+
 app.use(securityMiddleware.mongoSanitize);
 app.use(securityMiddleware.inputLengthValidator);
 app.use(securityMiddleware.preventHttp);
 app.use(securityMiddleware.requestValidator);
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB Connected'))
-  .catch((err) => console.log(err));
+mongoose.connect(process.env.MONGO_URI, {
+  maxPoolSize: 50,        // Increase connection pool size
+  minPoolSize: 10,        // Minimum connections
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  retryWrites: true,
+  w: 'majority'
+})
+  .then(() => console.log('MongoDB Connected with Connection Pooling'))
+  .catch((err) => console.log('MongoDB Connection Error:', err));
 
-app.use('/api/host', hostRoutes);
 app.use('/api/auth', authRoutes);
-app.use('/api/wallet', walletRoutes);
-app.use('/api/charging', chargingRoutes);
-app.use('/api/chargers', chargerRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/host', hostRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
-app.use('/api/reviews', reviewsRoutes);
 
 app.get('/api/health', (req, res) => {
   const healthcheck = {

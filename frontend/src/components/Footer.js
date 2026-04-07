@@ -77,7 +77,6 @@ export default function Footer() {
                 <>
                   <li><a href="/profile" className="text-neutral-700 dark:text-neutral-300 hover:text-white transition-colors">Profile</a></li>
                   <li><a href="/charging-history" className="text-neutral-700 dark:text-neutral-300 hover:text-white transition-colors">History</a></li>
-                  <li><a href="/wallet" className="text-neutral-700 dark:text-neutral-300 hover:text-white transition-colors">Wallet</a></li>
 
                   <li><button onClick={handleLogout} className="text-neutral-700 dark:text-neutral-300 hover:text-white transition-colors">Sign Out</button></li>
                 </>

@@ -11,7 +11,19 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loginType, setLoginType] = useState('user');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const router = useRouter();
+
+  const handleAutofill = () => {
+    if (loginType === 'host') {
+      setEmail('host@gmail.com');
+      setPassword('host@123');
+    } else {
+      setEmail('sandeep@gmail.com');
+      setPassword('sandeep@123');
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -38,9 +50,6 @@ const handleSubmit = async (e) => {
     setLoading(true);
     setError('');
 
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData.entries());
-
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
         method: 'POST',
@@ -48,8 +57,8 @@ const handleSubmit = async (e) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: data.email,
-          password: data.password,
+          email: email,
+          password: password,
           loginType: loginType,
         }),
       });
@@ -65,8 +74,9 @@ const handleSubmit = async (e) => {
 
       if (result.token) {
         localStorage.setItem('token', result.token);
-        localStorage.setItem('userEmail', data.email);
+        localStorage.setItem('userEmail', email);
         localStorage.setItem('userRole', result.user.role);
+        localStorage.setItem('userName', result.user.name || result.user.hostName || 'User');
 
         window.dispatchEvent(new Event('authChange'));
 
@@ -142,6 +152,7 @@ const handleSubmit = async (e) => {
         localStorage.setItem('token', result.token);
         localStorage.setItem('userEmail', userEmail);
         localStorage.setItem('userRole', userType);
+        localStorage.setItem('userName', result.user.name || result.user.hostName || 'User');
 
         window.dispatchEvent(new Event('authChange'));
 
@@ -149,13 +160,6 @@ const handleSubmit = async (e) => {
           router.push('/host');
         } else if (userType === 'admin') {
           router.push('/admin/dashboard');
-      {healthStatus && (
-        <div className="fixed top-4 left-4 text-xs text-neutral-600 dark:text-neutral-400 bg-white dark:bg-neutral-800 p-2 rounded border border-neutral-200 dark:border-neutral-700">
-          <p>Server running ✓</p>
-          <p>Uptime: {Math.floor(healthStatus.uptime)}s</p>
-          <p>DB: {healthStatus.mongoStatus}</p>
-        </div>
-      )}
         } else {
           router.push('/user');
         }
@@ -220,7 +224,8 @@ const handleSubmit = async (e) => {
               <label className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2.5">Email Address</label>
               <input
                 type="email"
-                name="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm"
                 suppressHydrationWarning
@@ -232,7 +237,8 @@ const handleSubmit = async (e) => {
               <label className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2.5">Password</label>
               <input
                 type="password"
-                name="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm"
                 suppressHydrationWarning
@@ -250,9 +256,18 @@ const handleSubmit = async (e) => {
                 />
                 <span className="ml-2.5 text-sm text-neutral-700 dark:text-neutral-300">Remember me</span>
               </label>
-              <Link href="/forgot-password" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
-                Forgot password?
-              </Link>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleAutofill}
+                  className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 px-2 py-1 rounded border border-blue-600 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
+                >
+                  Test
+                </button>
+                <Link href="/forgot-password" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             <button

@@ -4,7 +4,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "start:cluster": "node server-cluster.js",
+    "start:scale": "cross-env NODE_ENV=production WORKER_THREADS=4 node server-cluster.js",
     "dev": "nodemon server.js",
+    "dev:cluster": "nodemon server-cluster.js",
     "build": "echo 'Build complete'"
   },
   "keywords": [],
@@ -15,20 +18,27 @@
     "node": "22.22.0"
   },
   "dependencies": {
+    "@imagekit/nodejs": "^7.3.0",
+    "axios": "^1.14.0",
     "bcryptjs": "^3.0.2",
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
+    "express-fileupload": "^1.5.2",
     "express-rate-limit": "^8.2.1",
+    "form-data": "^4.0.5",
     "google-auth-library": "^10.2.1",
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
     "jsonwebtoken": "^9.0.2",
     "mongo-sanitize": "^1.1.0",
     "mongoose": "^8.16.4",
+    "multer": "^2.1.1",
     "nodemailer": "^7.0.5"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "nodemon": "^3.1.10"
   }
 }

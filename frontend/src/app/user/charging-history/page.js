@@ -22,7 +22,7 @@ export default function ChargingHistoryPage() {
         }
 
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/charging/history`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/user/bookings/history`,
           {
             method: "GET",
             headers: {
@@ -133,9 +133,9 @@ export default function ChargingHistoryPage() {
       case "oldest":
         return new Date(a.createdAt) - new Date(b.createdAt);
       case "duration":
-        return (b.actualDuration || b.estimatedDuration || 0) - (a.actualDuration || a.estimatedDuration || 0);
-      case "cost":
-        return (b.actualCost || b.estimatedCost || 0) - (a.actualCost || a.estimatedCost || 0);
+        return (b.actualDuration || b.requestedDuration || 0) - (a.actualDuration || a.requestedDuration || 0);
+      case "kwh":
+        return (b.totalUnitsKwh || b.desiredKwh || 0) - (a.totalUnitsKwh || a.desiredKwh || 0);
       default:
         return 0;
     }
@@ -195,8 +195,8 @@ export default function ChargingHistoryPage() {
             <p className="text-xl font-bold text-neutral-900 dark:text-white mt-1">{bookings.reduce((sum, s) => sum + (s.energyConsumed || 0), 0).toFixed(1)} kWh</p>
           </div>
           <div>
-            <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium">Total Spent</p>
-            <p className="text-xl font-bold text-neutral-900 dark:text-white mt-1">₹{bookings.reduce((sum, s) => sum + (s.actualCost || s.estimatedCost || 0), 0)}</p>
+            <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium">Total Requested kWh</p>
+            <p className="text-xl font-bold text-neutral-900 dark:text-white mt-1">{bookings.reduce((sum, s) => sum + (s.totalUnitsKwh || s.desiredKwh || 0), 0).toFixed(1)} kWh</p>
           </div>
         </div>
 
@@ -229,7 +229,7 @@ export default function ChargingHistoryPage() {
                 <option value="newest">Newest</option>
                 <option value="oldest">Oldest</option>
                 <option value="duration">Duration</option>
-                <option value="cost">Cost</option>
+                <option value="kwh">kWh Requested</option>
               </select>
             </div>
           </div>
@@ -256,26 +256,30 @@ export default function ChargingHistoryPage() {
                   key={booking._id || booking.id}
                   className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded p-4"
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     {}
                     <div>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Station</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Host Name</p>
                       <h3 className="font-medium text-neutral-900 dark:text-white text-sm">{booking.hostName}</h3>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">{booking.hostLocation}</p>
-                      <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-1">{booking.chargerType}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">{booking.hostPhone || 'N/A'}</p>
                     </div>
 
                     {}
                     <div>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Duration</p>
-                      <p className="text-sm font-medium text-neutral-900 dark:text-white">{formatDuration(booking.actualDuration || booking.estimatedDuration)}</p>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">{formatDateTime(booking.scheduledTime)}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Location</p>
+                      <p className="text-sm font-medium text-neutral-900 dark:text-white line-clamp-2">{booking.hostLocation}</p>
                     </div>
 
                     {}
                     <div>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Energy • Cost</p>
-                      <p className="text-sm font-medium text-neutral-900 dark:text-white">{booking.energyConsumed || 0} kWh • ₹{booking.actualCost || booking.estimatedCost || 0}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Energy</p>
+                      <p className="text-sm font-medium text-neutral-900 dark:text-white">{booking.energyConsumed || booking.totalUnitsKwh || 0} kWh</p>
+                    </div>
+
+                    {}
+                    <div>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Price</p>
+                      <p className="text-sm font-bold text-green-600 dark:text-green-400">₹{booking.totalBill || booking.actualCost || 0}</p>
                     </div>
 
                     {}
@@ -284,18 +288,7 @@ export default function ChargingHistoryPage() {
                       <span className={`px-2 py-0.5 rounded text-xs font-medium inline-block ${getStatusColor(booking.status)}`}>
                         {getStatusIcon(booking.status)}
                       </span>
-                    </div>
-
-                    {}
-                    <div className="flex gap-2 items-center justify-start lg:justify-end">
-                      <button className="text-xs px-2 py-1 bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded hover:bg-neutral-200 dark:hover:bg-neutral-600 transition">
-                        Details
-                      </button>
-                      {booking.status === "completed" && (
-                        <button className="text-xs px-2 py-1 bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded hover:bg-neutral-200 dark:hover:bg-neutral-600 transition">
-                          Receipt
-                        </button>
-                      )}
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-2">{formatDateTime(booking.scheduledTime)}</p>
                     </div>
                   </div>
                 </div>

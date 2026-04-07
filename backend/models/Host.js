@@ -48,10 +48,38 @@ const HostSchema = new mongoose.Schema({
       'Tesla Supercharger'
     ]
   },
-  pricePerHour: {
+  // NEW: Charger power capacity (kW)
+  chargerPowerKw: {
+    type: Number,
+    min: 0.5,
+    description: 'Charger power in kilowatts (e.g., 3.3, 7.4, 22, 50 kW)'
+  },
+  // Socket max capacity - host's charger rating
+  socketMaxCapacity: {
+    type: Number,
+    default: 3.3,
+    enum: [3.3, 7, 7.4, 22, 50, 100, 150],
+    description: 'Host socket max capacity in kW. User must not exceed this.'
+  },
+  pricePerUnit: {
     type: Number,
     default: 0,
-    min: 0
+    min: 0,
+    description: 'Price per kWh (legacy - use pricePerKwh)'
+  },
+  // NEW: Alias for pricePerUnit - price per kWh in ₹
+  pricePerKwh: {
+    type: Number,
+    min: 0,
+    description: 'Price per kWh in ₹'
+  },
+  // NEW: Convenience fee for parking/maintenance
+  convenienceFee: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100,
+    description: 'Optional convenience fee in ₹ (parking, maintenance, etc)'
   },
   amenities: [{
     type: String,
@@ -60,7 +88,6 @@ const HostSchema = new mongoose.Schema({
       '24/7 Available', 'CCTV', 'Washroom', 'Waiting Area', 'Food Court'
     ]
   }],
-  description: String,
   availableFrom: String,
   availableTo: String,
   available: {
@@ -84,27 +111,15 @@ const HostSchema = new mongoose.Schema({
     type: String
   },
   rating: {
-    average: {
-      type: Number,
-      default: 0
-    },
-    count: {
-      type: Number,
-      default: 0
-    }
+    average: Number,
+    count: Number
   },
-  totalBookings: {
-    type: Number,
-    default: 0
-  },
-  totalEarnings: {
-    type: Number,
-    default: 0
-  },
+  totalBookings: Number,
+  totalEarnings: Number,
   documents: {
-    electricityBill: String,
-    ownershipProof: String,
-    identityProof: String
+    addressProofUrl: String,
+    aadharCardUrl: String,
+    lightConnectionProofUrl: String
   },
   createdAt: {
     type: Date,

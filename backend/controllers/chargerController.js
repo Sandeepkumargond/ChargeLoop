@@ -10,15 +10,22 @@ const createChargerStation = async (req, res) => {
       powerOutput,
       connectorTypes,
       pricePerUnit,
+      pricePerKwh,
+      socketMaxCapacity,
+      convenienceFee,
       amenities,
       operatingHours,
       images
     } = req.body;
 
-    if (!name || !location || !chargerType || !powerOutput || !pricePerUnit || !operatingHours) {
+    // Determine pricing field
+    const finalPrice = pricePerKwh || pricePerUnit;
+    const finalSocketCapacity = socketMaxCapacity || powerOutput || 3.3;
+
+    if (!name || !location || !chargerType || !finalPrice || !operatingHours) {
       return res.status(400).json({
         success: false,
-        message: 'All required fields must be provided'
+        message: 'All required fields must be provided: name, location, chargerType, pricePerUnit/pricePerKwh, operatingHours'
       });
     }
 
@@ -34,9 +41,13 @@ const createChargerStation = async (req, res) => {
       name,
       location,
       chargerType,
-      powerOutput,
+      chargerPowerKw: finalSocketCapacity,
+      socketMaxCapacity: finalSocketCapacity,
+      powerOutput: finalSocketCapacity,
       connectorTypes: connectorTypes || [],
-      pricePerUnit,
+      pricePerUnit: finalPrice,
+      pricePerKwh: finalPrice,
+      convenienceFee: convenienceFee || 0,
       amenities: amenities || [],
       operatingHours,
       images: images || []
@@ -51,6 +62,7 @@ const createChargerStation = async (req, res) => {
         stationId: chargerStation._id
       });
     } catch (emailError) {
+      // Email error doesn't block the response
     }
 
     res.status(201).json({
@@ -61,7 +73,8 @@ const createChargerStation = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: error.message
     });
   }
 };

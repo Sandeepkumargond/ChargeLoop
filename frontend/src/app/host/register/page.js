@@ -6,8 +6,6 @@ import 'leaflet/dist/leaflet.css';
 
 let L;
 
-const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 const MAX_IMAGE_SIZE = 500 * 1024;
 const MAX_PDF_SIZE = 10 * 1024 * 1024;
 
@@ -33,13 +31,14 @@ export default function HostRegisterPage() {
     addressProof: null,
     aadharCard: null,
     lightConnectionProof: null,
-    maxKw: '',
-    perUnitCharge: ''
+    chargerPowerKw: '', // Socket max capacity (3.3, 7.4, 22, 50 kW)
+    pricePerKwh: '', // Price per kWh for energy-based pricing (₹)
+    convenienceFee: '0' // NEW: Optional fee for parking/maintenance (₹0-100)
   });
 
   const fetchUserProfile = async (token) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -321,29 +320,60 @@ export default function HostRegisterPage() {
     }
   };
 
-  const uploadToCloudinary = async (file, resourceType = 'auto') => {
+  const uploadToImageKit = async (file) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 600000); // 10 minute timeout (matches 3 retries × 5min each)
+    
     try {
+      const token = localStorage.getItem('token');
+      
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-      formData.append('resource_type', resourceType);
 
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`,
-        {
-          method: 'POST',
-          body: formData
-        }
-      );
+      const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+      console.log(`📤 Uploading file: ${file.name} (${fileSizeMB}MB)...`);
+
+      // Call backend endpoint to upload (backend will use private key)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/upload-document`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+          // DO NOT set Content-Type - let browser handle multipart/form-data
+        },
+        body: formData,
+        signal: controller.signal // Add abort signal for timeout
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to upload file to Cloudinary');
+        const contentType = response.headers.get('content-type');
+        let errorMsg = `Upload failed: ${response.status}`;
+        
+        try {
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMsg = errorData.message || errorData.details || errorMsg;
+          }
+        } catch (e) {
+          // Response is not JSON
+        }
+        
+        console.error('Upload error response:', response.status, errorMsg);
+        throw new Error(errorMsg);
       }
 
       const data = await response.json();
-      return data.secure_url;
+      console.log(`✓ Upload success for ${file.name}`);
+      console.log(`  URL: ${data.fileUrl}`);
+      return data.fileUrl;
     } catch (error) {
+      if (error.name === 'AbortError') {
+        console.error('Upload timeout: Request took longer than 10 minutes');
+        throw new Error('Upload timeout - file took too long to upload (exceeded 10 minutes)');
+      }
+      console.error('Upload error details:', error);
       throw new Error('Failed to upload file: ' + error.message);
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
@@ -383,14 +413,14 @@ export default function HostRegisterPage() {
       return;
     }
 
-    if (!formData.maxKw) {
-      setError('Please enter the maximum kWh allowed');
+    if (!formData.chargerPowerKw) {
+      setError('Please enter charger power in kW');
       setLoading(false);
       return;
     }
 
-    if (!formData.perUnitCharge) {
-      setError('Please enter the per unit charge');
+    if (!formData.pricePerKwh) {
+      setError('Please enter price per kWh');
       setLoading(false);
       return;
     }
@@ -405,11 +435,19 @@ export default function HostRegisterPage() {
       let lightConnectionProofUrl = '';
 
       try {
-        addressProofUrl = await uploadToCloudinary(formData.addressProof);
-        aadharCardUrl = await uploadToCloudinary(formData.aadharCard);
-        lightConnectionProofUrl = await uploadToCloudinary(formData.lightConnectionProof);
+        console.log('Starting file uploads...');
+        addressProofUrl = await uploadToImageKit(formData.addressProof);
+        console.log('Address proof uploaded:', addressProofUrl);
+        
+        aadharCardUrl = await uploadToImageKit(formData.aadharCard);
+        console.log('Aadhar card uploaded:', aadharCardUrl);
+        
+        lightConnectionProofUrl = await uploadToImageKit(formData.lightConnectionProof);
+        console.log('Light connection proof uploaded:', lightConnectionProofUrl);
       } catch (uploadError) {
-        setError(uploadError.message);
+        console.error('Upload error caught:', uploadError);
+        setError('File upload failed: ' + uploadError.message);
+        setSuccess('');
         setLoading(false);
         return;
       }
@@ -425,9 +463,15 @@ export default function HostRegisterPage() {
         addressProofUrl: addressProofUrl,
         aadharCardUrl: aadharCardUrl,
         lightConnectionProofUrl: lightConnectionProofUrl,
-        maxKw: parseFloat(formData.maxKw),
-        perUnitCharge: parseFloat(formData.perUnitCharge)
+        chargerPowerKw: parseFloat(formData.chargerPowerKw),
+        pricePerKwh: parseFloat(formData.pricePerKwh),
+        convenienceFee: parseFloat(formData.convenienceFee) || 0, // NEW: Optional convenience fee
+        // Legacy fields for backward compatibility
+        maxKw: parseFloat(formData.chargerPowerKw),
+        perUnitCharge: parseFloat(formData.pricePerKwh)
       };
+
+      console.log('Submitting registration request with data:', requestData);
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/request-host-registration`, {
         method: 'POST',
@@ -453,12 +497,14 @@ export default function HostRegisterPage() {
           errorMessage = `Backend error (${response.status}): ${response.statusText}`;
         }
 
+        console.error('Registration submission failed:', errorMessage);
         throw new Error(errorMessage);
       }
 
       const responseData = await response.json();
+      console.log('Registration response:', responseData);
 
-      setSuccess('Registration submitted successfully! Updating status...');
+      setSuccess('Registration submitted successfully! Redirecting...');
 
       const statusResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/host-registration-status`, {
         headers: {
@@ -476,7 +522,9 @@ export default function HostRegisterPage() {
         router.push('/host');
       }, 2000);
     } catch (error) {
+      console.error('Submit handler error:', error);
       setError(error.message);
+      setSuccess('');
     } finally {
       setLoading(false);
     }
@@ -705,67 +753,101 @@ export default function HostRegisterPage() {
             {}
             <div>
               <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-6">
-                Charger Configuration
+                Charger Configuration (Energy-Based Pricing)
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 {}
                 <div>
                   <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-                    Maximum kWh Allowed for Charging *
+                    Charger Power (kW) *
                   </label>
                   <input
                     type="number"
-                    name="maxKw"
-                    value={formData.maxKw}
+                    name="chargerPowerKw"
+                    value={formData.chargerPowerKw}
                     onChange={handleInputChange}
-                    placeholder="e.g., 22, 50, 100"
-                    min="1"
+                    placeholder="e.g., 3.3, 7.4, 22, 50"
+                    min="0.5"
                     step="0.1"
                     className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-neutral-700 dark:text-white"
                     required
                   />
-                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">Maximum power capacity of your charger in kilowatts</p>
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">Hardware power capacity: 3.3 (AC), 7.4 (AC), 22 (AC/DC), 50 (DC)</p>
                 </div>
 
                 {}
                 <div>
                   <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-                    Per Unit Charge (₹/kWh) *
+                    Price per kWh (₹) *
                   </label>
                   <input
                     type="number"
-                    name="perUnitCharge"
-                    value={formData.perUnitCharge}
+                    name="pricePerKwh"
+                    value={formData.pricePerKwh}
                     onChange={handleInputChange}
-                    placeholder="e.g., 8, 10, 12"
+                    placeholder="e.g., 8, 10, 12, 15"
                     min="0.1"
                     step="0.1"
                     className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-neutral-700 dark:text-white"
                     required
                   />
-                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">Electricity cost per kilowatt-hour in your area</p>
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">Editable anytime. Users pay based on actual energy delivered</p>
+                </div>
+
+                {/* NEW: Convenience Fee */}
+                <div>
+                  <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
+                    Convenience Fee (₹) - Optional
+                  </label>
+                  <input
+                    type="number"
+                    name="convenienceFee"
+                    value={formData.convenienceFee}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 20, 30, 50"
+                    min="0"
+                    max="100"
+                    step="5"
+                    className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-neutral-700 dark:text-white"
+                  />
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">Optional fee for parking, maintenance, etc (₹0-100). Added to final bill.</p>
                 </div>
               </div>
 
               {}
-              {formData.maxKw && formData.perUnitCharge && (
+              {formData.chargerPowerKw && formData.pricePerKwh && (
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-700 mb-6">
-                  <div className="flex items-center justify-between">
+                  <div className="space-y-3">
                     <div>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-1">Calculated Hourly Rate</p>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-1">Example: 3-Hour Booking</p>
                       <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                          ₹{(parseFloat(formData.maxKw) * parseFloat(formData.perUnitCharge)).toFixed(2)}
+                        <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                          {(
+                            (parseFloat(formData.chargerPowerKw) * 3 * parseFloat(formData.pricePerKwh)) +
+                            parseFloat(formData.convenienceFee || 0) +
+                            10
+                          ).toFixed(2)}
                         </span>
-                        <span className="text-neutral-600 dark:text-neutral-400">/hour</span>
+                        <span className="text-neutral-600 dark:text-neutral-400">₹ total user pays</span>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-2">Calculation</p>
-                      <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                        {parseFloat(formData.maxKw).toFixed(1)} kW × ₹{parseFloat(formData.perUnitCharge).toFixed(2)}/kWh
+                      <p className="text-xs text-neutral-500 mt-1">
+                        Breakdown:
                       </p>
+                      <ul className="text-xs text-neutral-600 mt-2 space-y-1">
+                        <li>• Energy: {(parseFloat(formData.chargerPowerKw) * 3).toFixed(2)} kWh × ₹{parseFloat(formData.pricePerKwh).toFixed(2)} = ₹{(parseFloat(formData.chargerPowerKw) * 3 * parseFloat(formData.pricePerKwh)).toFixed(2)}</li>
+                        {parseFloat(formData.convenienceFee || 0) > 0 && (
+                          <li>• Your Convenience Fee: ₹{parseFloat(formData.convenienceFee).toFixed(2)}</li>
+                        )}
+                        <li>• ChargeLoop Platform Fee: ₹10</li>
+                      </ul>
+                    </div>
+                    <div className="bg-white dark:bg-neutral-800 rounded p-2 text-xs space-y-1">
+                      <p><strong>📊 New Workflow:</strong></p>
+                      <p>• User enters charger power (e.g., 3.3kW) + duration (e.g., 3 hours)</p>
+                      <p>• System calculates: 3.3kW × 3h = 9.9 kWh consumed</p>
+                      <p>• User pays: 9.9 × ₹{parseFloat(formData.pricePerKwh).toFixed(2)} {parseFloat(formData.convenienceFee || 0) > 0 ? `+ ₹${parseFloat(formData.convenienceFee).toFixed(2)} fee` : ''} + ₹10 platform fee</p>
+                      <p>• Safety check: User charger cannot exceed your socket capacity ({formData.chargerPowerKw}kW)</p>
                     </div>
                   </div>
                 </div>

@@ -39,20 +39,50 @@ const chargerStationSchema = new mongoose.Schema({
     enum: ['AC', 'DC', 'Both'],
     required: true
   },
-  powerOutput: {
+  // Socket capacity - host's charger power/rating
+  socketMaxCapacity: {
     type: Number,
     required: true,
+    default: 3.3,
+    enum: [3.3, 7, 7.4, 22, 50, 100, 150],
+    description: 'Host socket max capacity in kW (default 3.3kW for 16A). User must not exceed this with their charger.'
+  },
+  // Energy-based pricing fields (Approach A)
+  chargerPowerKw: {
+    type: Number,
+    required: true,
+    min: 0.5,
+    description: 'Charger power in kilowatts (e.g., 3.3, 7.4, 22, 50 kW)'
+  },
+  pricePerUnit: {
+    type: Number,
+    required: true,
+    min: 0,
+    description: 'Host-defined price per kWh in ₹ (e.g., ₹15)'
+  },
+  // Convenience fee - optional charges for parking/maintenance
+  convenienceFee: {
+    type: Number,
+    default: 0,
+    min: 0,
+    description: 'Optional fixed convenience fee in ₹ for parking, maintenance, etc (₹20-50)'
+  },
+  efficiency: {
+    type: Number,
+    default: null,
+    min: 0.5,
+    max: 1.0,
+    description: 'Charger efficiency (auto-calculated based on type: AC 0.85-0.90, DC 0.90-0.95)'
+  },
+  // Legacy fields (for backward compatibility)
+  powerOutput: {
+    type: Number,
     min: 1
   },
   connectorTypes: [{
     type: String,
     enum: ['Type 2', 'CCS', 'CHAdeMO', 'Bharat AC001', 'Bharat DC001']
   }],
-  pricePerUnit: {
-    type: Number,
-    required: true,
-    min: 0
-  },
   availability: {
     type: String,
     enum: ['Available', 'Occupied', 'Maintenance', 'Offline'],

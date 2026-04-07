@@ -1,3 +1,11 @@
+// Mock list of existing vehicles for testing/demo purposes
+// In production, this would connect to actual RTO database
+const mockExistingVehicles = [
+  'BR29AB1234',
+  'DL10CD5678',
+  'MH02EF9012'
+];
+
 const validateVehicleNumber = (vehicleNumber) => {
   if (!vehicleNumber || typeof vehicleNumber !== 'string') {
     return { valid: false, reason: 'Vehicle number is required' };

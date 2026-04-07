@@ -2,6 +2,7 @@
 
   import { useEffect, useState, useRef } from 'react';
   import { useRouter } from 'next/navigation';
+  import { BookingFormProvider, useBookingForm } from '../contexts/BookingFormContext';
 
   export default function MapView() {
     const router = useRouter();
@@ -20,26 +21,6 @@
     const lastAlertRef = useRef(null);
     const userMarkerRef = useRef(null);
     const userCircleRef = useRef(null);
-
-    const ensureUserLocationVisible = (map) => {
-      if (userLocation && map && userMarkerRef.current && userCircleRef.current) {
-
-        let userMarkerExists = false;
-        let userCircleExists = false;
-
-        map.eachLayer((layer) => {
-          if (layer === userMarkerRef.current) userMarkerExists = true;
-          if (layer === userCircleRef.current) userCircleExists = true;
-        });
-
-        if (!userMarkerExists && userMarkerRef.current) {
-          userMarkerRef.current.addTo(map);
-        }
-        if (!userCircleExists && userCircleRef.current) {
-          userCircleRef.current.addTo(map);
-        }
-      }
-    };
 
     useEffect(() => {
       let map;
@@ -350,7 +331,7 @@
           setLoading(false);
 
         } catch (error) {
-          setError(error.message || 'Failed to load map');
+          setError(error?.message || error || 'Failed to load map');
           setLoading(false);
         }
       };
@@ -393,7 +374,11 @@
       try {
 
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${apiUrl}/api/host/all`);
+        const token = localStorage.getItem('token');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const response = await fetch(`${apiUrl}/api/host/all`, {
+          headers
+        });
 
         let allHosts = [];
         if (response.ok) {
@@ -455,8 +440,6 @@
 
         setAvailableChargers(filteredHosts);
         displayChargersOnMap(map, filteredHosts);
-
-        ensureUserLocationVisible(map);
 
         if (showAlert && allHosts.length > 0 && filteredHosts.length === 0 && currentRadius !== 'all') {
           const alertKey = `${currentRadius}-${userCenter?.[0]}-${userCenter?.[1]}`;
@@ -532,18 +515,12 @@
             </div>
             <div style="margin-bottom: 8px; font-size: 12px; color: #6b7280;">
               <div>Location: ${charger.location.address}</div>
-              <div>Type: ${charger.chargerType} - ${charger.powerOutput || 'N/A'}kW</div>
-              <div>Price: ₹${charger.pricePerHour}/hour</div>
-              <div>Rating: ${charger.rating?.average || 'N/A'}/5</div>
+              <div>Power: ${charger.chargerPowerKw || 'N/A'}kW</div>
+              <div>Price: ₹${charger.pricePerKwh || charger.pricePerUnit || 'N/A'}/kWh</div>
+              <div>Rating: ${typeof charger.rating === 'object' ? charger.rating.average : charger.rating || 'N/A'}/5</div>
               ${charger.distance ? `<div>Distance: ${charger.distance}km away</div>` : ''}
             </div>
-            <div style="margin-bottom: 8px;">
-              <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Amenities:</div>
-              <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                ${(charger.amenities || []).map(amenity => `<span style=\"background: #e5e7eb; color: #374151; padding: 2px 6px; border-radius: 3px; font-size: 10px;\">${amenity}</span>`).join('')}
-              </div>
-            </div>
-            ${charger.available ? `<button onclick=\"window.bookCharger('${charger._id}')\" style=\"width: 100%; background: #3b82f6; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: 500;\">Book Now</button>` : `<button disabled style=\"width: 100%; background: #9ca3af; color: white; border: none; padding: 8px; border-radius: 4px; cursor: not-allowed;\">Currently Occupied</button>`}
+            ${charger.available ? `<button onclick=\"window.bookCharger('${charger._id}')\" style=\"width: 100%; background: #3b82f6; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: 500; margin-top: 8px;\">Book Now</button>` : `<button disabled style=\"width: 100%; background: #9ca3af; color: white; border: none; padding: 8px; border-radius: 4px; cursor: not-allowed; margin-top: 8px;\">Currently Occupied</button>`}
           </div>
         `);
       });
@@ -584,7 +561,6 @@
       if (mapInstance && userLocation) {
         await fetchAndDisplayChargers(mapInstance, userLocation, newRadius, true);
 
-        ensureUserLocationVisible(mapInstance);
       }
     };
 
@@ -769,7 +745,7 @@
 
                           <div className="text-xs text-neutral-600 dark:text-neutral-400 space-y-0.5 mb-2.5">
                             <p className="line-clamp-2">{charger.location.address}</p>
-                            <p className="font-medium text-neutral-900 dark:text-white">₹{charger.pricePerHour}/hr • {charger.chargerType}</p>
+                            <p className="font-medium text-neutral-900 dark:text-white">₹{charger.pricePerKwh || charger.pricePerUnit}/kWh • Regular Charging ({charger.chargerPowerKw}kW)</p>
                             <p className="flex items-center">{typeof charger.rating === 'object' ? charger.rating.average : charger.rating}/5</p>
                           </div>
 
@@ -843,214 +819,51 @@
         {}
         {bookingModal && selectedCharger && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-            <BookingModal
+            <BookingFormProvider
               charger={selectedCharger}
+              userLocation={userLocation}
               onClose={() => {
                 setBookingModal(false);
                 setSelectedCharger(null);
               }}
-              userLocation={userLocation}
-            />
+            >
+              <BookingModal />
+            </BookingFormProvider>
           </div>
         )}
       </div>
     );
   }
 
-  function BookingModal({ charger, onClose, userLocation }) {
-    const [bookingDetails, setBookingDetails] = useState({
-      vehicleNumber: '',
-      duration: 60,
-      startTime: new Date().toISOString().slice(0, 16),
+  function BookingModal() {
+  const {
+    bookingDetails,
+    setBookingDetails,
+    loading,
+    errors,
+    setErrors,
+    savedVehicles,
+    loadingVehicles,
+    chargerDetails,
+    pricingBreakdown,
+    handleVehicleSelect,
+    handleBooking,
+    onClose,
+    charger
+  } = useBookingForm();
+
+  const fillSampleData = () => {
+    const sampleData = {
+      vehicleNumber: 'BR01AB1234',
       vehicleType: 'car',
-      chargingType: 'fast',
-      desiredKwh: '',
-      chargingTimeHours: ''
-    });
-    const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({});
-    const [savedVehicles, setSavedVehicles] = useState([]);
-    const [loadingVehicles, setLoadingVehicles] = useState(true);
-
-    useEffect(() => {
-      const fetchSavedVehicles = async () => {
-        try {
-          const token = localStorage.getItem('token');
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            setSavedVehicles(data.vehicles || []);
-          }
-        } catch (err) {
-        } finally {
-          setLoadingVehicles(false);
-        }
-      };
-
-      fetchSavedVehicles();
-    }, []);
-
-    const handleVehicleSelect = (vehicle) => {
-      setBookingDetails(prev => ({
-        ...prev,
-        vehicleNumber: vehicle.vehicleNumber,
-        vehicleType: vehicle.vehicleType || 'car'
-      }));
+      userChargerPowerKw: '3.3',
+      bookingDurationMinutes: '60',
+      startTime: new Date(Date.now() + 30 * 60 * 1000).toISOString().slice(0, 16) // 30 minutes from now
     };
-
-    const validateForm = () => {
-      const newErrors = {};
-
-      if (!bookingDetails.vehicleNumber.trim()) {
-        newErrors.vehicleNumber = 'Vehicle number is required';
-      } else if (!/^[A-Z]{2}\s?\d{2}\s?[A-Z]{1,2}\s?\d{4}$/i.test(bookingDetails.vehicleNumber.replace(/\s/g, ''))) {
-        newErrors.vehicleNumber = 'Please enter a valid vehicle number (e.g., BR01AB1234)';
-      }
-
-      if (new Date(bookingDetails.startTime) < new Date()) {
-        newErrors.startTime = 'Start time cannot be in the past';
-      }
-
-      setErrors(newErrors);
-      return Object.keys(newErrors).length === 0;
-    };
-
-    const handleBooking = async () => {
-
-      if (!validateForm()) {
-        return;
-      }
-
-      setLoading(true);
-      try {
-
-        const hours = bookingDetails.duration / 60;
-        const estimatedCost = Math.round(hours * charger.pricePerHour);
-
-        const bookingData = {
-          hostId: charger._id,
-          hostName: charger.hostName,
-          hostLocation: charger.location.address,
-          chargerType: charger.chargerType,
-          scheduledTime: new Date(bookingDetails.startTime).toISOString(),
-          estimatedDuration: bookingDetails.duration,
-          estimatedCost: estimatedCost,
-          vehicleType: bookingDetails.vehicleType,
-          powerOutput: charger.powerOutput,
-          pricePerKwh: charger.pricePerHour / charger.powerOutput,
-          vehicleNumber: bookingDetails.vehicleNumber,
-          chargingType: bookingDetails.chargingType,
-          metadata: {
-            chargerId: charger._id,
-            powerOutput: charger.powerOutput,
-            vehicleType: bookingDetails.vehicleType,
-            vehicleNumber: bookingDetails.vehicleNumber,
-            chargingType: bookingDetails.chargingType,
-            userLocation: userLocation,
-            amenities: charger.amenities,
-            rating: charger.rating,
-            distance: charger.distance
-          }
-        };
-
-        const token = localStorage.getItem('token');
-        if (!token) {
-          alert('Please login to book a charger');
-          return;
-        }
-
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/charging/book`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(bookingData)
-        });
-
-        const responseData = await response.json();
-
-        if (response.ok) {
-          alert(`Booking Confirmed Successfully!
-
-  Booking Details:
-  • Charger: ${charger.hostName}
-  • Vehicle: ${bookingDetails.vehicleNumber} (${bookingDetails.vehicleType})
-  • Duration: ${bookingDetails.duration} minutes
-  • Start Time: ${new Date(bookingDetails.startTime).toLocaleString()}
-  • Estimated Cost: ₹${estimatedCost}
-  • Reservation ID: ${responseData.reservationId}
-
-  Your booking has been saved and you can view it in the Charging History page.
-  You will receive a confirmation SMS shortly.`);
-
-          onClose();
-        } else {
-
-          if (response.status === 401) {
-            alert('Session expired. Please login again.');
-            localStorage.removeItem('token');
-            window.location.href = '/login';
-            return;
-          } else if (response.status === 400 && responseData.msg?.includes('Insufficient wallet balance')) {
-            alert(` Booking Failed: Insufficient wallet balance.
-
-  Required Amount: ₹${estimatedCost}
-  Please add money to your wallet and try again.
-
-  Go to Wallet page to add funds.`);
-          } else {
-            alert(` Booking Failed: ${responseData.msg || responseData.error || 'Unknown error occurred'}
-
-  Please try again or contact support if the issue persists.`);
-          }
-        }
-
-      } catch (error) {
-
-        if (error.message.includes('fetch')) {
-          alert(` Network Error: Unable to connect to server.
-
-  Error: ${error.message}`);
-        } else {
-          alert(` Booking Error: ${error.message}
-
-  Please try again or contact support if the issue persists.`);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const calculateCost = () => {
-      const hostElectricityPrice = charger.electricityUnitPrice || 8;
-      const hostMargin = charger.perUnitCharge || 2;
-      const totalRate = hostElectricityPrice + hostMargin;
-      
-      const hostMaxAmps = charger.maxPermissibleAmperage || 16;
-      
-      const chargerMaxAmps = 16;
-      
-      const effectiveAmps = Math.min(chargerMaxAmps, hostMaxAmps);
-      
-      const effectivePowerKW = (230 * effectiveAmps) / 1000;
-      
-      if (bookingDetails.desiredKwh && bookingDetails.chargingTimeHours) {
-        const kwhValue = parseFloat(bookingDetails.desiredKwh);
-        const hoursValue = parseFloat(bookingDetails.chargingTimeHours);
-        
-        const cost = Math.round(kwhValue * totalRate);
-        return cost;
-      }
-      
-      const hours = bookingDetails.duration / 60;
-      const energyConsumed = effectivePowerKW * hours;
-      const cost = Math.round(energyConsumed * totalRate);
-      return cost;
-    };
+    
+    setBookingDetails(prev => ({ ...prev, ...sampleData }));
+    setErrors({}); // Clear any existing errors
+  };
 
     return (
       <div className="bg-white text-neutral-900 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
@@ -1068,54 +881,32 @@
         </div>
 
         <div className="p-4 sm:p-6 space-y-5">
-          {}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-            <h3 className="font-bold text-neutral-900 mb-3 text-sm">Station Details</h3>
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div className="bg-white rounded-lg p-3 text-center">
-                <div className="text-xs text-neutral-600 uppercase font-semibold mb-1">Type</div>
-                <div className="font-semibold text-neutral-900">{charger.chargerType}</div>
+          {/* Station Details - Compact */}
+          <div className="bg-blue-100 p-3 rounded-lg border border-blue-300">
+            <div className="grid grid-cols-3 gap-2 text-sm text-center">
+              <div>
+                <div className="text-xs text-neutral-600 font-semibold">Power</div>
+                <div className="font-bold text-neutral-900">{chargerDetails?.chargerPowerKw || charger.chargerPowerKw || 7.4} kW</div>
               </div>
-              <div className="bg-white rounded-lg p-3 text-center">
-                <div className="text-xs text-neutral-600 uppercase font-semibold mb-1">Power</div>
-                <div className="font-semibold text-neutral-900">{charger.powerOutput}kW</div>
+              <div>
+                <div className="text-xs text-neutral-600 font-semibold">Price</div>
+                <div className="font-bold text-blue-600">₹{chargerDetails?.pricePerKwh || chargerDetails?.pricePerUnit || charger.pricePerKwh || charger.pricePerUnit || 0}/kWh</div>
               </div>
-              <div className="bg-white rounded-lg p-3 text-center">
-                <div className="text-xs text-neutral-600 uppercase font-semibold mb-1">Price</div>
-                <div className="font-semibold text-blue-600">₹{charger.pricePerHour}/hr</div>
-              </div>
-              <div className="bg-white rounded-lg p-3 text-center">
-                <div className="text-xs text-neutral-600 uppercase font-semibold mb-1">Rating</div>
-                <div className="font-semibold text-yellow-600"> {typeof charger.rating === 'object' ? charger.rating.average : charger.rating}/5</div>
+              <div>
+                <div className="text-xs text-neutral-600 font-semibold">Location</div>
+                <div className="font-bold text-neutral-900 text-xs line-clamp-1">{charger.hostName || 'Host'}</div>
               </div>
             </div>
-            <div className="bg-white rounded-lg p-3">
-              <div className="text-xs text-neutral-600 uppercase font-semibold mb-1">Address</div>
-              <p className="text-sm text-neutral-800 line-clamp-2">{charger.location.address}</p>
-            </div>
-            {charger.amenities && charger.amenities.length > 0 && (
-              <div className="mt-3">
-                <div className="text-xs text-neutral-600 uppercase font-semibold mb-2">Amenities</div>
-                <div className="flex flex-wrap gap-2">
-                  {charger.amenities.map((amenity, index) => (
-                    <span key={index} className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full">
-                      {amenity}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
-          {}
+          {/* Booking Form */}
           <div className="space-y-4">
-            {}
+            {/* Vehicle Number */}
             <div>
               <label className="block text-sm font-semibold text-neutral-900 mb-2">
                 Vehicle Number <span className="text-red-500">*</span>
               </label>
               <div className="space-y-2">
-                {}
                 {!loadingVehicles && savedVehicles.length > 0 && (
                   <div className="grid grid-cols-2 gap-2">
                     {savedVehicles.map((vehicle) => (
@@ -1130,11 +921,11 @@
                       >
                         <div className="font-semibold">{vehicle.vehicleNumber}</div>
                         <div className="text-xs opacity-75">{vehicle.vehicleType}</div>
+                        {vehicle.model && <div className="text-xs opacity-60">{vehicle.model}</div>}
                       </button>
                     ))}
                   </div>
                 )}
-                {}
                 <input
                   type="text"
                   placeholder="e.g., BR-1AB1234"
@@ -1154,7 +945,7 @@
               )}
             </div>
 
-            {}
+            {/* Vehicle Type */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-semibold text-neutral-900 mb-2">
@@ -1172,59 +963,101 @@
                   <option value="truck">Truck</option>
                 </select>
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-neutral-900 mb-2">
-                  Charging Speed
-                </label>
-                <select
-                  value={bookingDetails.chargingType}
-                  onChange={(e) => setBookingDetails({...bookingDetails, chargingType: e.target.value})}
-                  className="w-full px-3 py-2.5 border-2 border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                >
-                  <option value="fast">Fast</option>
-                  <option value="standard">Standard</option>
-                  <option value="slow">Slow</option>
-                </select>
-              </div>
             </div>
 
-            {}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-semibold text-neutral-900 mb-2">
-                  Desired kWh *
-                </label>
+            {/* Charger Power (NEW) */}
+            <div>
+              <label className="block text-sm font-semibold text-neutral-900 mb-2">
+                Your Charger Power <span className="text-red-500">*</span>
+              </label>
+              <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-2">
+                  {[2.5, 3.3, 7.2].map((power) => (
+                    <button
+                      key={power}
+                      onClick={() => {
+                        setBookingDetails({...bookingDetails, userChargerPowerKw: power.toString()});
+                        if (errors.userChargerPowerKw) {
+                          setErrors({...errors, userChargerPowerKw: ''});
+                        }
+                      }}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition ${
+                        parseFloat(bookingDetails.userChargerPowerKw) === power
+                          ? 'border-blue-600 bg-blue-50 text-blue-700'
+                          : 'border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100'
+                      }`}
+                    >
+                      {power}kW
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="number"
-                  placeholder="e.g., 25, 50"
-                  value={bookingDetails.desiredKwh}
-                  onChange={(e) => setBookingDetails({...bookingDetails, desiredKwh: e.target.value})}
-                  min="0.1"
-                  step="0.1"
-                  className="w-full px-3 py-2.5 border-2 border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                />
-                <p className="text-xs text-neutral-600 mt-1">Amount of electricity (kWh) you need</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-neutral-900 mb-2">
-                  Charging Time (hours) *
-                </label>
-                <input
-                  type="number"
-                  placeholder="e.g., 1, 2, 3"
-                  value={bookingDetails.chargingTimeHours}
-                  onChange={(e) => setBookingDetails({...bookingDetails, chargingTimeHours: e.target.value})}
+                  placeholder="e.g., 3.3, 7.2"
+                  value={bookingDetails.userChargerPowerKw}
+                  onChange={(e) => {
+                    setBookingDetails({...bookingDetails, userChargerPowerKw: e.target.value});
+                    if (errors.userChargerPowerKw) {
+                      setErrors({...errors, userChargerPowerKw: ''});
+                    }
+                  }}
                   min="0.5"
-                  step="0.5"
-                  className="w-full px-3 py-2.5 border-2 border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  step="0.1"
+                  className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${errors.userChargerPowerKw ? 'border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-transparent'}`}
                 />
-                <p className="text-xs text-neutral-600 mt-1">Time you want to charge (in hours)</p>
               </div>
+              {errors.userChargerPowerKw && (
+                <p className="text-red-500 text-xs mt-1 font-medium">{errors.userChargerPowerKw}</p>
+              )}
             </div>
 
+            {/* Booking Duration */}
+            <div>
+              <label className="block text-sm font-semibold text-neutral-900 mb-2">
+                How long to charge? <span className="text-red-500">*</span>
+              </label>
+              <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-2">
+                  {[30, 60, 120].map((duration) => (
+                    <button
+                      key={duration}
+                      onClick={() => {
+                        setBookingDetails({...bookingDetails, bookingDurationMinutes: duration.toString()});
+                        if (errors.bookingDurationMinutes) {
+                          setErrors({...errors, bookingDurationMinutes: ''});
+                        }
+                      }}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition ${
+                        parseInt(bookingDetails.bookingDurationMinutes) === duration
+                          ? 'border-blue-600 bg-blue-50 text-blue-700'
+                          : 'border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100'
+                      }`}
+                    >
+                      {duration} min
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number"
+                  placeholder="Custom duration (mins)"
+                  value={bookingDetails.bookingDurationMinutes}
+                  onChange={(e) => {
+                    setBookingDetails({...bookingDetails, bookingDurationMinutes: e.target.value});
+                    if (errors.bookingDurationMinutes) {
+                      setErrors({...errors, bookingDurationMinutes: ''});
+                    }
+                  }}
+                  min="1"
+                  step="5"
+                  className={`w-full px-4 py-2.5 border-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition ${errors.bookingDurationMinutes ? 'border-red-500 focus:ring-red-500' : 'border-neutral-300 focus:border-transparent'}`}
+                />
+              </div>
+              {errors.bookingDurationMinutes && (
+                <p className="text-red-500 text-xs mt-1 font-medium">{errors.bookingDurationMinutes}</p>
+              )}
+            </div>
 
+            {/* Start Time */}
             <div>
               <label className="block text-sm font-semibold text-neutral-900 mb-2">
                 Start Time
@@ -1246,27 +1079,76 @@
               )}
             </div>
 
-            {}
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 p-4 rounded-xl">
-              <div className="flex justify-between items-baseline mb-2">
-                <span className="text-neutral-700 font-semibold">Estimated Cost:</span>
-                <span className="text-3xl font-bold text-green-600">₹{calculateCost()}</span>
+            {/* Safety Alert (NEW) */}
+            {pricingBreakdown && !pricingBreakdown.isSafeToBook && (
+              <div className="bg-red-50 border-2 border-red-300 p-4 rounded-xl">
+                <div className="text-red-700 font-semibold text-sm">{pricingBreakdown.safetyAlertMessage}</div>
               </div>
-              {bookingDetails.desiredKwh && bookingDetails.chargingTimeHours ? (
-                <div className="text-sm text-neutral-600">
-                  <div>{bookingDetails.desiredKwh} kWh × ₹{(charger.electricityUnitPrice || 8) + (charger.perUnitCharge || 2)}/kWh</div>
-                  <span className="text-xs text-neutral-500 mt-1">{bookingDetails.chargingTimeHours} hours charging</span>
+            )}
+
+            {/* Pricing Breakdown (NEW) */}
+            {pricingBreakdown && pricingBreakdown.isSafeToBook && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 p-4 rounded-xl space-y-3">
+                <div className="font-semibold text-neutral-900 text-sm mb-3">📊 Charging Summary</div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="bg-white rounded-lg p-2.5">
+                    <div className="text-xs text-neutral-600 font-semibold">Socket</div>
+                    <div className="font-semibold text-neutral-900">{pricingBreakdown.socketMaxCapacityKw}kW</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-2.5">
+                    <div className="text-xs text-neutral-600 font-semibold">Your Charger</div>
+                    <div className="font-semibold text-green-600">{pricingBreakdown.userChargerPowerKw}kW</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-2.5">
+                    <div className="text-xs text-neutral-600 font-semibold">Duration</div>
+                    <div className="font-semibold text-neutral-900">{pricingBreakdown.bookingDurationHours}h</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-2.5">
+                    <div className="text-xs text-neutral-600 font-semibold">Total Energy</div>
+                    <div className="font-semibold text-blue-600">{pricingBreakdown.totalUnitsKwh}kWh</div>
+                  </div>
+                </div>
+                <div className="border-t border-blue-300 pt-3">
+                  <div className="font-semibold text-neutral-900 text-sm mb-2">🚗 Estimated Range: {pricingBreakdown.estimatedRange}km</div>
+                  <div className="text-xs text-neutral-600">Based on average EV efficiency of ~7km per kWh</div>
+                </div>
+              </div>
+            )}
+
+            {/* Estimated Cost (NEW) */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 p-4 rounded-xl">
+              <div className="text-sm font-semibold text-neutral-700 mb-2">💰 Billing Breakdown:</div>
+              {pricingBreakdown && pricingBreakdown.isSafeToBook ? (
+                <div className="space-y-1 text-sm">
+                  {pricingBreakdown.energyCost > 0 && (
+                    <div className="flex justify-between text-neutral-700">
+                      <span>Energy ({pricingBreakdown.totalUnitsKwh}kWh @ ₹{pricingBreakdown.pricePerUnit}/kWh)</span>
+                      <span className="font-semibold">₹{pricingBreakdown.energyCost}</span>
+                    </div>
+                  )}
+                  {pricingBreakdown.convenienceFee > 0 && (
+                    <div className="flex justify-between text-neutral-700">
+                      <span>Convenience Fee</span>
+                      <span className="font-semibold">₹{pricingBreakdown.convenienceFee}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-neutral-700">
+                    <span>Platform Fee</span>
+                    <span className="font-semibold">₹{pricingBreakdown.platformFee}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-green-300 pt-2 text-green-700 font-bold">
+                    <span>Total Bill:</span>
+                    <span className="text-2xl">₹{pricingBreakdown.totalBill}</span>
+                  </div>
                 </div>
               ) : (
-                <div className="text-sm text-neutral-600">
-                  <div>Duration: {bookingDetails.duration} min</div>
-                  <div>Power: {((230 * Math.min(16, charger.maxPermissibleAmperage || 16)) / 1000).toFixed(2)} kW</div>
-                  <div className="text-xs text-neutral-500 mt-1">Rate: ₹{(charger.electricityUnitPrice || 8) + (charger.perUnitCharge || 2)}/kWh</div>
-                </div>
+                <div className="text-neutral-500 text-sm">Enter your charger power and duration to calculate cost</div>
               )}
             </div>
 
-            {}
+
+
+            {/* Booking Buttons */}
             <div className="flex gap-3 pt-2">
               <button
                 onClick={onClose}
@@ -1276,7 +1158,7 @@
               </button>
               <button
                 onClick={handleBooking}
-                disabled={loading}
+                disabled={loading || !bookingDetails.vehicleNumber.trim() || !bookingDetails.userChargerPowerKw || !bookingDetails.bookingDurationMinutes}
                 className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
               >
                 {loading ? 'Processing...' : 'Confirm Booking'}

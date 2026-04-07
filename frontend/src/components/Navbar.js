@@ -40,7 +40,8 @@ export default function Navbar() {
     
     const fetchHealth = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/health`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://chargeloop.onrender.com';
+        const response = await fetch(`${apiUrl}/api/health`);
         if (response.ok) {
           const data = await response.json();
           setHealthStatus(data);

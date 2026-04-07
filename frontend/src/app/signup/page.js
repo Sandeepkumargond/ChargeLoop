@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GoogleLogin } from '@react-oauth/google';
+import { useNotification } from '@/contexts/NotificationContext';
 
 export default function SignupPage() {
   const [mounted, setMounted] = useState(false);
@@ -18,6 +19,7 @@ export default function SignupPage() {
   const [otpTimer, setOtpTimer] = useState(0);
   const [email, setEmail] = useState('');
   const router = useRouter();
+  const { showSuccess, showError } = useNotification();
 
   useEffect(() => {
     let interval;
@@ -109,12 +111,17 @@ export default function SignupPage() {
         body: JSON.stringify(payloadData),
       });
 
+      let errorMsg = 'Signup failed';
       if (!response.ok) {
-        const errorData = await response.json();
-        const errorMsg = errorData.msg || 'Signup failed';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.msg || `Error: ${response.statusText}`;
+        } catch (e) {
+          errorMsg = `Error: ${response.statusText}`;
+        }
         setError(errorMsg);
-        showErrorToast(errorMsg);
-        seturn;
+        showError(errorMsg);
+        return;
       }
 
       const result = await response.json();
@@ -127,7 +134,7 @@ export default function SignupPage() {
         window.dispatchEvent(new Event('authChange'));
 
         setSuccess('Account created successfully!');
-        showSuccessToast('Account created successfully!');
+        showSuccess('Account created successfully!');
 
         if (result.user.role === 'host') {
           setTimeout(() => router.push('/host'), 1500);
@@ -136,7 +143,7 @@ export default function SignupPage() {
         }
       }
     } catch (error) {
-      setError
+      setError(error.message || 'Signup failed');
       setLoading(false);
     }
   };
@@ -159,12 +166,24 @@ export default function SignupPage() {
         body: JSON.stringify({ email }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.msg || 'Failed to send OTP');
+        let errorMsg = 'Failed to send OTP';
+        if (response.status === 429) {
+          errorMsg = 'Too many requests. Please wait a moment before trying again.';
+        } else if (response.status === 403) {
+          errorMsg = 'Access denied. Please check your email.';
+        } else {
+          try {
+            const data = await response.json();
+            errorMsg = data.msg || `Error: ${response.statusText}`;
+          } catch (e) {
+            errorMsg = `Error: ${response.statusText}`;
+          }
+        }
+        throw new Error(errorMsg);
       }
 
+      const data = await response.json();
       setOtpSent(true);
       setOtpTimer(300);
     } catch (error) {
@@ -192,15 +211,27 @@ export default function SignupPage() {
         body: JSON.stringify({ email, otp }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.msg || 'OTP verification failed');
+        let errorMsg = 'OTP verification failed';
+        if (response.status === 429) {
+          errorMsg = 'Too many verification attempts. Please wait a few minutes before trying again.';
+        } else if (response.status === 403) {
+          errorMsg = 'Invalid or expired OTP. Please request a new OTP.';
+        } else {
+          try {
+            const data = await response.json();
+            errorMsg = data.msg || `Error: ${response.statusText}`;
+          } catch (e) {
+            errorMsg = `Error: ${response.statusText}`;
+          }
+        }
+        throw new Error(errorMsg);
       }
 
+      const data = await response.json();
       setVerificationToken(data.verificationToken);
       setOtpVerified(true);
-      showSuccessToast('Email verified successfully!');
+      showSuccess('Email verified successfully!');
       setError('');
     } catch (error) {
       setError(error.message);
@@ -230,8 +261,18 @@ export default function SignupPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Google signup failed');
+        let errorMsg = 'Google signup failed';
+        if (response.status === 403) {
+          errorMsg = 'Access denied. The origin is not allowed for this Google OAuth configuration.';
+        } else {
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.error || errorData.msg || `Error: ${response.statusText}`;
+          } catch (e) {
+            errorMsg = `Error: ${response.statusText}`;
+          }
+        }
+        throw new Error(errorMsg);
       }
 
       const result = await response.json();
@@ -243,7 +284,7 @@ export default function SignupPage() {
 
         window.dispatchEvent(new Event('authChange'));
 
-        showSuccessToast('Signup successful! Redirecting...');
+        showSuccess('Signup successful! Redirecting...');
 
         if (result.user.role === 'host') {
           router.push('/host');

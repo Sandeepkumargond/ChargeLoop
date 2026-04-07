@@ -67,7 +67,7 @@ export default function BookingsPage() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/charging/requests/${requestId}/accept`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/host/booking-requests/${requestId}/accept`,
         {
           method: 'PUT',
           headers: {
@@ -93,7 +93,7 @@ export default function BookingsPage() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/charging/requests/${requestId}/decline`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/host/booking-requests/${requestId}/decline`,
         {
           method: 'PUT',
           headers: {
@@ -216,8 +216,8 @@ export default function BookingsPage() {
               <div className="hidden md:grid grid-cols-7 gap-4 bg-neutral-200 dark:bg-neutral-700 p-4 rounded-t-lg font-semibold text-neutral-900 dark:text-white text-sm">
                 <div>Customer</div>
                 <div>Vehicle</div>
-                <div>Duration</div>
-                <div>Cost</div>
+                <div>Desired kWh</div>
+                <div>Price/Unit</div>
                 <div>Scheduled</div>
                 <div>Status</div>
                 <div>Request ID</div>
@@ -243,15 +243,15 @@ export default function BookingsPage() {
                     </div>
 
                     {}
-                    <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Duration</div>
+                    <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Desired kWh</div>
                     <div className="text-neutral-600 dark:text-neutral-400">
-                      {request.estimatedDuration} min
+                      {request.desiredKwh || 0} kWh
                     </div>
 
                     {}
-                    <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Cost</div>
+                    <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Price/Unit</div>
                     <div className="font-semibold text-neutral-900 dark:text-white">
-                      ₹{request.estimatedCost}
+                      ₹{request.pricePerUnit || 0}/kWh
                     </div>
 
                     {}

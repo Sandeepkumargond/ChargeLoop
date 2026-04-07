@@ -100,29 +100,7 @@ export default function ContactPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mb-10 sm:mb-12 lg:mb-16">
-            {}
-            <div className="bg-neutral-50 dark:bg-neutral-700 rounded-lg p-6 sm:p-8 text-center border border-neutral-200 dark:border-neutral-600">
-              <div className="text-4xl mb-4 font-bold text-green-600 dark:text-green-400"></div>
-              <h3 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white mb-2">Email</h3>
-              <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-300 break-all">support@chargeloop.com</p>
-              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-2">Response within 24h</p>
-            </div>
-
-            <div className="bg-neutral-50 dark:bg-neutral-700 rounded-lg p-6 sm:p-8 text-center border border-neutral-200 dark:border-neutral-600">
-              <div className="text-4xl mb-4 font-bold text-green-600 dark:text-green-400"></div>
-              <h3 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white mb-2">Phone</h3>
-              <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-300">+91 1234-567-890</p>
-              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-2">9 AM - 6 PM IST</p>
-            </div>
-
-            <div className="bg-neutral-50 dark:bg-neutral-700 rounded-lg p-6 sm:p-8 text-center border border-neutral-200 dark:border-neutral-600 sm:col-span-2 lg:col-span-1">
-              <div className="text-4xl mb-4 font-bold text-green-600 dark:text-green-400"></div>
-              <h3 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white mb-2">Live Chat</h3>
-              <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-300">Chat with us</p>
-              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-2">Available 24/7</p>
-            </div>
-          </div>
+    
 
           <form onSubmit={handleSubmit} className="bg-white dark:bg-neutral-800 rounded-2xl p-10 shadow-xl">
             <div className="grid md:grid-cols-2 gap-6 mb-6">

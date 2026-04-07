@@ -160,33 +160,6 @@ export default function HomePage() {
       </div>
 
       {}
-      <div className="py-16 px-6 bg-white dark:bg-neutral-800">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-neutral-900 dark:text-white mb-12">
-            Platform Overview
-          </h2>
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="text-center p-6 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-              <h3 className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">50K+</h3>
-              <p className="text-neutral-700 dark:text-neutral-300 font-medium">Active Users</p>
-            </div>
-            <div className="text-center p-6 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-              <h3 className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">500+</h3>
-              <p className="text-neutral-700 dark:text-neutral-300 font-medium">Charging Stations</p>
-            </div>
-            <div className="text-center p-6 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-              <h3 className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">100K+</h3>
-              <p className="text-neutral-700 dark:text-neutral-300 font-medium">Charges Completed</p>
-            </div>
-            <div className="text-center p-6 border border-neutral-200 dark:border-neutral-700 rounded-lg">
-              <h3 className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">₹5Cr+</h3>
-              <p className="text-neutral-700 dark:text-neutral-300 font-medium">Total Transactions</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {}
       <div className="py-16 px-4 sm:px-6 bg-white dark:bg-neutral-800">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-center text-neutral-900 dark:text-white mb-4">

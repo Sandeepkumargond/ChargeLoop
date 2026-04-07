@@ -12,6 +12,11 @@ export default function AdminLogin() {
   const [success, setSuccess] = useState(false);
   const router = useRouter();
 
+  const handleAutofill = () => {
+    setEmail('chargeloop@gmail.com');
+    setPassword('chargeloop@123');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -35,6 +40,7 @@ export default function AdminLogin() {
 
         localStorage.setItem('token', data.token);
         localStorage.setItem('userEmail', data.user.email);
+        localStorage.setItem('userName', data.user.name || data.user.email?.split('@')[0] || 'Admin');
         localStorage.setItem('userRole', 'admin');
 
         window.dispatchEvent(new Event('authChange'));
@@ -58,15 +64,13 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 flex flex-col justify-center sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-neutral-900 dark:text-white">
              Admin Login
           </h2>
-          <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-            Access admin dashboard
-          </p>
+          
         </div>
       </div>
 
@@ -110,7 +114,14 @@ export default function AdminLogin() {
                   suppressHydrationWarning
                 />
               </div>
-              <div className="mt-2 text-right">
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={handleAutofill}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 px-3 py-1 rounded border border-blue-600 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
+                >
+                   test
+                </button>
                 <Link
                   href="/forgot-password"
                   className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
@@ -161,15 +172,10 @@ export default function AdminLogin() {
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-neutral-300 dark:border-neutral-600" />
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">Security Notice</span>
-              </div>
+              
             </div>
 
-            <div className="mt-4 text-xs text-neutral-500 dark:text-neutral-400 text-center">
-              <p>This is a secure founder-only access point</p>
-              <p>All access attempts are logged for security</p>
-            </div>
+            
           </div>
 
           <div className="mt-6 text-center">

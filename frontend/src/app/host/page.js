@@ -94,17 +94,18 @@ export default function HostPage() {
     fetchRegistrationStatus();
     fetchPendingRequests();
 
-    const statusInterval = setInterval(() => {
-      fetchRegistrationStatus();
-    }, 10000);
+    // The statusInterval was causing the auto-refresh. It has been removed.
+    // const statusInterval = setInterval(() => {
+    //   fetchRegistrationStatus();
+    // }, 10000);
 
-    return () => clearInterval(statusInterval);
+    // return () => clearInterval(statusInterval);
   }, [router, fetchRegistrationStatus, fetchPendingRequests]);
 
   const handleAcceptRequest = async (requestId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/charging/requests/${requestId}/accept`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/requests/${requestId}/accept`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -112,13 +113,19 @@ export default function HostPage() {
         }
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
         throw new Error(data.msg || data.error || 'Failed to accept request');
       }
 
-      fetchPendingRequests();
+      const data = await response.json();
+      // Update UI instantly by removing the accepted request
+      setBookingRequests(prev => prev.filter(req => req._id !== requestId));
+      // Update stats
+      setStats(prev => ({
+        ...prev,
+        pendingRequests: Math.max(0, prev.pendingRequests - 1)
+      }));
     } catch (err) {
       console.error(err.message || 'Error accepting request');
     }
@@ -129,7 +136,7 @@ export default function HostPage() {
       const token = localStorage.getItem('token');
       const reason = prompt('Enter reason for declining (optional):');
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/charging/requests/${requestId}/decline`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/requests/${requestId}/decline`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -138,13 +145,19 @@ export default function HostPage() {
         body: JSON.stringify({ reason: reason || '' })
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
         throw new Error(data.msg || data.error || 'Failed to decline request');
       }
 
-      fetchPendingRequests();
+      const data = await response.json();
+      // Update UI instantly by removing the declined request
+      setBookingRequests(prev => prev.filter(req => req._id !== requestId));
+      // Update stats
+      setStats(prev => ({
+        ...prev,
+        pendingRequests: Math.max(0, prev.pendingRequests - 1)
+      }));
     } catch (err) {
       console.error(err.message || 'Error declining request');
     }
@@ -207,51 +220,89 @@ export default function HostPage() {
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex-1 overflow-y-auto">
         <div className="py-6 sm:py-8">
           {}
-          <div className="mb-8 flex items-center justify-between">
+          <div className="mb-8 flex items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-1">Host Dashboard</h1>
               <p className="text-sm text-neutral-600 dark:text-neutral-400">Manage your charging stations</p>
             </div>
-            {registrationStatus?.verificationStatus === 'approved' && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Map Visibility</span>
+            <div className="flex flex-col gap-3 items-end">
+              {/* Host Status Card - Right side */}
+              {regStatusLoading ? (
+                <div className="text-xs text-neutral-600 dark:text-neutral-400">Loading...</div>
+              ) : regStatusError ? (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded p-2 text-end">
+                  <p className="text-red-800 dark:text-red-300 text-xs">{regStatusError}</p>
+                </div>
+              ) : !registrationStatus ? (
                 <button
-                  onClick={toggleMapVisibility}
-                  disabled={toggleLoading}
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                    isVisibleOnMap ? 'bg-blue-600 hover:bg-blue-700' : 'bg-neutral-300 hover:bg-neutral-400'
-                  } ${toggleLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} focus:outline-none`}
-                  title={isVisibleOnMap ? 'Hide from map' : 'Show on map'}
+                  onClick={() => router.push('/host/register')}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
                 >
-                  <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                      isVisibleOnMap ? 'tranneutral-x-6' : 'tranneutral-x-1'
-                    }`}
-                  />
+                  Complete Registration
                 </button>
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className={`rounded border p-3 w-max ${
+                  registrationStatus.verificationStatus === 'approved'
+                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+                    : registrationStatus.verificationStatus === 'rejected'
+                    ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
+                    : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700'
+                }`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className={`font-semibold text-sm ${
+                        registrationStatus.verificationStatus === 'approved'
+                          ? 'text-green-900 dark:text-green-300'
+                          : registrationStatus.verificationStatus === 'rejected'
+                          ? 'text-red-900 dark:text-red-300'
+                          : 'text-yellow-900 dark:text-yellow-300'
+                      }`}>
+                        {registrationStatus.verificationStatus === 'approved' 
+                          ? 'Approved' 
+                          : registrationStatus.verificationStatus === 'rejected'
+                          ? 'Rejected'
+                          : 'Pending Review'}
+                      </h3>
+                      <p className={`text-xs ${
+                        registrationStatus.verificationStatus === 'approved'
+                          ? 'text-green-800 dark:text-green-400'
+                          : registrationStatus.verificationStatus === 'rejected'
+                          ? 'text-red-800 dark:text-red-400'
+                          : 'text-yellow-800 dark:text-yellow-400'
+                      }`}>
+                        {registrationStatus.verificationStatus === 'approved'
+                          ? 'You can accept bookings now'
+                          : registrationStatus.verificationStatus === 'rejected'
+                          ? 'Your application was rejected'
+                          : 'Your registration is under review'}
+                      </p>
+                    </div>
 
-        {}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 p-4">
-            <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-1">Pending</p>
-            <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.pendingRequests}</p>
+                    {/* Map Visibility Toggle - Inside Status Card */}
+                    {registrationStatus?.verificationStatus === 'approved' && (
+                      <div className="flex items-center gap-2 pl-3 border-l border-current border-opacity-20">
+                        <span className="text-xs font-medium text-inherit whitespace-nowrap">Map</span>
+                        <button
+                          onClick={toggleMapVisibility}
+                          disabled={toggleLoading}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ${
+                            isVisibleOnMap ? 'bg-green-600 hover:bg-green-700' : 'bg-neutral-400 hover:bg-neutral-500'
+                          } ${toggleLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} focus:outline-none`}
+                          title={isVisibleOnMap ? 'Hide from map' : 'Show on map'}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${
+                              isVisibleOnMap ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 p-4">
-            <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-1">Chargers</p>
-            <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.totalChargers}</p>
-          </div>
-          <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 p-4">
-            <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-1">Earnings</p>
-            <p className="text-2xl font-bold text-neutral-900 dark:text-white">₹{stats.totalEarnings}</p>
-          </div>
-          <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 p-4">
-            <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-1">Active</p>
-            <p className="text-2xl font-bold text-neutral-900 dark:text-white">{stats.activeBookings}</p>
-          </div>
-        </div>
 
         {}
         <div className="mb-8">
@@ -280,20 +331,48 @@ export default function HostPage() {
             <div className="space-y-3">
               {bookingRequests.filter(req => req.status === 'pending').map(request => (
                 <div key={request._id} className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-3 text-xs">
                     <div>
-                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">User</p>
-                      <p className="text-sm font-medium text-neutral-900 dark:text-white">{request.userId?.name || 'User'}</p>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400">{request.vehicleNumber}</p>
+                      <p className="text-neutral-500 dark:text-neutral-400 mb-1 font-semibold">User</p>
+                      <p className="text-neutral-900 dark:text-white font-medium">{request.userId?.name || 'User'}</p>
+                      <p className="text-neutral-600 dark:text-neutral-400">{request.userPhone || 'N/A'}</p>
+                      <p className="text-neutral-600 dark:text-neutral-400 text-xs">{request.vehicleNumber}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Booking</p>
-                      <p className="text-sm text-neutral-900 dark:text-white">{request.estimatedDuration} min • ₹{request.estimatedCost}</p>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400">{new Date(request.scheduledTime).toLocaleDateString()}</p>
+                      <p className="text-neutral-500 dark:text-neutral-400 mb-1 font-semibold">Duration</p>
+                      <p className="text-neutral-900 dark:text-white font-medium">{request.requestedDuration || request.estimatedDuration} min</p>
+                      <p className="text-neutral-600 dark:text-neutral-400">{request.vehicleType || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Charger</p>
-                      <p className="text-sm text-neutral-900 dark:text-white">{request.chargerType}</p>
+                      <p className="text-neutral-500 dark:text-neutral-400 mb-1 font-semibold">Energy</p>
+                      <p className="text-neutral-900 dark:text-white font-medium">{request.totalUnitsKwh || request.desiredKwh || 'N/A'} kWh</p>
+                      <p className="text-neutral-600 dark:text-neutral-400">@ ₹{request.pricePerKwh || 0}/kWh</p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-500 dark:text-neutral-400 mb-1 font-semibold">Total Price</p>
+                      <p className="text-green-600 dark:text-green-400 font-bold">₹{request.totalBill || request.estimatedCost || 0}</p>
+                      <p className="text-neutral-600 dark:text-neutral-400">Charger: {request.chargerType}</p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-500 dark:text-neutral-400 mb-1 font-semibold">Start Time</p>
+                      <p className="text-neutral-900 dark:text-white font-medium">
+                        {request.scheduledTime 
+                          ? new Date(request.scheduledTime).toLocaleDateString('en-IN', {
+                              month: 'short',
+                              day: 'numeric'
+                            })
+                          : 'N/A'
+                        }
+                      </p>
+                      <p className="text-neutral-600 dark:text-neutral-400">
+                        {request.scheduledTime
+                          ? new Date(request.scheduledTime).toLocaleTimeString('en-IN', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : 'N/A'
+                        }
+                      </p>
                     </div>
                   </div>
 
@@ -319,74 +398,6 @@ export default function HostPage() {
                   )}
                 </div>
               ))}
-            </div>
-          )}
-        </div>
-
-        {}
-        <div>
-          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-4">Host Status</h2>
-
-          {regStatusLoading ? (
-            <LoadingCard variant="table" title="Loading..." />
-          ) : regStatusError ? (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded p-4 text-center">
-              <p className="text-red-800 dark:text-red-300 text-sm">{regStatusError}</p>
-            </div>
-          ) : !registrationStatus ? (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded p-6 text-center">
-              <h3 className="font-semibold text-neutral-900 dark:text-white mb-2">Complete Registration</h3>
-              <p className="text-sm text-neutral-700 dark:text-neutral-300 mb-4">Set up your charger to start earning</p>
-              <button
-                onClick={() => router.push('/host/register')}
-                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition-colors"
-              >
-                Continue
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className={`rounded border p-4 ${
-                registrationStatus.verificationStatus === 'approved'
-                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
-                  : registrationStatus.verificationStatus === 'rejected'
-                  ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
-                  : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700'
-              }`}>
-                <h3 className={`font-semibold text-sm mb-1 ${
-                  registrationStatus.verificationStatus === 'approved'
-                    ? 'text-green-900 dark:text-green-300'
-                    : registrationStatus.verificationStatus === 'rejected'
-                    ? 'text-red-900 dark:text-red-300'
-                    : 'text-yellow-900 dark:text-yellow-300'
-                }`}>
-                  {registrationStatus.verificationStatus === 'approved' 
-                    ? 'Approved' 
-                    : registrationStatus.verificationStatus === 'rejected'
-                    ? 'Rejected'
-                    : 'Pending Review'}
-                </h3>
-                <p className={`text-xs ${
-                  registrationStatus.verificationStatus === 'approved'
-                    ? 'text-green-800 dark:text-green-400'
-                    : registrationStatus.verificationStatus === 'rejected'
-                    ? 'text-red-800 dark:text-red-400'
-                    : 'text-yellow-800 dark:text-yellow-400'
-                }`}>
-                  {registrationStatus.verificationStatus === 'approved'
-                    ? 'You can accept bookings now'
-                    : registrationStatus.verificationStatus === 'rejected'
-                    ? 'Your application was rejected'
-                    : 'Your registration is under review'}
-                </p>
-                {registrationStatus.verificationStatus === 'rejected' && registrationStatus.rejectionReason && (
-                  <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-700">
-                    <p className="text-xs font-semibold text-red-900 dark:text-red-300 mb-1">Reason:</p>
-                    <p className="text-xs text-red-800 dark:text-red-400">{registrationStatus.rejectionReason}</p>
-                  </div>
-                )}
-              </div>
-
             </div>
           )}
         </div>

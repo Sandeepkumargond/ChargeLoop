@@ -23,10 +23,18 @@ const securityMiddleware = {
   }),
 
   requestValidator: (req, res, next) => {
-    if (req.headers['content-type'] && !req.headers['content-type'].includes('application/json')) {
+    const contentType = req.headers['content-type'] || '';
+    
+    // Skip validation for file uploads (multipart/form-data) and GET/HEAD/DELETE requests
+    if (contentType.includes('multipart/form-data')) {
+      return next();
+    }
+    
+    // For other requests, require application/json
+    if (contentType && !contentType.includes('application/json')) {
       if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'DELETE') {
         return res.status(415).json({
-          msg: 'Unsupported Media Type. Use application/json',
+          msg: 'Unsupported Media Type. Use application/json or multipart/form-data for file uploads',
           code: 'UNSUPPORTED_MEDIA_TYPE'
         });
       }

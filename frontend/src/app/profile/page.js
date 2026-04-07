@@ -36,13 +36,30 @@ export default function ProfilePage() {
           return;
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile`, {
+        let apiUrl = userRole === 'host' 
+          ? `${process.env.NEXT_PUBLIC_API_URL}/api/host/profile` 
+          : `${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`;
+
+        let response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
+
+        // If host profile doesn't exist (404), fallback to user profile
+        if (!response.ok && userRole === 'host' && response.status === 404) {
+          console.log('Host profile not found, falling back to user profile');
+          apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`;
+          response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+        }
 
         if (!response.ok) {
           if (response.status === 401) {
@@ -71,10 +88,23 @@ export default function ProfilePage() {
         enhancedUser.memberSince = userData.createdAt ? new Date(userData.createdAt).getFullYear() : new Date().getFullYear();
 
         setUser(enhancedUser);
+        
+        // Update localStorage with user name from profile (for consistency)
+        const displayName = userData.name || userData.hostName || 'User';
+        localStorage.setItem('userName', displayName);
+        if (userData.email) {
+          localStorage.setItem('userEmail', userData.email);
+        }
+        
+        // Trigger update for Sidebar if name differs
+        window.dispatchEvent(new Event('authChange'));
+        
         setFormData({
-          name: userData.name || '',
+          name: userData.name || userData.hostName || '',
           phone: userData.phone || '',
-          location: userData.location || '',
+          location: typeof userData.location === 'object' 
+            ? `${userData.location?.address || ''}, ${userData.location?.city || ''}, ${userData.location?.state || ''}`.replace(/^,\s+|,\s+$/g, '')
+            : userData.location || '',
         });
       } catch (error) {
         setError(error.message);
@@ -83,8 +113,10 @@ export default function ProfilePage() {
       }
     };
 
-    fetchProfile();
-  }, [router]);
+    if (userRole) {
+      fetchProfile();
+    }
+  }, [router, userRole]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -117,21 +149,82 @@ export default function ProfilePage() {
         return;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/update-profile`, {
+      // Try host endpoint first if user is a host
+      let apiUrl, requestData;
+      let useHostEndpoint = userRole === 'host';
+      
+      if (useHostEndpoint) {
+        apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/host/profile`;
+        requestData = {
+          hostName: formData.name,
+          phone: formData.phone,
+        };
+      } else {
+        apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`;
+        requestData = {
+          name: formData.name,
+          phone: formData.phone,
+          location: formData.location,
+        };
+      }
+
+      console.log('Profile update request:', { apiUrl, role: userRole, data: requestData });
+
+      let response = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.msg || errorData.error || 'Failed to update profile');
+      // If host update fails with 404, fallback to user profile update
+      if (!response.ok && useHostEndpoint && response.status === 404) {
+        console.log('Host profile not found, falling back to user profile for update');
+        apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`;
+        requestData = {
+          name: formData.name,
+          phone: formData.phone,
+          location: formData.location,
+        };
+        
+        response = await fetch(apiUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+        });
       }
 
-      const updatedUser = await response.json();
+      if (!response.ok) {
+        let errorMessage = 'Failed to update profile';
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            console.error('API Error Response:', errorData);
+            errorMessage = errorData.msg || errorData.message || errorData.error || errorMessage;
+          } else {
+            const errorText = await response.text();
+            console.error('API Error Text:', errorText);
+            errorMessage = errorText || errorMessage;
+          }
+        } catch (parseError) {
+          console.error('Error parsing response:', parseError);
+          errorMessage = `Server error (${response.status}): ${response.statusText}`;
+        }
+        console.error('Final error message:', errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      const responseData = await response.json();
+      
+      // Handle different response formats: host returns {message, host}, user returns user object directly
+      const updatedUser = responseData.host || responseData;
+      
       const enhancedUser = {
         ...updatedUser,
         chargingSessions: Array.isArray(updatedUser.chargingSessions) ? updatedUser.chargingSessions : [],
@@ -146,8 +239,28 @@ export default function ProfilePage() {
       enhancedUser.memberSince = updatedUser.createdAt ? new Date(updatedUser.createdAt).getFullYear() : new Date().getFullYear();
 
       setUser(enhancedUser);
+      
+      // Update localStorage with new user data (works for both user and host)
+      const displayName = enhancedUser.name || enhancedUser.hostName || 'User';
+      localStorage.setItem('userName', displayName);
+      if (enhancedUser.email) {
+        localStorage.setItem('userEmail', enhancedUser.email);
+      }
+      
+      // Dispatch authChange event to update Sidebar immediately
+      window.dispatchEvent(new Event('authChange'));
+      
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
+      
+      // Update form data with new values to reflect changes
+      setFormData({
+        name: displayName,
+        phone: enhancedUser.phone || '',
+        location: typeof enhancedUser.location === 'object'
+          ? `${enhancedUser.location?.address || ''}, ${enhancedUser.location?.city || ''}, ${enhancedUser.location?.state || ''}`.replace(/^,\s+|,\s+$/g, '')
+          : enhancedUser.location || '',
+      });
 
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
@@ -159,9 +272,11 @@ export default function ProfilePage() {
 
   const handleCancelEdit = () => {
     setFormData({
-      name: user?.name || '',
+      name: user?.name || user?.hostName || '',
       phone: user?.phone || '',
-      location: user?.location || '',
+      location: typeof user?.location === 'object'
+        ? `${user?.location?.address || ''}, ${user?.location?.city || ''}, ${user?.location?.state || ''}`.replace(/^,\s+|,\s+$/g, '')
+        : user?.location || '',
     });
     setIsEditing(false);
     setError('');
@@ -220,13 +335,13 @@ export default function ProfilePage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8 pb-8 border-b border-neutral-200 dark:border-neutral-700">
               <div className="h-24 w-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-white font-bold text-3xl">
-                  {(isEditing ? formData.name : user?.name)
-                    ? (isEditing ? formData.name : user?.name).split(' ').map(n => n[0]).join('').toUpperCase()
+                  {(isEditing ? formData.name : user?.name || user?.hostName)
+                    ? (isEditing ? formData.name : user?.name || user?.hostName).split(' ').map(n => n[0]).join('').toUpperCase()
                     : 'U'}
                 </span>
               </div>
               <div className="flex-1">
-                <h1 className="text-3xl sm:text-4xl font-bold text-neutral-900 dark:text-white">{isEditing ? formData.name : user?.name || 'User'}</h1>
+                <h1 className="text-3xl sm:text-4xl font-bold text-neutral-900 dark:text-white">{isEditing ? formData.name : user?.name || user?.hostName || 'User'}</h1>
                 <p className="text-neutral-600 dark:text-neutral-400 mt-1">{user?.email}</p>
                 <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mt-1">
                   {userRole ? userRole.charAt(0).toUpperCase() + userRole.slice(1) : 'User'}
@@ -243,21 +358,6 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 pb-8 border-b border-neutral-200 dark:border-neutral-700">
-              <div>
-                <p className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide mb-1">Charging Sessions</p>
-                <p className="text-3xl font-bold text-neutral-900 dark:text-white">{user?.chargingSessions?.length || 0}</p>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide mb-1">Wallet Balance</p>
-                <p className="text-3xl font-bold text-neutral-900 dark:text-white">₹{user?.walletBalance || 0}</p>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide mb-1">Total Spent</p>
-                <p className="text-3xl font-bold text-neutral-900 dark:text-white">₹{user?.totalSpent || 0}</p>
-              </div>
-            </div>
 
             {}
             {!isEditing && (
@@ -266,7 +366,7 @@ export default function ProfilePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <p className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 mb-2">Full Name</p>
-                    <p className="text-neutral-900 dark:text-white">{user?.name || '-'}</p>
+                    <p className="text-neutral-900 dark:text-white">{user?.name || user?.hostName || '-'}</p>
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 mb-2">Email</p>
@@ -278,7 +378,11 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-neutral-600 dark:text-neutral-400 mb-2">Location</p>
-                    <p className="text-neutral-900 dark:text-white">{user?.location || '-'}</p>
+                    <p className="text-neutral-900 dark:text-white">
+                      {typeof user?.location === 'object' && user?.location
+                        ? `${user.location.address || ''}, ${user.location.city || ''}, ${user.location.state || ''}`.replace(/^,\s+|,\s+$/g, '') || '-'
+                        : user?.location || '-'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -337,21 +441,6 @@ export default function ProfilePage() {
                       className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                       placeholder="Enter your location"
                     />
-                  </div>
-
-                  {}
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      value={user?.email || ''}
-                      disabled
-                      className="w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-neutral-100 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 cursor-not-allowed opacity-75"
-                    />
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Email address cannot be changed</p>
                   </div>
 
                   {}
