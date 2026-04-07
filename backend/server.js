@@ -15,8 +15,7 @@ const securityMiddleware = require('./middleware/security');
 
 const app = express();
 
-// ===== SCALING CONFIGURATIONS =====
-// Increase max event listeners to handle high concurrency
+
 process.setMaxListeners(100);
 
 // Enable compression for all responses
@@ -70,7 +69,7 @@ app.use('/api/host', hostRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
 
-app.get('/api/health', (req, res) => {
+app.get('/', (req, res) => {
   const healthcheck = {
     uptime: process.uptime(),
     message: 'OK',
