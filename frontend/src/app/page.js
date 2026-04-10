@@ -109,7 +109,7 @@ export default function HomePage() {
           {}
           <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 p-8 text-center hover:border-green-500 hover:shadow-lg transition-all duration-300">
             <div className="bg-neutral-100 dark:bg-neutral-700 rounded-lg w-20 h-20 flex items-center justify-center mx-auto mb-6">
-              <Image src="/image1.png" alt="Save Time" width={40} height={40} className="opacity-80" />
+              <Image src="/image1.png" alt="Save Time" width={60} height={60} className="opacity-80" />
             </div>
             <h3 className="text-xl font-bold mb-3 text-neutral-900 dark:text-white">Save Time</h3>
             <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed mb-6">
@@ -126,7 +126,7 @@ export default function HomePage() {
           {}
           <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 p-8 text-center hover:border-green-500 hover:shadow-lg transition-all duration-300">
             <div className="bg-neutral-100 dark:bg-neutral-700 rounded-lg w-20 h-20 flex items-center justify-center mx-auto mb-6">
-              <Image src="/image2.png" alt="Go Green" width={40} height={40} className="opacity-80" />
+              <Image src="/image2.png" alt="Go Green" width={60} height={60} className="opacity-80" />
             </div>
             <h3 className="text-xl font-bold mb-3 text-neutral-900 dark:text-white">Go Green</h3>
             <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed mb-6">
@@ -143,7 +143,7 @@ export default function HomePage() {
           {}
           <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 p-8 text-center hover:border-green-500 hover:shadow-lg transition-all duration-300">
             <div className="bg-neutral-100 dark:bg-neutral-700 rounded-lg w-20 h-20 flex items-center justify-center mx-auto mb-6">
-              <Image src="/image3.png" alt="Earn Income" width={40} height={40} className="opacity-80" />
+              <Image src="/image3.png" alt="Earn Income" width={60} height={60} className="opacity-80" />
             </div>
             <h3 className="text-xl font-bold mb-3 text-neutral-900 dark:text-white">Earn Income</h3>
             <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed mb-6">
@@ -182,16 +182,16 @@ export default function HomePage() {
                 <div className="flex items-start gap-3">
                   <span className="text-blue-600 dark:text-blue-400 font-bold">1.</span>
                   <div>
-                    <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Sign Up</h4>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Create account in seconds</p>
+                    <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Sign Up as User</h4>
+                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Create your account</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <span className="text-blue-600 dark:text-blue-400 font-bold">2.</span>
                   <div>
-                    <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Add Vehicles</h4>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Save your vehicle details</p>
+                    <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Add Vehicle Details</h4>
+                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Save your vehicle information</p>
                   </div>
                 </div>
 
@@ -199,7 +199,7 @@ export default function HomePage() {
                   <span className="text-blue-600 dark:text-blue-400 font-bold">3.</span>
                   <div>
                     <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Find Chargers</h4>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Locate nearby stations</p>
+                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Locate nearby charging stations</p>
                   </div>
                 </div>
 
@@ -207,7 +207,7 @@ export default function HomePage() {
                   <span className="text-blue-600 dark:text-blue-400 font-bold">4.</span>
                   <div>
                     <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Book & Charge</h4>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Quick booking and payment</p>
+                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Reserve and start charging</p>
                   </div>
                 </div>
               </div>
@@ -232,24 +232,24 @@ export default function HomePage() {
                 <div className="flex items-start gap-3">
                   <span className="text-green-600 dark:text-green-400 font-bold">1.</span>
                   <div>
-                    <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Create Account</h4>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Sign up as host</p>
+                    <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Sign Up as Host</h4>
+                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Create your host account</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <span className="text-green-600 dark:text-green-400 font-bold">2.</span>
                   <div>
-                    <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Add Charger</h4>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">List your charger details</p>
+                    <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Fill Registration Form</h4>
+                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Complete your host profile</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
                   <span className="text-green-600 dark:text-green-400 font-bold">3.</span>
                   <div>
-                    <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Set Pricing</h4>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Define your rates</p>
+                    <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Accept User Requests</h4>
+                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Manage booking requests</p>
                   </div>
                 </div>
 
@@ -257,7 +257,7 @@ export default function HomePage() {
                   <span className="text-green-600 dark:text-green-400 font-bold">4.</span>
                   <div>
                     <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">Start Earning</h4>
-                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Receive bookings and earnings</p>
+                    <p className="text-neutral-600 dark:text-neutral-400 text-xs">Receive payments from bookings</p>
                   </div>
                 </div>
               </div>
@@ -365,7 +365,7 @@ export default function HomePage() {
               </button>
               {expandedFAQ === 1 && (
                 <div className="px-6 pb-6 pt-4 text-neutral-600 dark:text-neutral-300 text-sm border-t border-neutral-200 dark:border-neutral-700">
-                  Sign up with your email or Google account, add your vehicle details, and you're ready to find chargers.
+                  Sign up with your email or Google account. Choose to register as a user or host, and complete your profile setup.
                 </div>
               )}
             </div>
@@ -376,7 +376,7 @@ export default function HomePage() {
                 onClick={() => setExpandedFAQ(expandedFAQ === 2 ? null : 2)}
                 className="w-full flex items-center justify-between p-6 text-left hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
               >
-                <h3 className="font-semibold text-neutral-900 dark:text-white">What payment methods are accepted?</h3>
+                <h3 className="font-semibold text-neutral-900 dark:text-white">How do I book a charging slot?</h3>
                 <svg
                   className={`w-5 h-5 text-neutral-600 dark:text-neutral-400 transition-transform duration-300 ${expandedFAQ === 2 ? 'rotate-180' : ''}`}
                   fill="none"
@@ -388,7 +388,7 @@ export default function HomePage() {
               </button>
               {expandedFAQ === 2 && (
                 <div className="px-6 pb-6 pt-4 text-neutral-600 dark:text-neutral-300 text-sm border-t border-neutral-200 dark:border-neutral-700">
-                  We accept credit cards, debit cards, digital wallets, and bank transfers for wallet top-ups.
+                  Browse available chargers on the map, select your preferred station, choose a time slot, and confirm your booking. You'll receive a confirmation email.
                 </div>
               )}
             </div>
@@ -399,7 +399,7 @@ export default function HomePage() {
                 onClick={() => setExpandedFAQ(expandedFAQ === 3 ? null : 3)}
                 className="w-full flex items-center justify-between p-6 text-left hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
               >
-                <h3 className="font-semibold text-neutral-900 dark:text-white">How do I book a charging slot?</h3>
+                <h3 className="font-semibold text-neutral-900 dark:text-white">Can I become a host?</h3>
                 <svg
                   className={`w-5 h-5 text-neutral-600 dark:text-neutral-400 transition-transform duration-300 ${expandedFAQ === 3 ? 'rotate-180' : ''}`}
                   fill="none"
@@ -411,7 +411,7 @@ export default function HomePage() {
               </button>
               {expandedFAQ === 3 && (
                 <div className="px-6 pb-6 pt-4 text-neutral-600 dark:text-neutral-300 text-sm border-t border-neutral-200 dark:border-neutral-700">
-                  Use our map to find nearby chargers, check availability, and book your preferred time slot. You'll receive a confirmation with all details.
+                  Yes! Sign up as a host, complete your registration form, and list your charger. Once approved, you can start accepting user bookings.
                 </div>
               )}
             </div>
@@ -422,7 +422,7 @@ export default function HomePage() {
                 onClick={() => setExpandedFAQ(expandedFAQ === 4 ? null : 4)}
                 className="w-full flex items-center justify-between p-6 text-left hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
               >
-                <h3 className="font-semibold text-neutral-900 dark:text-white">Can I become a host?</h3>
+                <h3 className="font-semibold text-neutral-900 dark:text-white">How do hosts earn money?</h3>
                 <svg
                   className={`w-5 h-5 text-neutral-600 dark:text-neutral-400 transition-transform duration-300 ${expandedFAQ === 4 ? 'rotate-180' : ''}`}
                   fill="none"
@@ -434,99 +434,7 @@ export default function HomePage() {
               </button>
               {expandedFAQ === 4 && (
                 <div className="px-6 pb-6 pt-4 text-neutral-600 dark:text-neutral-300 text-sm border-t border-neutral-200 dark:border-neutral-700">
-                  Yes! If you own a home or business charger, you can become a host. Register, verify your charger, set pricing, and start earning passive income.
-                </div>
-              )}
-            </div>
-
-            {}
-            <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-              <button
-                onClick={() => setExpandedFAQ(expandedFAQ === 5 ? null : 5)}
-                className="w-full flex items-center justify-between p-6 text-left hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
-              >
-                <h3 className="font-semibold text-neutral-900 dark:text-white">How do hosts earn money?</h3>
-                <svg
-                  className={`w-5 h-5 text-neutral-600 dark:text-neutral-400 transition-transform duration-300 ${expandedFAQ === 5 ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-              </button>
-              {expandedFAQ === 5 && (
-                <div className="px-6 pb-6 pt-4 text-neutral-600 dark:text-neutral-300 text-sm border-t border-neutral-200 dark:border-neutral-700">
-                  Set your charging rates and availability. Earn per kWh or per session when users book. Earnings are transferred directly to your bank account.
-                </div>
-              )}
-            </div>
-
-            {}
-            <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-              <button
-                onClick={() => setExpandedFAQ(expandedFAQ === 6 ? null : 6)}
-                className="w-full flex items-center justify-between p-6 text-left hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
-              >
-                <h3 className="font-semibold text-neutral-900 dark:text-white">Is my payment information secure?</h3>
-                <svg
-                  className={`w-5 h-5 text-neutral-600 dark:text-neutral-400 transition-transform duration-300 ${expandedFAQ === 6 ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-              </button>
-              {expandedFAQ === 6 && (
-                <div className="px-6 pb-6 pt-4 text-neutral-600 dark:text-neutral-300 text-sm border-t border-neutral-200 dark:border-neutral-700">
-                  We use bank-grade encryption and PCI-DSS compliance. Your payment details are processed through secure gateways and never stored on our servers.
-                </div>
-              )}
-            </div>
-
-            {}
-            <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-              <button
-                onClick={() => setExpandedFAQ(expandedFAQ === 7 ? null : 7)}
-                className="w-full flex items-center justify-between p-6 text-left hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
-              >
-                <h3 className="font-semibold text-neutral-900 dark:text-white">What if I have an issue during charging?</h3>
-                <svg
-                  className={`w-5 h-5 text-neutral-600 dark:text-neutral-400 transition-transform duration-300 ${expandedFAQ === 7 ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-              </button>
-              {expandedFAQ === 7 && (
-                <div className="px-6 pb-6 pt-4 text-neutral-600 dark:text-neutral-300 text-sm border-t border-neutral-200 dark:border-neutral-700">
-                  Our 24/7 support team is ready to help. Contact us via email, phone, or live chat and we'll quickly resolve any issues.
-                </div>
-              )}
-            </div>
-
-            {}
-            <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-              <button
-                onClick={() => setExpandedFAQ(expandedFAQ === 8 ? null : 8)}
-                className="w-full flex items-center justify-between p-6 text-left hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
-              >
-                <h3 className="font-semibold text-neutral-900 dark:text-white">Do you offer customer support?</h3>
-                <svg
-                  className={`w-5 h-5 text-neutral-600 dark:text-neutral-400 transition-transform duration-300 ${expandedFAQ === 8 ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-              </button>
-              {expandedFAQ === 8 && (
-                <div className="px-6 pb-6 pt-4 text-neutral-600 dark:text-neutral-300 text-sm border-t border-neutral-200 dark:border-neutral-700">
-                  Yes, we provide 24/7 customer support via email, phone, and live chat. Our team is dedicated to resolving your queries quickly and efficiently.
+                  Set your charging rates and availability. Earn money when users book your charger. Track your earnings in your host dashboard.
                 </div>
               )}
             </div>

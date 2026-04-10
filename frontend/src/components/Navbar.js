@@ -31,7 +31,8 @@ export default function Navbar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [healthStatus, setHealthStatus] = useState(null);
+  const [healthStatus, setHealthStatus] = useState({ mongoStatus: 'Checking' });
+  const [isCheckingHealth, setIsCheckingHealth] = useState(true);
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
 
@@ -39,9 +40,13 @@ export default function Navbar() {
     setMounted(true);
     
     const fetchHealth = async () => {
+      setIsCheckingHealth(true);
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://chargeloop.onrender.com';
-        const response = await fetch(`${apiUrl}/api/health`);
+        const response = await fetch(`${apiUrl}/`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
         if (response.ok) {
           const data = await response.json();
           setHealthStatus(data);
@@ -49,7 +54,10 @@ export default function Navbar() {
           setHealthStatus({ mongoStatus: 'Disconnected' });
         }
       } catch (err) {
+        console.error('Health check error:', err);
         setHealthStatus({ mongoStatus: 'Disconnected' });
+      } finally {
+        setIsCheckingHealth(false);
       }
     };
 
@@ -158,16 +166,20 @@ export default function Navbar() {
                   )}
                 </div>
               )}
-              {healthStatus && (
-                <div className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
-                  healthStatus.mongoStatus === 'Connected'
-                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
-                    : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${healthStatus.mongoStatus === 'Connected' ? 'bg-green-600 dark:bg-green-400' : 'bg-red-600 dark:bg-red-400'}`}></span>
-                  <span>{healthStatus.mongoStatus === 'Connected' ? 'Server On' : 'Server Off'}</span>
-                </div>
-              )}
+              <div className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
+                isCheckingHealth
+                  ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300'
+                  : healthStatus.mongoStatus === 'Connected'
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  isCheckingHealth
+                    ? 'bg-yellow-600 dark:bg-yellow-400 animate-pulse'
+                    : healthStatus.mongoStatus === 'Connected' ? 'bg-green-600 dark:bg-green-400' : 'bg-red-600 dark:bg-red-400'
+                }`}></span>
+                <span>{isCheckingHealth ? 'Starting...' : healthStatus.mongoStatus === 'Connected' ? 'Server On' : 'Server Off'}</span>
+              </div>
             </div>
           </div>
 
@@ -185,7 +197,70 @@ export default function Navbar() {
             </button>
           </div>
         </div>
+
+        {}
+        {isMobileMenuOpen && (
+          <>
+            <div className="fixed inset-0 bg-black/50 dark:bg-black/70 lg:hidden z-30" onClick={() => setIsMobileMenuOpen(false)}></div>
+            <div className={`fixed top-16 right-0 w-64 h-screen bg-white dark:bg-neutral-800 shadow-lg lg:hidden z-40 transform transition-transform duration-300 ease-in-out overflow-y-auto ${
+              isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}>
+              <div className="p-4 space-y-4">
+                <div className="space-y-3">
+                  {NAV_LINKS.map(link => (
+                    <a key={link.href} href={link.href} onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition-colors">
+                      {link.label}
+                    </a>
+                  ))}
+                </div>
+                
+                <div className="border-t border-neutral-200 dark:border-neutral-700 pt-3 space-y-2">
+                  {!isLoggedIn ? (
+                    <>
+                      <a href="/login" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 text-neutral-700 dark:text-neutral-200 text-center border border-neutral-300 dark:border-neutral-600 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition">
+                        Login
+                      </a>
+                      <a href="/signup" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-center font-medium rounded-lg transition shadow-sm">
+                        Sign Up
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => { handleDashboardClick(); setIsMobileMenuOpen(false); }} className="w-full text-left px-3 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition">
+                        Dashboard
+                      </button>
+                      <button onClick={() => { router.push('/profile'); setIsMobileMenuOpen(false); }} className="w-full text-left px-3 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition">
+                        Profile
+                      </button>
+                      <button onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="w-full text-left px-3 py-2 text-red-600 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition">
+                        Logout
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                <div className="border-t border-neutral-200 dark:border-neutral-700 pt-3">
+                  <div className={`px-3 py-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
+                    isCheckingHealth
+                      ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300'
+                      : healthStatus.mongoStatus === 'Connected'
+                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+                      : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      isCheckingHealth
+                        ? 'bg-yellow-600 dark:bg-yellow-400 animate-pulse'
+                        : healthStatus.mongoStatus === 'Connected' ? 'bg-green-600 dark:bg-green-400' : 'bg-red-600 dark:bg-red-400'
+                    }`}></span>
+                    <span>{isCheckingHealth ? 'Starting...' : healthStatus.mongoStatus === 'Connected' ? 'Server On' : 'Server Off'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </nav>
   );
 }
+

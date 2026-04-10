@@ -113,7 +113,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
 
   return (
     <>
-      <aside className={`${isOpen ? 'w-64' : 'w-20'} bg-white dark:bg-neutral-800 border-r border-neutral-200 dark:border-neutral-700 flex flex-col fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out shadow-sm lg:static lg:inset-auto lg:z-auto`}>
+      <aside className={`${isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64 lg:translate-x-0 lg:w-20'} bg-white dark:bg-neutral-800 border-r border-neutral-200 dark:border-neutral-700 flex flex-col fixed lg:static inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out shadow-sm h-screen lg:h-auto`}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-neutral-100 dark:border-neutral-700">
           <div className={`flex items-center gap-2 overflow-hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 w-0'}`}>
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-sm shrink-0">

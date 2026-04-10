@@ -92,7 +92,7 @@ export const BookingFormProvider = ({ children, charger, userLocation, onClose }
 
     if (userChargerPower > socketMaxCapacity) {
       safetyAlert = 'charger_too_powerful';
-      safetyAlertMessage = `⚠️ Safety Alert: Your charger (${userChargerPower}kW) is too powerful for this socket (${socketMaxCapacity}kW). Please select a different charger or socket.`;
+      safetyAlertMessage = ` Safety Alert: Your charger (${userChargerPower}kW) is too powerful for this socket (${socketMaxCapacity}kW). Please select a different charger or socket.`;
       isSafeToBook = false;
     }
 
