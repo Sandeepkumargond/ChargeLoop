@@ -49,7 +49,7 @@ export default function HomePage() {
         <div className="absolute inset-0 flex items-center justify-center px-4 sm:px-6">
           <div className="text-center text-white max-w-5xl w-full">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight animate-fade-in">
-              Power Your Journey with <span className="text-green-400 dark:text-green-400 block sm:inline">ChargeLoop</span>
+              Power Your Journey with <span className="block sm:inline"><span className="text-blue-400 dark:text-blue-300">Charge</span><span className="text-green-400 dark:text-green-400">Loop</span></span>
             </h1>
             <p className="text-base sm:text-lg md:text-xl lg:text-2xl mb-6 sm:mb-8 opacity-90 dark:opacity-100 max-w-3xl mx-auto px-2">
               Connect with thousands of EV charging stations. Book, charge, and track your journey seamlessly

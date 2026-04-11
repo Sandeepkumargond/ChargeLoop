@@ -178,20 +178,20 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
 
     // Fetch charger details from Host model (real data only)
     let host = null;
-    let pricePerUnit = null;
+    let pricePerKwh = null;
     let convenienceFee = null;
     let socketMaxCapacity = null;
     let hostPhone = null;
 
     if (hostId) {
       host = await require('../models/Host').findById(hostId).select(
-        'chargerPowerKw pricePerKwh pricePerUnit socketMaxCapacity convenienceFee phone'
+        'chargerPowerKw pricePerKwh socketMaxCapacity convenienceFee phone'
       );
     }
 
     // Only use REAL data from host - no defaults
     if (host) {
-      pricePerUnit = host.pricePerKwh || host.pricePerUnit;
+      pricePerKwh = host.pricePerKwh;
       convenienceFee = host.convenienceFee;
       socketMaxCapacity = host.socketMaxCapacity;
       chargerPowerKw = host.chargerPowerKw;
@@ -202,7 +202,7 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
     const userPhone = user.phone;
 
       // Validate that we have real host data
-      if (!pricePerUnit || socketMaxCapacity === null) {
+      if (!pricePerKwh || socketMaxCapacity === null) {
         return res.status(400).json({
           success: false,
           msg: 'Host charger pricing information not found. Please contact the host.'
@@ -214,7 +214,7 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
         userChargerPowerKw,
         socketMaxCapacityKw: socketMaxCapacity,
         bookingDurationMinutes: finalBookingDuration,
-        pricePerUnit,
+        pricePerKwh,
         convenienceFee: convenienceFee || 0,
         platformFee: 10, // ₹10 ChargeLoop fee
         chargerType
@@ -253,7 +253,7 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
         // Real charger data from host (NOT defaults)
         userChargerPowerKw,
         socketMaxCapacity,
-        pricePerUnit,
+        pricePerKwh,
         convenienceFee: convenienceFee || 0,
         platformFee: 10,
         
@@ -288,7 +288,7 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
           userChargerPowerKw: pricingResult.userChargerPowerKw,
           socketMaxCapacity: pricingResult.socketMaxCapacityKw,
           totalUnitsKwh: pricingResult.totalUnitsKwh,
-          pricePerUnit: pricePerUnit,
+          pricePerKwh: pricePerKwh,
           energyCost: pricingResult.energyCost,
           convenienceFee: pricingResult.convenienceFee,
           platformFee: pricingResult.platformFee,
@@ -422,7 +422,7 @@ router.put('/bookings/:sessionId/complete', authMiddleware, async (req, res) => 
     let finalCost = actualCost;
 
     if (!finalCost && finalEnergy > 0) {
-      finalCost = pricingService.calculateTotalCost(finalEnergy, booking.pricePerKwh || booking.pricePerUnit);
+      finalCost = pricingService.calculateTotalCost(finalEnergy, booking.pricePerKwh);
     }
 
     booking.endTime = endTime;
@@ -447,7 +447,7 @@ router.put('/bookings/:sessionId/complete', authMiddleware, async (req, res) => 
           location: booking.hostLocation,
           chargerId: booking.metadata?.chargerId,
           energyConsumed: finalEnergy,
-          pricePerKwh: booking.pricePerKwh || booking.pricePerUnit
+          pricePerKwh: booking.pricePerKwh
         }
       });
 
@@ -467,7 +467,7 @@ router.put('/bookings/:sessionId/complete', authMiddleware, async (req, res) => 
         actualDuration: booking.actualDuration,
         energyConsumed: finalEnergy,
         actualCost: finalCost,
-        pricePerKwh: booking.pricePerKwh || booking.pricePerUnit
+        pricePerKwh: booking.pricePerKwh
       }
     });
 

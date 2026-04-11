@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
 
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState(1);
@@ -27,7 +28,7 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/forgot-password`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,10 +42,14 @@ export default function ForgotPasswordPage() {
         setSuccessMsg('OTP sent successfully to your email');
         setStep(2);
       } else {
-        setError(data.msg || 'Failed to send OTP');
+        if (response.status === 404) {
+          setError('Email not found. Please check and try again.');
+        } else {
+          setError(data.msg || 'Failed to send OTP. Please try again.');
+        }
       }
     } catch (error) {
-      setError('Network error. Please try again.');
+      setError(error.message || 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -67,7 +72,7 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify-otp-reset`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify-otp-reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -84,10 +89,14 @@ export default function ForgotPasswordPage() {
         setSuccessMsg('OTP verified successfully');
         setStep(3);
       } else {
-        setError(data.msg || 'Failed to verify OTP');
+        if (response.status === 403) {
+          setError('Invalid or expired OTP. Please try again.');
+        } else {
+          setError(data.msg || 'Failed to verify OTP. Please try again.');
+        }
       }
     } catch (error) {
-      setError('Network error. Please try again.');
+      setError(error.message || 'Failed to verify OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -115,7 +124,7 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/reset-password`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,10 +144,14 @@ export default function ForgotPasswordPage() {
           router.push('/login');
         }, 2000);
       } else {
-        setError(data.msg || 'Failed to reset password');
+        if (response.status === 400) {
+          setError('Invalid request. Please try again.');
+        } else {
+          setError(data.msg || 'Failed to reset password. Please try again.');
+        }
       }
     } catch (error) {
-      setError('Network error. Please try again.');
+      setError(error.message || 'Failed to reset password. Please try again.');
     } finally {
       setLoading(false);
     }

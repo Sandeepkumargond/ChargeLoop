@@ -33,7 +33,6 @@ const userSchema = new mongoose.Schema({
   password: String,
   googleId: String,
   profilePicture: String,
-  walletBalance: { type: Number, default: 0 },
   phone: { type: String, default: '' },
   location: String,
   chargingSessions: { type: Number, default: 0 },

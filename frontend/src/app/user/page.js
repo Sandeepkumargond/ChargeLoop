@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import LoadingCard from '@/components/LoadingCard';
+import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
 
 export default function UserDashboardPage() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function UserDashboardPage() {
   const fetchCurrentBookings = useCallback(async (token) => {
     try {
       setBookingsLoading(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/bookings/current`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/user/bookings/current`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -30,9 +31,9 @@ export default function UserDashboardPage() {
       if (response.ok) {
         const data = await response.json();
         setBookings(Array.isArray(data) ? data : data.bookings || []);
-      } else {
       }
     } catch (error) {
+      setBookings([]);
     } finally {
       setBookingsLoading(false);
     }
@@ -40,7 +41,7 @@ export default function UserDashboardPage() {
 
   const fetchMyBookingRequests = useCallback(async (token) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/bookings/requests/my-requests`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/user/bookings/requests/my-requests`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -51,15 +52,15 @@ export default function UserDashboardPage() {
       if (response.ok) {
         const data = await response.json();
         setBookingRequests(data.requests || []);
-      } else {
       }
     } catch (error) {
+      setBookingRequests([]);
     }
   }, []);
 
   const fetchUserData = useCallback(async (token) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -74,6 +75,7 @@ export default function UserDashboardPage() {
         });
       }
     } catch (error) {
+      setUserData({ chargingSessions: 0 });
     }
   }, []);
 
@@ -83,7 +85,7 @@ export default function UserDashboardPage() {
 
     try {
       setCancellingId(requestId);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/bookings/requests/${requestId}/cancel`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/user/bookings/requests/${requestId}/cancel`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -92,7 +94,6 @@ export default function UserDashboardPage() {
       });
 
       if (response.ok) {
-        // Refresh the booking requests after successful cancellation
         await fetchMyBookingRequests(token);
       }
     } catch (error) {
@@ -163,17 +164,17 @@ export default function UserDashboardPage() {
           </div>
 
           {}
-          <div className="mb-6 sm:mb-8\">
-            <h2 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white mb-3 sm:mb-4\">Quick Stats</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4\">
-              <div className="bg-white dark:bg-neutral-800 rounded border border-neutral-200 dark:border-neutral-700 p-3 sm:p-4\">
-                <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-1\">Total Charges</p>
-                <p className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white\">{userData.chargingSessions}</p>
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white mb-3 sm:mb-4">Quick Stats</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="bg-white dark:bg-neutral-800 rounded border border-neutral-200 dark:border-neutral-700 p-4">
+                <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-2">Total Charges</p>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white">{userData.chargingSessions}</p>
               </div>
 
-              <div className="bg-white dark:bg-neutral-800 rounded border border-neutral-200 dark:border-neutral-700 p-3 sm:p-4\">
-                <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-1\">Vehicles</p>
-                <p className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white\">0</p>
+              <div className="bg-white dark:bg-neutral-800 rounded border border-neutral-200 dark:border-neutral-700 p-4">
+                <p className="text-neutral-600 dark:text-neutral-400 text-xs font-medium mb-2">Vehicles</p>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white">0</p>
               </div>
             </div>
           </div>
@@ -223,8 +224,8 @@ export default function UserDashboardPage() {
                         </div>
                       </div>
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-                        <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                          📅 {scheduledDate}
+                        <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                          {scheduledDate}
                         </div>
                         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                           <span className="text-[10px] sm:text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded inline-block">
@@ -321,11 +322,11 @@ export default function UserDashboardPage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white dark:bg-neutral-800 rounded border border-neutral-200 dark:border-neutral-700 p-4 sm:p-6 text-center">
-                <p className="text-neutral-600 dark:text-neutral-400 text-xs sm:text-sm mb-3">No active bookings</p>
+              <div className="bg-white dark:bg-neutral-800 rounded border border-neutral-200 dark:border-neutral-700 p-6 text-center">
+                <p className="text-neutral-600 dark:text-neutral-400 text-sm mb-4">No active bookings</p>
                 <button
                   onClick={() => router.push('/user/chargers')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-1.5 rounded text-xs sm:text-sm font-medium transition"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium text-sm transition"
                 >
                   Find a Charger
                 </button>

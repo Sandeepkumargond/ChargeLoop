@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 export default function Footer() {
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [currentYear, setCurrentYear] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -105,7 +105,7 @@ export default function Footer() {
         <div className="border-t border-neutral-700 pt-6">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="text-neutral-400 text-sm">
-              © {currentYear} ChargeLoop. All rights reserved.
+              © {currentYear || new Date().getFullYear()} <span className="text-blue-600 dark:text-blue-400">Charge</span><span className="text-green-500 dark:text-green-400">Loop</span>. All rights reserved.
             </div>
             <div className="flex items-center space-x-4">
               

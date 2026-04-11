@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingCard from '@/components/LoadingCard';
+import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
 
 export default function HostPage() {
   const router = useRouter();
@@ -20,6 +21,8 @@ export default function HostPage() {
   const [bookingRequests, setBookingRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsError, setRequestsError] = useState('');
+  const [processingRequestId, setProcessingRequestId] = useState(null);
+  const [processingAction, setProcessingAction] = useState(null);
 
   const [stats, setStats] = useState({
     totalChargers: 0,
@@ -34,11 +37,11 @@ export default function HostPage() {
     setRegStatusError('');
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/host-registration-status`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/host-registration-status`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) throw new Error('Failed to fetch status');
+      if (!response.ok) throw new Error('Failed to fetch registration status');
       const data = await response.json();
       setRegistrationStatus(data.host || null);
       if (data.host) {
@@ -60,11 +63,11 @@ export default function HostPage() {
     setRequestsError('');
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/booking-requests/pending`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/host/booking-requests/pending`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) throw new Error('Failed to fetch requests');
+      if (!response.ok) throw new Error('Failed to load booking requests');
       const data = await response.json();
       setBookingRequests(data.requests || []);
       setStats(prev => ({
@@ -103,9 +106,11 @@ export default function HostPage() {
   }, [router, fetchRegistrationStatus, fetchPendingRequests]);
 
   const handleAcceptRequest = async (requestId) => {
+    setProcessingRequestId(requestId);
+    setProcessingAction('accept');
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/requests/${requestId}/accept`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/host/requests/${requestId}/accept`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -119,24 +124,28 @@ export default function HostPage() {
       }
 
       const data = await response.json();
-      // Update UI instantly by removing the accepted request
       setBookingRequests(prev => prev.filter(req => req._id !== requestId));
-      // Update stats
       setStats(prev => ({
         ...prev,
         pendingRequests: Math.max(0, prev.pendingRequests - 1)
       }));
     } catch (err) {
       console.error(err.message || 'Error accepting request');
+      alert(err.message || 'Error accepting request');
+    } finally {
+      setProcessingRequestId(null);
+      setProcessingAction(null);
     }
   };
 
   const handleDeclineRequest = async (requestId) => {
+    setProcessingRequestId(requestId);
+    setProcessingAction('decline');
     try {
       const token = localStorage.getItem('token');
       const reason = prompt('Enter reason for declining (optional):');
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/requests/${requestId}/decline`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/host/requests/${requestId}/decline`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -151,15 +160,17 @@ export default function HostPage() {
       }
 
       const data = await response.json();
-      // Update UI instantly by removing the declined request
       setBookingRequests(prev => prev.filter(req => req._id !== requestId));
-      // Update stats
       setStats(prev => ({
         ...prev,
         pendingRequests: Math.max(0, prev.pendingRequests - 1)
       }));
     } catch (err) {
       console.error(err.message || 'Error declining request');
+      alert(err.message || 'Error declining request');
+    } finally {
+      setProcessingRequestId(null);
+      setProcessingAction(null);
     }
   };
 
@@ -171,11 +182,11 @@ export default function HostPage() {
 
       if (!hostId) {
         showError('Host ID not found');
-        retRequestsrn;
+        return;
       }
 
       const newVisibility = !isVisibleOnMap;
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/${hostId}/visibility`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/host/${hostId}/visibility`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -248,8 +259,8 @@ export default function HostPage() {
                     ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
                     : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700'
                 }`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                    <div className="flex-1 min-w-0">
                       <h3 className={`font-semibold text-sm ${
                         registrationStatus.verificationStatus === 'approved'
                           ? 'text-green-900 dark:text-green-300'
@@ -280,8 +291,8 @@ export default function HostPage() {
 
                     {/* Map Visibility Toggle - Inside Status Card */}
                     {registrationStatus?.verificationStatus === 'approved' && (
-                      <div className="flex items-center gap-2 pl-3 border-l border-current border-opacity-20">
-                        <span className="text-xs font-medium text-inherit whitespace-nowrap">Map</span>
+                      <div className="flex items-center gap-2 sm:pl-3 sm:border-l sm:border-current sm:border-opacity-20 shrink-0">
+                        <span className="text-xs font-medium text-inherit">Map</span>
                         <button
                           onClick={toggleMapVisibility}
                           disabled={toggleLoading}
@@ -308,7 +319,7 @@ export default function HostPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Pending Requests</h2>
-            <button onClick={refreshData} className="px-3 py-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded transition-colors">
+            <button onClick={fetchPendingRequests} className="px-3 py-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded transition-colors">
               Refresh
             </button>
           </div>
@@ -384,15 +395,25 @@ export default function HostPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleAcceptRequest(request._id)}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded font-medium transition-colors"
+                        disabled={processingRequestId === request._id}
+                        className={`flex-1 text-white text-xs px-3 py-1.5 rounded font-medium transition-all ${
+                          processingRequestId === request._id
+                            ? 'bg-blue-500 opacity-75 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
                       >
-                        Accept
+                        {processingRequestId === request._id && processingAction === 'accept' ? 'Accepting...' : 'Accept'}
                       </button>
                       <button
                         onClick={() => handleDeclineRequest(request._id)}
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded font-medium transition-colors"
+                        disabled={processingRequestId === request._id}
+                        className={`flex-1 text-white text-xs px-3 py-1.5 rounded font-medium transition-all ${
+                          processingRequestId === request._id
+                            ? 'bg-red-500 opacity-75 cursor-not-allowed'
+                            : 'bg-red-600 hover:bg-red-700'
+                        }`}
                       >
-                        Decline
+                        {processingRequestId === request._id && processingAction === 'decline' ? 'Declining...' : 'Decline'}
                       </button>
                     </div>
                   )}

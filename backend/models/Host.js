@@ -61,13 +61,7 @@ const HostSchema = new mongoose.Schema({
     enum: [3.3, 7, 7.4, 22, 50, 100, 150],
     description: 'Host socket max capacity in kW. User must not exceed this.'
   },
-  pricePerUnit: {
-    type: Number,
-    default: 0,
-    min: 0,
-    description: 'Price per kWh (legacy - use pricePerKwh)'
-  },
-  // NEW: Alias for pricePerUnit - price per kWh in ₹
+  // Price per kWh in ₹
   pricePerKwh: {
     type: Number,
     min: 0,
@@ -102,10 +96,6 @@ const HostSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'approved', 'rejected'],
     default: 'pending'
-  },
-  isVerified: {
-    type: Boolean,
-    default: false
   },
   rejectionReason: {
     type: String

@@ -6,22 +6,18 @@ const SidebarContext = createContext();
 
 export function SidebarProvider({ children }) {
   const [isOpen, setIsOpen] = useState(true);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     const savedState = localStorage.getItem('sidebarOpen');
     setIsOpen(savedState !== null ? JSON.parse(savedState) : true);
   }, []);
 
   useEffect(() => {
-    if (mounted) {
-      localStorage.setItem('sidebarOpen', JSON.stringify(isOpen));
-    }
-  }, [isOpen, mounted]);
+    localStorage.setItem('sidebarOpen', JSON.stringify(isOpen));
+  }, [isOpen]);
 
   return (
-    <SidebarContext.Provider value={{ isOpen, setIsOpen, mounted }}>
+    <SidebarContext.Provider value={{ isOpen, setIsOpen, mounted: true }}>
       {children}
     </SidebarContext.Provider>
   );

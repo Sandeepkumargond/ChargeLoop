@@ -3,6 +3,7 @@
   import { useEffect, useState, useRef } from 'react';
   import { useRouter } from 'next/navigation';
   import { BookingFormProvider, useBookingForm } from '../contexts/BookingFormContext';
+  import { fetchWithFriendlyError } from '../utils/fetchWithFriendlyError';
 
   export default function MapView() {
     const router = useRouter();
@@ -18,7 +19,6 @@
     const [bookingModal, setBookingModal] = useState(false);
     const [searchRadius, setSearchRadius] = useState('all');
     const searchInputRef = useRef();
-    const lastAlertRef = useRef(null);
     const userMarkerRef = useRef(null);
     const userCircleRef = useRef(null);
 
@@ -176,7 +176,7 @@
 
             if (!gpsSuccess) {
               try {
-                const ipResponse = await fetch('https://ipapi.co/json/');
+                const ipResponse = await fetchWithFriendlyError('https://ipapi.co/json/');
                 const ipData = await ipResponse.json();
 
                 if (ipData.latitude && ipData.longitude) {
@@ -191,10 +191,10 @@
                     accuracy = 5000;
                     setLocationAccuracy(accuracy);
                   } else {
-                    throw new Error('Invalid IP coordinates');
+                    throw new Error('Invalid location data');
                   }
                 } else {
-                  throw new Error('No coordinates in IP response');
+                  throw new Error('Unable to detect location');
                 }
               } catch (ipError) {
                 setUserLocation(center);
@@ -205,7 +205,7 @@
           } else {
 
             try {
-              const ipResponse = await fetch('https://ipapi.co/json/');
+              const ipResponse = await fetchWithFriendlyError('https://ipapi.co/json/');
               const ipData = await ipResponse.json();
               if (ipData.latitude && ipData.longitude) {
                 center = [parseFloat(ipData.latitude), parseFloat(ipData.longitude)];
@@ -376,7 +376,7 @@
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
         const token = localStorage.getItem('token');
         const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-        const response = await fetch(`${apiUrl}/api/host/all`, {
+        const response = await fetchWithFriendlyError(`${apiUrl}/api/host/all`, {
           headers
         });
 
@@ -386,7 +386,7 @@
           allHosts = data.hosts || [];
         } else {
           const errorText = await response.text();
-          throw new Error(`API call failed: ${response.status} - ${errorText}`);
+          throw new Error(`Failed to load chargers. Please check your connection and try again.`);
         }
 
         const currentRadius = radiusOverride !== null ? radiusOverride : searchRadius;
@@ -440,23 +440,11 @@
 
         setAvailableChargers(filteredHosts);
         displayChargersOnMap(map, filteredHosts);
-
-        if (showAlert && allHosts.length > 0 && filteredHosts.length === 0 && currentRadius !== 'all') {
-          const alertKey = `${currentRadius}-${userCenter?.[0]}-${userCenter?.[1]}`;
-          if (!lastAlertRef.current ||
-              (Date.now() - lastAlertRef.current.time > 5000 ||
-              lastAlertRef.current.key !== alertKey)) {
-
-            lastAlertRef.current = { key: alertKey, time: Date.now() };
-            setTimeout(() => {
-              alert(`No charging stations found within ${currentRadius}km radius. Try increasing the search radius or use "All India".`);
-            }, 500);
-          }
-        }
       } catch (error) {
         setAvailableChargers([]);
         displayChargersOnMap(map, []);
-        alert(`Unable to load charging stations: ${error.message}`);
+        const friendlyError = error.message || 'Unable to load charging stations. Please check your internet connection.';
+        if (showAlert) alert(friendlyError);
       }
     };
 
@@ -636,31 +624,20 @@
               {}
               <div className="space-y-1.5">
                 <label className="block text-xs font-medium text-neutral-700 dark:text-neutral-300">Search Radius</label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {[5, 10, 25, 50, 100, 'all'].map((radius) => (
-                    <button
-                      key={radius}
-                      onClick={() => updateSearchRadius(radius)}
-                      disabled={loading}
-                      className={`py-1.5 px-2 sm:px-2.5 rounded-lg text-xs font-medium transition duration-200 ${
-                        searchRadius === radius
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-300 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-neutral-700'
-                      } ${loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      {radius === 'all' ? 'All India' : `${radius}km`}
-                    </button>
-                  ))}
-                </div>
+                <select
+                  value={searchRadius}
+                  onChange={(e) => updateSearchRadius(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+                  disabled={loading}
+                  className="w-full py-2 px-3 rounded-lg text-sm bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-300 hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value={5}>5km</option>
+                  <option value={10}>10km</option>
+                  <option value={25}>25km</option>
+                  <option value={50}>50km</option>
+                  <option value={100}>100km</option>
+                  <option value="all">All India</option>
+                </select>
               </div>
-
-              {}
-              {!loading && availableChargers.length > 0 && (
-                <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-700 dark:text-blue-300">
-                  <span className="font-medium">{availableChargers.length}</span> charging station{availableChargers.length !== 1 ? 's' : ''} found
-                  {searchRadius !== 'all' ? ` within ${searchRadius}km` : ' across India'}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -690,33 +667,16 @@
 
                     {}
                     {userLocation && (
-                      <div className="text-right">
-                        <h3 className="font-semibold text-neutral-900 dark:text-white text-xs mb-1">Your Location</h3>
-                        <div className="space-y-0.5 text-xs">
-                          <div>
-                            <p className="text-neutral-600 dark:text-neutral-400">Coordinates</p>
-                            <p className="font-mono text-neutral-800 dark:text-neutral-200 text-xs">{userLocation[0].toFixed(4)}, {userLocation[1].toFixed(4)}</p>
-                          </div>
-                          {locationAccuracy > 0 && (
-                            <div>
-                              <p className="text-neutral-600 dark:text-neutral-400">Accuracy</p>
-                              <p className={`font-medium text-xs ${locationAccuracy <= 100 ? 'text-green-600 dark:text-green-400' : locationAccuracy <= 1000 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
-                                ±{Math.round(locationAccuracy)}m
-                              </p>
-                            </div>
-                          )}
-                          <button
-                            onClick={() => {
-                              if (mapInstance && window.updateUserLocation) {
-                                window.updateUserLocation();
-                              }
-                            }}
-                            className="w-full px-2 py-0.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white text-xs font-medium rounded transition mt-1"
-                          >
-                            Update
-                          </button>
-                        </div>
-                      </div>
+                      <button
+                        onClick={() => {
+                          if (mapInstance && window.updateUserLocation) {
+                            window.updateUserLocation();
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white text-xs font-medium rounded transition"
+                      >
+                        Update
+                      </button>
                     )}
                   </div>
                 </div>

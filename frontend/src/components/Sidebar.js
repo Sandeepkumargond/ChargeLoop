@@ -7,7 +7,7 @@ import { useSidebar } from '@/contexts/SidebarContext';
 export default function Sidebar({ activeTab, setActiveTab }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isOpen, setIsOpen, mounted } = useSidebar();
+  const { isOpen, setIsOpen } = useSidebar();
   const [userRole, setUserRole] = useState(null);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
@@ -107,31 +107,26 @@ export default function Sidebar({ activeTab, setActiveTab }) {
     }
   };
 
-  if (!mounted) {
-    return null;
-  }
-
   return (
     <>
-      <aside className={`${isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64 lg:translate-x-0 lg:w-20'} bg-white dark:bg-neutral-800 border-r border-neutral-200 dark:border-neutral-700 flex flex-col fixed lg:static inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out shadow-sm h-screen lg:h-auto`}>
-        <div className="h-16 flex items-center justify-between px-6 border-b border-neutral-100 dark:border-neutral-700">
-          <div className={`flex items-center gap-2 overflow-hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 w-0'}`}>
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-sm shrink-0">
-              CL
-            </div>
-            <span className="font-extrabold text-lg tracking-tight text-neutral-900 dark:text-white whitespace-nowrap">
-              ChargeLoop
+      <aside className={`${isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64 lg:translate-x-0 lg:w-20'} bg-white dark:bg-neutral-800 border-r border-neutral-200 dark:border-neutral-700 flex flex-col fixed lg:static inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out shadow-sm h-screen lg:h-auto pt-14 lg:pt-0`}>
+        <div className="h-16 flex items-center justify-between px-3 border-b border-neutral-100 dark:border-neutral-700">
+          <div className={`flex items-center gap-2 overflow-hidden transition-[width] duration-300 flex-1 ${isOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 invisible'}`}>
+            <img src="/logo.png" alt="ChargeLoop Logo" className="h-10 w-10 rounded-lg " />
+
+            <span className="font-extrabold text-lg tracking-tight whitespace-nowrap">
+              <span className="text-blue-600 dark:text-blue-400">Charge</span><span className="text-green-500 dark:text-green-400">Loop</span>
             </span>
           </div>
 
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            className="p-1.5 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors shrink-0"
           >
             {isOpen ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
             ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
             )}
           </button>
         </div>
@@ -151,7 +146,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
                 {item.icon}
               </span>
 
-              <span className={`ml-3 whitespace-nowrap overflow-hidden transition-all duration-300 ${isOpen ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>
+              <span className={`ml-3 whitespace-nowrap overflow-hidden text-neutral-900 dark:text-white font-medium transition-[width] duration-300 ${isOpen ? 'w-auto opacity-100 visible' : 'w-0 opacity-0 invisible'}`}>
                 {item.label}
               </span>
 
@@ -193,7 +188,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
                 onClick={() => router.push('/profile')}
                 className="w-full bg-neutral-100 dark:bg-neutral-700 rounded-xl p-3 mb-2 flex items-center gap-3 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-colors"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500  flex items-center justify-center text-white text-xs font-bold shrink-0">
                   {userName?.charAt(0) || 'U'}
                 </div>
                 <div className="overflow-hidden min-w-0 text-left">
@@ -225,13 +220,6 @@ export default function Sidebar({ activeTab, setActiveTab }) {
           </button>
         </div>
       </aside>
-
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
     </>
   );
 }

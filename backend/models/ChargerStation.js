@@ -54,7 +54,7 @@ const chargerStationSchema = new mongoose.Schema({
     min: 0.5,
     description: 'Charger power in kilowatts (e.g., 3.3, 7.4, 22, 50 kW)'
   },
-  pricePerUnit: {
+  pricePerKwh: {
     type: Number,
     required: true,
     min: 0,

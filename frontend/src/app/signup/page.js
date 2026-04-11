@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GoogleLogin } from '@react-oauth/google';
 import { useNotification } from '@/contexts/NotificationContext';
+import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
 
 export default function SignupPage() {
   const [mounted, setMounted] = useState(false);
@@ -103,7 +104,7 @@ export default function SignupPage() {
         verificationToken,
       };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/complete-signup`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/complete-signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -111,13 +112,19 @@ export default function SignupPage() {
         body: JSON.stringify(payloadData),
       });
 
-      let errorMsg = 'Signup failed';
+      let errorMsg = 'Signup failed. Please try again.';
       if (!response.ok) {
         try {
           const errorData = await response.json();
-          errorMsg = errorData.msg || `Error: ${response.statusText}`;
+          if (response.status === 400) {
+            errorMsg = errorData.msg || 'Invalid information provided. Please check and try again.';
+          } else if (response.status === 409) {
+            errorMsg = 'Email already exists. Please use a different email.';
+          } else {
+            errorMsg = errorData.msg || errorMsg;
+          }
         } catch (e) {
-          errorMsg = `Error: ${response.statusText}`;
+          errorMsg = 'Signup failed. Please try again.';
         }
         setError(errorMsg);
         showError(errorMsg);
@@ -143,7 +150,9 @@ export default function SignupPage() {
         }
       }
     } catch (error) {
-      setError(error.message || 'Signup failed');
+      const errorMsg = error.message || 'Signup failed. Please try again.';
+      setError(errorMsg);
+      showError(errorMsg);
       setLoading(false);
     }
   };
@@ -158,7 +167,7 @@ export default function SignupPage() {
     setError('');
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/send-otp`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/send-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -169,15 +178,15 @@ export default function SignupPage() {
       if (!response.ok) {
         let errorMsg = 'Failed to send OTP';
         if (response.status === 429) {
-          errorMsg = 'Too many requests. Please wait a moment before trying again.';
+          errorMsg = 'Too many requests. Please wait a few minutes before trying again.';
         } else if (response.status === 403) {
-          errorMsg = 'Access denied. Please check your email.';
+          errorMsg = 'Access denied for this email. Please check and try again.';
         } else {
           try {
             const data = await response.json();
-            errorMsg = data.msg || `Error: ${response.statusText}`;
+            errorMsg = data.msg || errorMsg;
           } catch (e) {
-            errorMsg = `Error: ${response.statusText}`;
+            errorMsg = 'Failed to send OTP. Please try again.';
           }
         }
         throw new Error(errorMsg);
@@ -203,7 +212,7 @@ export default function SignupPage() {
     setError('');
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify-otp`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -214,15 +223,15 @@ export default function SignupPage() {
       if (!response.ok) {
         let errorMsg = 'OTP verification failed';
         if (response.status === 429) {
-          errorMsg = 'Too many verification attempts. Please wait a few minutes before trying again.';
+          errorMsg = 'Too many verification attempts. Please wait a few minutes and try again.';
         } else if (response.status === 403) {
           errorMsg = 'Invalid or expired OTP. Please request a new OTP.';
         } else {
           try {
             const data = await response.json();
-            errorMsg = data.msg || `Error: ${response.statusText}`;
+            errorMsg = data.msg || errorMsg;
           } catch (e) {
-            errorMsg = `Error: ${response.statusText}`;
+            errorMsg = 'OTP verification failed. Please try again.';
           }
         }
         throw new Error(errorMsg);
@@ -246,10 +255,10 @@ export default function SignupPage() {
 
     try {
       if (!credentialResponse?.credential) {
-        throw new Error('Google authentication failed - no credential received.');
+        throw new Error('Google authentication failed. Please try again.');
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/google-login`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/google-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -263,13 +272,13 @@ export default function SignupPage() {
       if (!response.ok) {
         let errorMsg = 'Google signup failed';
         if (response.status === 403) {
-          errorMsg = 'Access denied. The origin is not allowed for this Google OAuth configuration.';
+          errorMsg = 'Access denied. Invalid configuration. Please try again later.';
         } else {
           try {
             const errorData = await response.json();
-            errorMsg = errorData.error || errorData.msg || `Error: ${response.statusText}`;
+            errorMsg = errorData.error || errorData.msg || errorMsg;
           } catch (e) {
-            errorMsg = `Error: ${response.statusText}`;
+            errorMsg = 'Google signup failed. Please try again.';
           }
         }
         throw new Error(errorMsg);
@@ -293,8 +302,9 @@ export default function SignupPage() {
         }
       }
     } catch (error) {
-      const errorMsg = error.message || 'Failed to signup with Google.';
+      const errorMsg = error.message || 'Failed to signup with Google. Please try again.';
       setError(errorMsg);
+      showError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -302,12 +312,12 @@ export default function SignupPage() {
 
   return (
     <>
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-green-950 flex items-center justify-center px-4 sm:px-6 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 dark:from-neutral-950 dark:via-neutral-900 dark:to-green-950 flex items-center justify-center px-3 sm:px-4 py-8 sm:py-12">
       <div className="w-full max-w-md">
         {}
 
         {}
-        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl p-8 border border-neutral-100 dark:border-neutral-700">
+        <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl p-6 sm:p-8 border border-neutral-100 dark:border-neutral-700">
 
           {}
           {error && (
@@ -334,11 +344,11 @@ export default function SignupPage() {
           )}
 
           {}
-          <div className="mb-8 flex gap-2 bg-neutral-100 dark:bg-neutral-700 p-1.5 rounded-xl">
+          <div className="mb-6 sm:mb-8 flex gap-2 bg-neutral-100 dark:bg-neutral-700 p-1.5 rounded-xl">
             <button
               type="button"
               onClick={() => setUserType('user')}
-              className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all duration-200 ${
+              className={`flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-200 ${
                 userType === 'user'
                   ? 'bg-white dark:bg-neutral-800 text-green-600 dark:text-green-400 shadow-md'
                   : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100'
@@ -360,30 +370,30 @@ export default function SignupPage() {
           </div>
 
           {}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
 
             <div>
-              <label className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2.5">Full Name <span className="text-red-500">*</span></label>
+              <label className="block text-xs sm:text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2">Full Name <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 name="name"
                 placeholder="John Doe"
-                className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm"
+                className="w-full px-4 py-2.5 sm:py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm sm:text-base"
                 suppressHydrationWarning
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2.5">Email Address <span className="text-red-500">*</span></label>
-              <div className="flex gap-2">
+              <label className="block text-xs sm:text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2">Email Address <span className="text-red-500">*</span></label>
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="email"
                   name="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="flex-1 px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm"
+                  className="flex-1 px-4 py-2.5 sm:py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm sm:text-base"
                   required
                   disabled={otpSent}
                 />
@@ -391,12 +401,15 @@ export default function SignupPage() {
                   type="button"
                   onClick={handleSendOtp}
                   disabled={otpLoading || otpSent}
-                  className="px-4 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-lg font-semibold text-sm disabled:opacity-70 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                  className="px-3 sm:px-4 py-2.5 sm:py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-lg font-semibold text-xs sm:text-sm disabled:opacity-70 disabled:cursor-not-allowed transition-colors sm:whitespace-nowrap w-full sm:w-auto"
                 >
                   {otpLoading ? (
-                    <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v20m0-20a9.978 9.978 0 0110 10 9.978 9.978 0 01-10 10m0-20A9.978 9.978 0 002 12a9.978 9.978 0 0110-10" />
-                    </svg>
+                    <span className="flex items-center justify-center sm:justify-start gap-2">
+                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v20m0-20a9.978 9.978 0 0110 10 9.978 9.978 0 01-10 10m0-20A9.978 9.978 0 002 12a9.978 9.978 0 0110-10" />
+                      </svg>
+                      Sending...
+                    </span>
                   ) : (
                     'Send OTP'
                   )}
@@ -407,22 +420,22 @@ export default function SignupPage() {
             {}
             {otpSent && (
               <div>
-                <label className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2.5">Enter OTP <span className="text-red-500">*</span></label>
-                <div className="flex gap-2">
+                <label className="block text-xs sm:text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2">Enter OTP <span className="text-red-500">*</span></label>
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="000000"
                     maxLength="6"
-                    className="flex-1 px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-center tracking-widest font-mono text-xl"
+                    className="flex-1 px-4 py-2.5 sm:py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-center tracking-widest font-mono text-lg sm:text-xl"
                     required
                   />
                   <button
                     type="button"
                     onClick={handleVerifyOtp}
                     disabled={otpLoading || otpVerified}
-                    className="px-4 py-3 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white rounded-lg font-semibold text-sm disabled:opacity-70 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                    className="px-3 sm:px-4 py-2.5 sm:py-3 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white rounded-lg font-semibold text-xs sm:text-sm disabled:opacity-70 disabled:cursor-not-allowed transition-colors sm:whitespace-nowrap w-full sm:w-auto"
                   >
                     {otpLoading ? 'Verifying...' : otpVerified ? '✓ Verified' : 'Verify'}
                   </button>
@@ -441,12 +454,12 @@ export default function SignupPage() {
             )}
 
             <div>
-              <label className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2.5">Mobile Number <span className="text-red-500">*</span></label>
+              <label className="block text-xs sm:text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2">Mobile Number <span className="text-red-500">*</span></label>
               <input
                 type="tel"
                 name="phone"
                 placeholder="+91 98765 43210"
-                className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm"
+                className="w-full px-4 py-2.5 sm:py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm sm:text-base"
                 suppressHydrationWarning
                 required
                 disabled={!otpVerified}
@@ -461,12 +474,12 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2.5">Password <span className="text-red-500">*</span></label>
+              <label className="block text-xs sm:text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2">Password <span className="text-red-500">*</span></label>
               <input
                 type="password"
                 name="password"
                 placeholder="••••••••"
-                className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm"
+                className="w-full px-4 py-2.5 sm:py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm sm:text-base"
                 suppressHydrationWarning
                 required
                 disabled={!otpVerified}
@@ -474,12 +487,12 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2.5">Confirm Password <span className="text-red-500">*</span></label>
+              <label className="block text-xs sm:text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2">Confirm Password <span className="text-red-500">*</span></label>
               <input
                 type="password"
                 name="confirmPassword"
                 placeholder="••••••••"
-                className="w-full px-4 py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm"
+                className="w-full px-4 py-2.5 sm:py-3 border border-neutral-300 dark:border-neutral-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent bg-neutral-50 dark:bg-neutral-700 text-neutral-900 dark:text-white placeholder-neutral-500 dark:placeholder-neutral-400 transition-colors text-sm sm:text-base"
                 suppressHydrationWarning
                 required
                 disabled={!otpVerified}
@@ -489,7 +502,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={loading || !otpVerified}
-              className="w-full py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed mt-6"
+              className="w-full py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed mt-4 sm:mt-6"
               suppressHydrationWarning
             >
               {loading ? (
@@ -506,7 +519,7 @@ export default function SignupPage() {
           </form>
 
           {}
-          <div className="my-6 flex items-center gap-3">
+          <div className="my-4 sm:my-6 flex items-center gap-3">
             <div className="flex-1 h-px bg-neutral-300 dark:bg-neutral-600"></div>
             <span className="text-xs text-neutral-600 dark:text-neutral-400 font-medium">OR</span>
             <div className="flex-1 h-px bg-neutral-300 dark:bg-neutral-600"></div>
@@ -527,7 +540,7 @@ export default function SignupPage() {
         </div>
 
         {}
-        <p className="text-center text-neutral-600 dark:text-neutral-400 text-sm mt-6">
+        <p className="text-center text-neutral-600 dark:text-neutral-400 text-xs sm:text-sm mt-4 sm:mt-6">
           Already have an account?{' '}
           <a href="/login" className="text-green-600 dark:text-green-400 font-semibold hover:text-green-700 dark:hover:text-green-300">
             Sign in here

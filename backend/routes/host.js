@@ -181,10 +181,10 @@ router.put('/requests/:requestId/accept', auth, async (req, res) => {
         bookingDuration: request.bookingDuration || request.requestedDuration,
         energyDelivered: request.energyDelivered,
         estimatedDuration: request.bookingDuration || request.requestedDuration,
-        estimatedCost: request.actualCost || (request.energyDelivered * (request.pricePerKwh || request.pricePerUnit)),
+        estimatedCost: request.actualCost || (request.energyDelivered * request.pricePerKwh),
         requestId: request.requestId,
         chargerPowerKw: request.chargerPowerKw,
-        pricePerKwh: request.pricePerKwh || request.pricePerUnit
+        pricePerKwh: request.pricePerKwh
       };
 
       await sendBookingConfirmationEmail(request.userId?.email, bookingDetails);
@@ -267,6 +267,117 @@ router.put('/requests/:requestId/decline', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+router.put('/requests/:requestId/cancel', auth, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { reason } = req.body;
+
+    const request = await BookingRequest.findOne({
+      _id: requestId,
+      status: 'accepted'
+    }).populate('userId', 'name email phone');
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        msg: 'Booking request not found or not in accepted status'
+      });
+    }
+
+    const userHost = await Host.findOne({ userId: req.user.id });
+    if (!userHost || userHost._id.toString() !== request.hostId.toString()) {
+      return res.status(403).json({
+        success: false,
+        msg: 'Unauthorized to cancel this request'
+      });
+    }
+
+    request.status = 'cancelled';
+    request.hostResponse = {
+      respondedAt: new Date(),
+      cancelledAt: new Date(),
+      cancelReason: reason || 'Host cancelled the booking'
+    };
+    await request.save();
+
+    res.json({
+      success: true,
+      msg: 'Booking cancelled successfully',
+      request: {
+        _id: request._id,
+        requestId: request.requestId,
+        status: 'cancelled',
+        reason: reason || 'Host cancelled the booking'
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      msg: 'Failed to cancel booking'
+    });
+  }
+});
+
+router.put('/requests/:requestId/mark-done', auth, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+
+    const request = await BookingRequest.findOne({
+      _id: requestId,
+      status: 'accepted'
+    }).populate('userId', 'name email phone');
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        msg: 'Booking request not found or not in accepted status'
+      });
+    }
+
+    const userHost = await Host.findOne({ userId: req.user.id });
+    if (!userHost || userHost._id.toString() !== request.hostId.toString()) {
+      return res.status(403).json({
+        success: false,
+        msg: 'Unauthorized to mark this booking as done'
+      });
+    }
+
+    const now = new Date();
+    const startTime = request.startTime ? new Date(request.startTime) : null;
+
+    request.status = 'completed';
+    request.endTime = now;
+    
+    // Calculate actual duration in minutes
+    if (startTime) {
+      request.actualDuration = Math.round((now - startTime) / (1000 * 60));
+    }
+
+    await request.save();
+
+    res.json({
+      success: true,
+      msg: 'Charging marked as completed',
+      request: {
+        _id: request._id,
+        requestId: request.requestId,
+        status: 'completed',
+        endTime: request.endTime,
+        actualDuration: request.actualDuration
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      msg: 'Failed to mark booking as done'
     });
   }
 });
@@ -442,10 +553,10 @@ router.put('/bookings/:bookingId/status', auth, async (req, res) => {
         bookingDuration: booking.bookingDuration || booking.requestedDuration,
         energyDelivered: booking.energyDelivered,
         estimatedDuration: booking.bookingDuration || booking.requestedDuration,
-        estimatedCost: booking.actualCost || (booking.energyDelivered * (booking.pricePerKwh || booking.pricePerUnit)),
+        estimatedCost: booking.actualCost || (booking.energyDelivered * booking.pricePerKwh),
         requestId: booking.requestId,
         chargerPowerKw: booking.chargerPowerKw,
-        pricePerKwh: booking.pricePerKwh || booking.pricePerUnit
+        pricePerKwh: booking.pricePerKwh
       };
 
       try {

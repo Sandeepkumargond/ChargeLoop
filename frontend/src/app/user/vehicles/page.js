@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
 
 export default function VehiclesPage() {
   const [user, setUser] = useState(null);
@@ -29,7 +30,7 @@ export default function VehiclesPage() {
           return;
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`, {
+        const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -44,7 +45,7 @@ export default function VehiclesPage() {
             router.push('/login');
             return;
           }
-          throw new Error('Failed to fetch profile');
+          throw new Error('Failed to load profile');
         }
 
         const userData = await response.json();
@@ -71,21 +72,41 @@ export default function VehiclesPage() {
   };
 
   const handleAddVehicle = async () => {
-    if (!vehicleForm.vehicleNumber || !vehicleForm.vehicleType) {
-      alert('Please fill in vehicle number and type');
+    // Validate all fields
+    if (!vehicleForm.vehicleNumber.trim()) {
+      alert('Please enter vehicle number');
+      return;
+    }
+    if (!vehicleForm.vehicleType) {
+      alert('Please select vehicle type');
+      return;
+    }
+    if (!vehicleForm.model.trim()) {
+      alert('Please enter model name');
+      return;
+    }
+    if (!vehicleForm.batteryCapacity || vehicleForm.batteryCapacity <= 0) {
+      alert('Please enter a valid battery capacity');
       return;
     }
 
     setSavingVehicle(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/vehicles`, {
+      const formData = {
+        vehicleNumber: vehicleForm.vehicleNumber,
+        vehicleType: vehicleForm.vehicleType,
+        model: vehicleForm.model,
+        batteryCapacity: parseFloat(vehicleForm.batteryCapacity)
+      };
+
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/user/vehicles`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(vehicleForm)
+        body: JSON.stringify(formData)
       });
 
       if (response.ok) {
@@ -95,10 +116,11 @@ export default function VehiclesPage() {
         setShowAddForm(false);
         alert('Vehicle added successfully!');
       } else {
-        alert('Failed to add vehicle');
+        const errorData = await response.json();
+        alert(errorData.msg || 'Failed to add vehicle');
       }
     } catch (error) {
-      alert('Error adding vehicle');
+      alert(error.message || 'Error adding vehicle');
     } finally {
       setSavingVehicle(false);
     }
@@ -109,7 +131,7 @@ export default function VehiclesPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user/vehicles/${vehicleId}`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/user/vehicles/${vehicleId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -124,7 +146,7 @@ export default function VehiclesPage() {
         alert('Failed to delete vehicle');
       }
     } catch (error) {
-      alert('Error deleting vehicle');
+      alert(error.message || 'Error deleting vehicle');
     }
   };
 

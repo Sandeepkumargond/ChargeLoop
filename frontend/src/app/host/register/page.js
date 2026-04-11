@@ -331,7 +331,6 @@ export default function HostRegisterPage() {
       formData.append('file', file);
 
       const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
-      console.log(`📤 Uploading file: ${file.name} (${fileSizeMB}MB)...`);
 
       // Call backend endpoint to upload (backend will use private key)
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/upload-document`, {
@@ -357,20 +356,15 @@ export default function HostRegisterPage() {
           // Response is not JSON
         }
         
-        console.error('Upload error response:', response.status, errorMsg);
         throw new Error(errorMsg);
       }
 
       const data = await response.json();
-      console.log(`✓ Upload success for ${file.name}`);
-      console.log(`  URL: ${data.fileUrl}`);
       return data.fileUrl;
     } catch (error) {
       if (error.name === 'AbortError') {
-        console.error('Upload timeout: Request took longer than 10 minutes');
         throw new Error('Upload timeout - file took too long to upload (exceeded 10 minutes)');
       }
-      console.error('Upload error details:', error);
       throw new Error('Failed to upload file: ' + error.message);
     } finally {
       clearTimeout(timeout);
@@ -435,17 +429,12 @@ export default function HostRegisterPage() {
       let lightConnectionProofUrl = '';
 
       try {
-        console.log('Starting file uploads...');
         addressProofUrl = await uploadToImageKit(formData.addressProof);
-        console.log('Address proof uploaded:', addressProofUrl);
         
         aadharCardUrl = await uploadToImageKit(formData.aadharCard);
-        console.log('Aadhar card uploaded:', aadharCardUrl);
         
         lightConnectionProofUrl = await uploadToImageKit(formData.lightConnectionProof);
-        console.log('Light connection proof uploaded:', lightConnectionProofUrl);
       } catch (uploadError) {
-        console.error('Upload error caught:', uploadError);
         setError('File upload failed: ' + uploadError.message);
         setSuccess('');
         setLoading(false);
@@ -471,8 +460,6 @@ export default function HostRegisterPage() {
         perUnitCharge: parseFloat(formData.pricePerKwh)
       };
 
-      console.log('Submitting registration request with data:', requestData);
-
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/request-host-registration`, {
         method: 'POST',
         headers: {
@@ -497,12 +484,10 @@ export default function HostRegisterPage() {
           errorMessage = `Backend error (${response.status}): ${response.statusText}`;
         }
 
-        console.error('Registration submission failed:', errorMessage);
         throw new Error(errorMessage);
       }
 
       const responseData = await response.json();
-      console.log('Registration response:', responseData);
 
       setSuccess('Registration submitted successfully! Redirecting...');
 
@@ -522,7 +507,6 @@ export default function HostRegisterPage() {
         router.push('/host');
       }, 2000);
     } catch (error) {
-      console.error('Submit handler error:', error);
       setError(error.message);
       setSuccess('');
     } finally {

@@ -18,6 +18,9 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: 'ChargeLoop',
   description: 'Peer-to-peer EV charging platform',
+  icons: {
+    icon: '/logo.png',
+  },
 };
 
 export default function RootLayout({ children }) {

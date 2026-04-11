@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '../contexts/ThemeContext';
+import { fetchWithFriendlyError } from '../utils/fetchWithFriendlyError';
 
 const NAV_LINKS = [
   { href: '/map', label: 'Find Chargers' },
@@ -10,7 +11,8 @@ const NAV_LINKS = [
   { href: '/contactus', label: 'Contact' }
 ];
 
-const NAV_LINK_CLASS = "px-3 py-2 rounded-lg text-neutral-700 dark:text-neutral-200 text-sm xl:text-base font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors";
+const NAV_LINK_CLASS =
+  "px-3 py-2 rounded-lg text-neutral-700 dark:text-neutral-200 text-sm xl:text-base font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors";
 
 const MOON_ICON = (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 transition-transform duration-300 hover:rotate-12">
@@ -33,20 +35,32 @@ export default function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [healthStatus, setHealthStatus] = useState({ mongoStatus: 'Checking' });
   const [isCheckingHealth, setIsCheckingHealth] = useState(true);
+
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
+    // Close dropdown when clicking outside
+    const handleClickOutside = (e) => {
+      if (showUserMenu && e.target.closest('.profile-menu') === null) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showUserMenu]);
+
+  useEffect(() => {
     setMounted(true);
-    
+
     const fetchHealth = async () => {
       setIsCheckingHealth(true);
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://chargeloop.onrender.com';
-        const response = await fetch(`${apiUrl}/`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        });
+        const response = await fetchWithFriendlyError(`${apiUrl}/`);
         if (response.ok) {
           const data = await response.json();
           setHealthStatus(data);
@@ -54,7 +68,6 @@ export default function Navbar() {
           setHealthStatus({ mongoStatus: 'Disconnected' });
         }
       } catch (err) {
-        console.error('Health check error:', err);
         setHealthStatus({ mongoStatus: 'Disconnected' });
       } finally {
         setIsCheckingHealth(false);
@@ -62,205 +75,235 @@ export default function Navbar() {
     };
 
     fetchHealth();
-    const healthInterval = setInterval(fetchHealth, 30000);
+    const interval = setInterval(fetchHealth, 30000);
 
     const checkAuth = () => {
       const token = localStorage.getItem('token');
-      const email = localStorage.getItem('userEmail');
-      const role = localStorage.getItem('userRole');
       setIsLoggedIn(!!token);
-      setUserEmail(email || '');
-      setUserRole(role || '');
+      setUserEmail(localStorage.getItem('userEmail') || '');
+      setUserRole(localStorage.getItem('userRole') || '');
     };
+
     checkAuth();
     window.addEventListener('authChange', checkAuth);
     window.addEventListener('storage', checkAuth);
+
     return () => {
-      clearInterval(healthInterval);
+      clearInterval(interval);
       window.removeEventListener('authChange', checkAuth);
       window.removeEventListener('storage', checkAuth);
     };
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userRole');
+    localStorage.clear();
     window.dispatchEvent(new Event('authChange'));
     router.push('/');
   };
 
-  const handleDashboardClick = () => {
-    userRole === 'host' ? router.push('/host') : router.push('/user');
-    setShowUserMenu(false);
-  };
-
-  if (!mounted) return <div className="h-16 sm:h-20" />;
+  if (!mounted) return <div className="h-16" />;
 
   return (
-    <nav className="bg-white dark:bg-neutral-800 shadow transition-colors sticky top-0 z-50 border-b border-neutral-200 dark:border-neutral-700">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-        <div className="flex justify-between items-center h-16 sm:h-20">
+    <nav className="bg-white dark:bg-neutral-800 shadow border-b dark:border-neutral-700 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="flex justify-between items-center h-16">
 
-          {}
-          <a href="/" className="flex items-center space-x-2">
-            <img src="/logo.png" alt="ChargeLoop Logo" className="h-9 w-auto" />
-            <span className="text-lg font-bold text-blue-600 dark:text-blue-400 hidden sm:inline">
-              ChargeLoop
+          {/* Logo */}
+          <a href="/" className="flex items-center gap-2">
+            <img src="/logo.png" className="h-10 w-10 rounded-lg" />
+            <span className="font-bold hidden sm:block">
+              <span className="text-blue-600">Charge</span>
+              <span className="text-green-500">Loop</span>
             </span>
           </a>
 
-          {}
-          <div className="hidden lg:flex items-center space-x-2 xl:space-x-4">
+          {/* Desktop */}
+          <div className="hidden lg:flex items-center gap-4">
+
             {NAV_LINKS.map(link => (
               <a key={link.href} href={link.href} className={NAV_LINK_CLASS}>
                 {link.label}
               </a>
             ))}
 
-            <div className="h-6 w-px bg-neutral-300 dark:bg-neutral-600 mx-2"></div>
-
-            {}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-all"
-            >
+            {/* Theme */}
+            <button onClick={toggleTheme} className="p-2">
               {theme === 'light' ? MOON_ICON : SUN_ICON}
             </button>
 
-            <div className="flex items-center space-x-3">
-              {!isLoggedIn ? (
-                <div className="flex items-center space-x-2">
-                  <a href="/login" className="px-3 py-1.5 text-neutral-700 dark:text-neutral-200 font-medium text-sm hover:text-blue-600 transition">
-                    Login
-                  </a>
-                  <a href="/signup" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-lg transition shadow-sm">
-                    Sign Up
-                  </a>
-                </div>
-              ) : (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="w-10 h-10 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center transition focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:ring-offset-neutral-800"
-                  >
-                    <span className="text-white font-bold text-sm">
-                      {userEmail ? userEmail.charAt(0).toUpperCase() : 'U'}
-                    </span>
-                  </button>
+            {/* Auth */}
+            {!isLoggedIn ? (
+              <>
+                <a href="/login" className="text-neutral-700 dark:text-neutral-200 hover:text-blue-600 dark:hover:text-blue-400">Login</a>
+                <a href="/signup" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                  Sign Up
+                </a>
+              </>
+            ) : (
+              <div className="relative profile-menu">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-green-500 text-white font-semibold hover:shadow-lg transition-shadow"
+                  title={userEmail}
+                >
+                  {userEmail.charAt(0).toUpperCase()}
+                </button>
 
-                  {showUserMenu && (
-                    <div className="absolute right-0 mt-3 w-48 bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-xl overflow-hidden z-50">
-                      <div className="py-1">
-                        <button onClick={handleDashboardClick} className="w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700">
-                          Dashboard
-                        </button>
-                        <button onClick={() => { router.push('/profile'); setShowUserMenu(false); }} className="w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700">
-                          Profile
-                        </button>
-                        <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 border-t border-neutral-100 dark:border-neutral-700">
-                          Logout
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
-                isCheckingHealth
-                  ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300'
-                  : healthStatus.mongoStatus === 'Connected'
-                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
-                  : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${
-                  isCheckingHealth
-                    ? 'bg-yellow-600 dark:bg-yellow-400 animate-pulse'
-                    : healthStatus.mongoStatus === 'Connected' ? 'bg-green-600 dark:bg-green-400' : 'bg-red-600 dark:bg-red-400'
-                }`}></span>
-                <span>{isCheckingHealth ? 'Starting...' : healthStatus.mongoStatus === 'Connected' ? 'Server On' : 'Server Off'}</span>
-              </div>
-            </div>
-          </div>
+                {/* User Menu Dropdown */}
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-neutral-800 rounded-lg shadow-xl border border-neutral-200 dark:border-neutral-700 py-2 z-50">
+                   
 
-          {}
-          <div className="lg:hidden flex items-center space-x-2">
-            <button onClick={toggleTheme} className="p-2 rounded-lg text-neutral-700 dark:text-neutral-200">
-              {theme === 'light' ? MOON_ICON : SUN_ICON}
-            </button>
-            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 rounded-lg text-neutral-700 dark:text-neutral-200">
-              {isMobileMenuOpen ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {}
-        {isMobileMenuOpen && (
-          <>
-            <div className="fixed inset-0 bg-black/50 dark:bg-black/70 lg:hidden z-30" onClick={() => setIsMobileMenuOpen(false)}></div>
-            <div className={`fixed top-16 right-0 w-64 h-screen bg-white dark:bg-neutral-800 shadow-lg lg:hidden z-40 transform transition-transform duration-300 ease-in-out overflow-y-auto ${
-              isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}>
-              <div className="p-4 space-y-4">
-                <div className="space-y-3">
-                  {NAV_LINKS.map(link => (
-                    <a key={link.href} href={link.href} onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition-colors">
-                      {link.label}
+                    {/* Dashboard Link */}
+                    <a
+                      href={userRole === 'host' ? '/host' : userRole === 'admin' ? '/admin/dashboard' : '/user'}
+                      className="block px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                       Dashboard
                     </a>
-                  ))}
-                </div>
-                
-                <div className="border-t border-neutral-200 dark:border-neutral-700 pt-3 space-y-2">
-                  {!isLoggedIn ? (
-                    <>
-                      <a href="/login" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 text-neutral-700 dark:text-neutral-200 text-center border border-neutral-300 dark:border-neutral-600 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition">
-                        Login
-                      </a>
-                      <a href="/signup" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-center font-medium rounded-lg transition shadow-sm">
-                        Sign Up
-                      </a>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={() => { handleDashboardClick(); setIsMobileMenuOpen(false); }} className="w-full text-left px-3 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition">
-                        Dashboard
-                      </button>
-                      <button onClick={() => { router.push('/profile'); setIsMobileMenuOpen(false); }} className="w-full text-left px-3 py-2 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition">
-                        Profile
-                      </button>
-                      <button onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="w-full text-left px-3 py-2 text-red-600 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition">
-                        Logout
-                      </button>
-                    </>
-                  )}
-                </div>
 
-                <div className="border-t border-neutral-200 dark:border-neutral-700 pt-3">
-                  <div className={`px-3 py-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 ${
-                    isCheckingHealth
-                      ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300'
-                      : healthStatus.mongoStatus === 'Connected'
-                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
-                      : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                      isCheckingHealth
-                        ? 'bg-yellow-600 dark:bg-yellow-400 animate-pulse'
-                        : healthStatus.mongoStatus === 'Connected' ? 'bg-green-600 dark:bg-green-400' : 'bg-red-600 dark:bg-red-400'
-                    }`}></span>
-                    <span>{isCheckingHealth ? 'Starting...' : healthStatus.mongoStatus === 'Connected' ? 'Server On' : 'Server Off'}</span>
+                    {/* Profile Link */}
+                    <a
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                       Profile
+                    </a>
+
+                    
+                    {/* Divider */}
+                    <div className="border-t border-neutral-200 dark:border-neutral-700 my-2"></div>
+
+                    {/* Logout */}
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        handleLogout();
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      Logout
+                    </button>
                   </div>
-                </div>
+                )}
               </div>
+            )}
+
+            <div className="flex items-center gap-2 px-2 py-1 text-sm text-neutral-600 dark:text-neutral-300">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isCheckingHealth
+                    ? "bg-yellow-400 animate-pulse"
+                    : healthStatus.mongoStatus === "Connected"
+                    ? "bg-green-500"
+                    : "bg-red-500"
+                }`}
+              />
+              <span className="whitespace-nowrap">
+                {isCheckingHealth
+                  ? "Starting..."
+                  : healthStatus.mongoStatus === "Connected"
+                  ? "Server Online"
+                  : "Server Offline"}
+              </span>
             </div>
-          </>
-        )}
+
+          </div>
+
+          {/* Mobile Toggle */}
+          <button
+            className="lg:hidden"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            ☰
+          </button>
+        </div>
       </div>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden p-4 space-y-3 bg-white dark:bg-neutral-800 border-t border-neutral-200 dark:border-neutral-700">
+          {NAV_LINKS.map(link => (
+            <a key={link.href} href={link.href} className="block px-3 py-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200">
+              {link.label}
+            </a>
+          ))}
+
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="w-full text-left px-3 py-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200"
+          >
+            {theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
+          </button>
+
+          {/* Status */}
+          <div className="flex items-center gap-2 text-sm px-3 py-2">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isCheckingHealth
+                  ? "bg-yellow-400 animate-pulse"
+                  : healthStatus.mongoStatus === "Connected"
+                  ? "bg-green-500"
+                  : "bg-red-500"
+              }`}
+            />
+            <span className="text-neutral-600 dark:text-neutral-400">
+              {isCheckingHealth
+                ? "Starting..."
+                : healthStatus.mongoStatus === "Connected"
+                ? "Server Online"
+                : "Server Offline"}
+            </span>
+          </div>
+
+          {/* Mobile Auth */}
+          {!isLoggedIn ? (
+            <div className="space-y-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
+              <a href="/login" className="block px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700 text-center text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-600">
+                Login
+              </a>
+              <a href="/signup" className="block px-3 py-2 rounded-lg bg-blue-600 text-center text-white hover:bg-blue-700">
+                Sign Up
+              </a>
+            </div>
+          ) : (
+            <div className="space-y-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
+              <div className="px-3 py-2 bg-neutral-100 dark:bg-neutral-700 rounded-lg">
+                <p className="text-sm font-semibold text-neutral-900 dark:text-white truncate">
+                  {localStorage.getItem('userName') || 'User'}
+                </p>
+                <p className="text-xs text-neutral-600 dark:text-neutral-400 truncate">
+                  {userEmail}
+                </p>
+              </div>
+              <a
+                href={userRole === 'host' ? '/host' : userRole === 'admin' ? '/admin/dashboard' : '/user'}
+                className="block px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700 text-center text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-600"
+              >
+                📊 Dashboard
+              </a>
+              <a
+                href="/profile"
+                className="block px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700 text-center text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-600"
+              >
+                👤 Profile
+              </a>
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="w-full px-3 py-2 rounded-lg bg-red-600 text-center text-white hover:bg-red-700"
+              >
+                🚪 Logout
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </nav>
   );
 }
-

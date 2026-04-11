@@ -137,7 +137,7 @@ function calculateTotalCost(energyDelivered, pricePerKwh) {
  *   - userChargerPowerKw: User's charger power (kW) - REQUIRED
  *   - socketMaxCapacityKw: Host socket capacity (kW) - REQUIRED
  *   - bookingDurationMinutes: Duration in minutes - REQUIRED
- *   - pricePerUnit: Price per kWh (₹) - REQUIRED
+ *   - pricePerKwh: Price per kWh (₹) - REQUIRED
  *   - convenienceFee: Optional convenience fee (₹)
  *   - platformFee: Optional platform fee (₹, default 10)
  *   - chargerType: For efficiency calculation (optional)
@@ -149,7 +149,7 @@ function calculateNewPricing(params) {
     userChargerPowerKw,
     socketMaxCapacityKw,
     bookingDurationMinutes,
-    pricePerUnit,
+    pricePerKwh,
     convenienceFee = 0,
     platformFee = PLATFORM_FEE,
     chargerType = 'AC'
@@ -165,8 +165,8 @@ function calculateNewPricing(params) {
   if (!bookingDurationMinutes || bookingDurationMinutes <= 0) {
     throw new Error('bookingDurationMinutes must be positive');
   }
-  if (!pricePerUnit || pricePerUnit < 0) {
-    throw new Error('pricePerUnit must be non-negative');
+  if (!pricePerKwh || pricePerKwh < 0) {
+    throw new Error('pricePerKwh must be non-negative');
   }
 
   // STEP A: Safety Validation
@@ -176,7 +176,7 @@ function calculateNewPricing(params) {
   const totalUnitsKwh = calculateTotalUnits(userChargerPowerKw, bookingDurationMinutes);
   
   // STEP C: Calculate final price
-  const energyCost = calculateEnergyCost(totalUnitsKwh, pricePerUnit);
+  const energyCost = calculateEnergyCost(totalUnitsKwh, pricePerKwh);
   const estimatedRange = calculateEstimatedRange(totalUnitsKwh);
   const totalBill = calculateTotalBill(energyCost, convenienceFee, platformFee);
 
@@ -203,7 +203,7 @@ function calculateNewPricing(params) {
     totalBill,
     
     // Price per unit
-    pricePerUnit,
+    pricePerKwh,
     
     // Additional info
     chargerType,

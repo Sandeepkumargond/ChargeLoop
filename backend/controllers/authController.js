@@ -381,12 +381,11 @@ exports.requestHostRegistration = async (req, res) => {
           lng: parseFloat(longitude)
         }
       },
-      chargerType: chargerTypes && chargerTypes[0] ? chargerTypes[0] : 'Regular Charging (22kW)',
+      chargerType: chargerTypes && chargerTypes[0] ? chargerTypes[0] : null,
       // NEW: Charger power and pricing fields (from user input only)
       chargerPowerKw: parseFloat(chargerPowerKw) || 22,
       socketMaxCapacity: parseFloat(socketMaxCapacity) || 3.3,
       pricePerKwh: parseFloat(pricePerKwh || pricePerUnit) || 0,
-      pricePerUnit: parseFloat(pricePerUnit || pricePerKwh) || 0,
       convenienceFee: parseFloat(convenienceFee) || 0,
       verificationStatus: 'pending',
       documents: {
@@ -437,7 +436,6 @@ exports.getHostRegistrationStatus = async (req, res) => {
         _id: host._id,
         hostName: host.hostName,
         verificationStatus: host.verificationStatus,
-        isVerified: host.isVerified,
         rejectionReason: host.rejectionReason,
         isVisibleOnMap: host.isVisibleOnMap,
         email: host.email,
@@ -505,14 +503,7 @@ exports.sendOtp = async (req, res) => {
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-
-    const emailResult = await sendOtpEmail(email, otp);
-
-    if (!emailResult.success) {
-      return res.status(500).json({ msg: 'Failed to send OTP email' });
-    }
 
     if (!global.otpStore) {
       global.otpStore = {};
@@ -524,6 +515,16 @@ exports.sendOtp = async (req, res) => {
       attempts: 0
     };
 
+    // Send email asynchronously in background (don't wait for it)
+    sendOtpEmail(email, otp).catch(err => {
+      console.error('Failed to send OTP email:', err.message);
+      // Update store to mark email as failed
+      if (global.otpStore[email]) {
+        global.otpStore[email].emailFailed = true;
+      }
+    });
+
+    // Respond immediately to the client
     res.status(200).json({
       msg: 'OTP sent successfully to your email',
       success: true

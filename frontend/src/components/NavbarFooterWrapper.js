@@ -7,7 +7,8 @@ import Footer from './Footer';
 export default function NavbarFooterWrapper() {
   const pathname = usePathname();
 
-  const isHiddenRoute = pathname.startsWith('/user') || pathname.startsWith('/profile') || pathname.startsWith('/host') || pathname === '/map'|| pathname.startsWith('/admin/dashboard') ;
+  // Hide navbar on dashboard pages where DashboardLayout provides the sidebar
+  const isHiddenRoute = pathname.startsWith('/user') || pathname.startsWith('/profile') || pathname.startsWith('/host') || pathname === '/map' || pathname.startsWith('/admin/dashboard');
 
   if (isHiddenRoute) {
     return null;

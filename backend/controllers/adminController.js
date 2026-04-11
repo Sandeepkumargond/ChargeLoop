@@ -67,7 +67,6 @@ const approveHost = async (req, res) => {
     }
 
     host.verificationStatus = 'approved';
-    host.isVerified = true;
     host.isActive = true;
     host.rejectionReason = undefined;
     await host.save();
@@ -107,7 +106,6 @@ const rejectHost = async (req, res) => {
     }
 
     host.verificationStatus = 'rejected';
-    host.isVerified = false;
     host.rejectionReason = reason.trim();
     await host.save();
 

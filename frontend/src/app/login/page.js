@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { GoogleLogin } from '@react-oauth/google';
+import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
 
 export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
@@ -51,7 +52,7 @@ const handleSubmit = async (e) => {
     setError('');
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,8 +65,18 @@ const handleSubmit = async (e) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        setError(errorData.msg || 'Login failed');
+        let errorMsg = 'Login failed';
+        try {
+          const errorData = await response.json();
+          if (response.status === 401 || response.status === 400) {
+            errorMsg = 'Email or password is wrong. Please try again.';
+          } else {
+            errorMsg = errorData.msg || errorMsg;
+          }
+        } catch (e) {
+          errorMsg = 'Login failed. Please try again.';
+        }
+        setError(errorMsg);
         setLoading(false);
         return;
       }
@@ -89,7 +100,7 @@ const handleSubmit = async (e) => {
         }
       }
     } catch (error) {
-      setError(error.message);
+      setError(error.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -101,10 +112,10 @@ const handleSubmit = async (e) => {
 
     try {
       if (!credentialResponse?.credential) {
-        throw new Error('Google authentication failed - no credential received. Please ensure your Google Cloud Console is properly configured.');
+        throw new Error('Google authentication failed. Please try again.');
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/google-login`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/google-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -118,9 +129,9 @@ const handleSubmit = async (e) => {
       if (!response.ok) {
         const errorData = await response.json();
         if (response.status === 400) {
-          throw new Error('Invalid Google token. Please clear your browser cache and try again.');
+          throw new Error('Google authentication failed. Invalid credentials. Please try again.');
         } else if (response.status === 500) {
-          throw new Error('Server error during authentication. Please try again.');
+          throw new Error('Server error during authentication. Please try again later.');
         }
         throw new Error(errorData.error || 'Google login failed');
       }
@@ -133,7 +144,7 @@ const handleSubmit = async (e) => {
         let userType = 'user';
 
         try {
-          const userTypeResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/check-user-type`, {
+          const userTypeResponse = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/check-user-type`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -165,7 +176,7 @@ const handleSubmit = async (e) => {
         }
       }
     } catch (error) {
-      const errorMsg = error.message || 'Failed to login with Google. Check console for details.';
+      const errorMsg = error.message || 'Failed to login with Google. Please try again.';
       setError(errorMsg);
     } finally {
       setLoading(false);

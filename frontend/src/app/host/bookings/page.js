@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingCard from '@/components/LoadingCard';
+import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
 
 export default function BookingsPage() {
   const router = useRouter();
@@ -15,11 +16,14 @@ export default function BookingsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState('all');
   const [totalPages, setTotalPages] = useState(1);
+  const [cancellingRequestId, setCancellingRequestId] = useState(null);
+  const [markingDoneRequestId, setMarkingDoneRequestId] = useState(null);
+  const [timeRemaining, setTimeRemaining] = useState({});
 
   const fetchPendingRequests = useCallback(async (token) => {
     try {
       setRequestsLoading(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/host/booking-requests/pending`, {
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/host/booking-requests/pending`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -32,6 +36,7 @@ export default function BookingsPage() {
         setBookingRequests(data.requests || []);
       }
     } catch (error) {
+      setBookingRequests([]);
     } finally {
       setRequestsLoading(false);
     }
@@ -41,7 +46,7 @@ export default function BookingsPage() {
     try {
       setRequestsLoading(true);
       const statusQuery = status !== 'all' ? `&status=${status}` : '';
-      const response = await fetch(
+      const response = await fetchWithFriendlyError(
         `${process.env.NEXT_PUBLIC_API_URL}/api/host/booking-requests/history?page=${page}&limit=10${statusQuery}`,
         {
           method: 'GET',
@@ -58,6 +63,7 @@ export default function BookingsPage() {
         setTotalPages(data.pagination?.pages || 1);
       }
     } catch (error) {
+      setBookingHistory([]);
     } finally {
       setRequestsLoading(false);
     }
@@ -66,7 +72,7 @@ export default function BookingsPage() {
   const handleAcceptRequest = async (requestId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(
+      const response = await fetchWithFriendlyError(
         `${process.env.NEXT_PUBLIC_API_URL}/api/host/booking-requests/${requestId}/accept`,
         {
           method: 'PUT',
@@ -78,21 +84,20 @@ export default function BookingsPage() {
       );
 
       if (response.ok) {
-
         fetchPendingRequests(token);
         alert('Booking request accepted successfully!');
       } else {
         alert('Failed to accept booking request');
       }
     } catch (error) {
-      alert('Error accepting booking request');
+      alert(error.message || 'Error accepting booking request');
     }
   };
 
   const handleDeclineRequest = async (requestId, reason = '') => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(
+      const response = await fetchWithFriendlyError(
         `${process.env.NEXT_PUBLIC_API_URL}/api/host/booking-requests/${requestId}/decline`,
         {
           method: 'PUT',
@@ -105,16 +110,132 @@ export default function BookingsPage() {
       );
 
       if (response.ok) {
-
         fetchPendingRequests(token);
         alert('Booking request declined successfully!');
       } else {
         alert('Failed to decline booking request');
       }
     } catch (error) {
-      alert('Error declining booking request');
+      alert(error.message || 'Error declining booking request');
     }
   };
+
+  const handleCancelRequest = async (requestId) => {
+    setCancellingRequestId(requestId);
+    try {
+      const token = localStorage.getItem('token');
+      const reason = prompt('Enter reason for cancellation (optional):');
+
+      if (reason === null) {
+        setCancellingRequestId(null);
+        return;
+      }
+
+      const response = await fetchWithFriendlyError(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/host/requests/${requestId}/cancel`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ reason: reason || '' }),
+        }
+      );
+
+      if (response.ok) {
+        const token = localStorage.getItem('token');
+        fetchBookingHistory(token, currentPage, filterStatus);
+        alert('Booking cancelled successfully!');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.msg || 'Failed to cancel booking');
+      }
+    } catch (error) {
+      alert(error.message || 'Error cancelling booking');
+    } finally {
+      setCancellingRequestId(null);
+    }
+  };
+
+  const handleMarkDone = async (requestId) => {
+    setMarkingDoneRequestId(requestId);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetchWithFriendlyError(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/host/requests/${requestId}/mark-done`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.ok) {
+        const token = localStorage.getItem('token');
+        fetchBookingHistory(token, currentPage, filterStatus);
+        alert('Charging marked as completed successfully!');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.msg || 'Failed to mark charging as done');
+      }
+    } catch (error) {
+      alert(error.message || 'Error marking charging done');
+    } finally {
+      setMarkingDoneRequestId(null);
+    }
+  };
+
+  const calculateTimeRemaining = useCallback((startTime, requestedDuration) => {
+    if (!startTime || !requestedDuration) return null;
+    
+    const start = new Date(startTime);
+    const end = new Date(start.getTime() + requestedDuration * 60 * 1000);
+    const now = new Date();
+    
+    const remainingMs = end - now;
+    const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
+    
+    if (remainingMinutes <= 0) {
+      return 'Time expired - Mark as done';
+    }
+    
+    const hours = Math.floor(remainingMinutes / 60);
+    const mins = remainingMinutes % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${mins}m remaining`;
+    }
+    return `${mins}m remaining`;
+  }, []);
+
+  useEffect(() => {
+    // Update time remaining every minute
+    const interval = setInterval(() => {
+      const updated = {};
+      bookingHistory.forEach(request => {
+        if (request.status === 'accepted' && request.startTime && request.requestedDuration) {
+          updated[request._id] = calculateTimeRemaining(request.startTime, request.requestedDuration);
+        }
+      });
+      setTimeRemaining(updated);
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [bookingHistory, calculateTimeRemaining]);
+
+  // Calculate time remaining on first load
+  useEffect(() => {
+    const updated = {};
+    bookingHistory.forEach(request => {
+      if (request.status === 'accepted' && request.startTime && request.requestedDuration) {
+        updated[request._id] = calculateTimeRemaining(request.startTime, request.requestedDuration);
+      }
+    });
+    setTimeRemaining(updated);
+  }, [bookingHistory, calculateTimeRemaining]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -202,6 +323,16 @@ export default function BookingsPage() {
             >
               Declined
             </button>
+            <button
+              onClick={() => handleFilterChange('completed')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                filterStatus === 'completed'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-white hover:bg-neutral-300 dark:hover:bg-neutral-600'
+              }`}
+            >
+              Completed
+            </button>
           </div>
 
           {requestsLoading ? (
@@ -262,16 +393,51 @@ export default function BookingsPage() {
 
                     {}
                     <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Status</div>
-                    <div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold inline-block ${
+                    <div className="flex flex-col gap-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold inline-block w-fit ${
                         request.status === 'pending'
                           ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
                           : request.status === 'accepted'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                          : request.status === 'completed'
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                           : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                       }`}>
                         {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                       </span>
+                      {request.status === 'accepted' && (
+                        <>
+                          {timeRemaining[request._id] && (
+                            <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium">
+                              ⏱️ {timeRemaining[request._id]}
+                            </p>
+                          )}
+                          <div className="flex gap-2 flex-wrap">
+                            <button
+                              onClick={() => handleMarkDone(request._id)}
+                              disabled={markingDoneRequestId === request._id}
+                              className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                                markingDoneRequestId === request._id
+                                  ? 'bg-green-500 text-white opacity-75 cursor-not-allowed'
+                                  : 'bg-green-600 hover:bg-green-700 text-white'
+                              }`}
+                            >
+                              {markingDoneRequestId === request._id ? 'Marking...' : 'Mark Done'}
+                            </button>
+                            <button
+                              onClick={() => handleCancelRequest(request._id)}
+                              disabled={cancellingRequestId === request._id}
+                              className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                                cancellingRequestId === request._id
+                                  ? 'bg-orange-500 text-white opacity-75 cursor-not-allowed'
+                                  : 'bg-orange-600 hover:bg-orange-700 text-white'
+                              }`}
+                            >
+                              {cancellingRequestId === request._id ? 'Cancelling...' : 'Cancel'}
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {}
