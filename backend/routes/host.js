@@ -17,19 +17,17 @@ const {
   getChargerStationDetails
 } = require('../controllers/chargerController');
 
-router.get('/nearby', getNearbyHosts);
-router.get('/all', getAllHosts);
+router.get('/nearby', auth, getNearbyHosts);
+router.get('/all', auth, getAllHosts);
 
-// ===== CHARGER STATION MANAGEMENT (moved from charger.js) =====
-router.get('/chargers/nearby', getNearbyChargerStations);
+router.get('/chargers/nearby', auth, getNearbyChargerStations);
 router.post('/chargers', auth, createChargerStation);
 router.get('/chargers/host/stations', auth, getHostChargerStations);
-router.get('/chargers/:id', getChargerStationDetails);
+router.get('/chargers/:id', auth, getChargerStationDetails);
 router.put('/chargers/:id', auth, updateChargerStation);
 router.patch('/chargers/:id/availability', auth, updateAvailability);
 router.delete('/chargers/:id', auth, deleteChargerStation);
 
-// ===== DOCUMENT UPLOAD =====
 router.post('/upload-document', auth, async (req, res) => {
   try {
     if (!req.files || !req.files.file) {
@@ -81,11 +79,9 @@ router.post('/upload-document', auth, async (req, res) => {
   }
 });
 
-// ===== HOST PROFILE & AVAILABILITY =====
 router.put('/:hostId/availability', auth, updateHostAvailability);
 router.put('/:hostId/visibility', auth, toggleMapVisibility);
 
-// ===== BOOKING MANAGEMENT FOR HOSTS =====
 router.get('/booking-requests/pending', auth, async (req, res) => {
   try {
     const host = await Host.findOne({ userId: req.user.id });

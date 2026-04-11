@@ -181,6 +181,7 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
     let pricePerKwh = null;
     let convenienceFee = null;
     let socketMaxCapacity = null;
+    let chargerPowerKw = null;
     let hostPhone = null;
 
     if (hostId) {

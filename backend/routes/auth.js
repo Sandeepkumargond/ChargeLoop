@@ -50,7 +50,7 @@ router.post('/request-host-registration', authMiddleware, requestHostRegistratio
 router.get('/host-registration-status', authMiddleware, getHostRegistrationStatus);
 
 // ===== DIAGNOSTIC ENDPOINT =====
-router.get('/health/imagekit', async (req, res) => {
+router.get('/health/imagekit', authMiddleware, async (req, res) => {
   try {
     const { hasImageKitCredentials } = require('../services/imagekitService');
     
