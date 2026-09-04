@@ -1,0 +1,121 @@
+# ============================================================
+# ChargeLoop Backend API - Kubernetes Deployment
+# ============================================================
+# Runs 3 replicas of the Express API server.
+# Each pod runs server.js (single process) — K8s handles scaling.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chargeloop-api
+  namespace: chargeloop
+  labels:
+    app: chargeloop
+    component: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chargeloop
+      component: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: chargeloop
+        component: api
+    spec:
+      containers:
+        - name: api
+          image: chargeloop/backend:latest
+          ports:
+            - containerPort: 5000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: chargeloop-config
+            - secretRef:
+                name: chargeloop-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /
+              port: 5000
+            failureThreshold: 30
+            periodSeconds: 5
+
+---
+# ============================================================
+# Backend API Service (ClusterIP — internal only)
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: chargeloop-api
+  namespace: chargeloop
+  labels:
+    app: chargeloop
+    component: api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+  selector:
+    app: chargeloop
+    component: api
+
+---
+# ============================================================
+# Horizontal Pod Autoscaler — scale 3→10 pods based on CPU
+# ============================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: chargeloop-api-hpa
+  namespace: chargeloop
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: chargeloop-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

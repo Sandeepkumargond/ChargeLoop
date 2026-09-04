@@ -13,6 +13,18 @@ const adminRoutes = require('./routes/admin');
 const contactRoutes = require('./routes/contact');
 const securityMiddleware = require('./middleware/security');
 
+// Redis & Queue imports
+const { getRedisClient, closeRedis } = require('./services/redisService');
+const { startEmailWorker, stopEmailWorker } = require('./workers/emailWorker');
+const { startBookingExpiryWorker, stopBookingExpiryWorker } = require('./workers/bookingExpiryWorker');
+const socketService = require('./services/socketService');
+
+// Bull Board (queue monitoring dashboard)
+const { createBullBoard } = require('@bull-board/api');
+const { BullMQAdapter } = require('@bull-board/api/bullMQAdapter');
+const { ExpressAdapter } = require('@bull-board/express');
+const { getEmailQueue, getBookingExpiryQueue } = require('./queues/jobQueues');
+
 const app = express();
 
 
@@ -28,7 +40,7 @@ app.use(securityMiddleware.helmet);
 app.use(securityMiddleware.securityHeaders);
 
 app.use(cors({
-  origin: '*',
+  origin: 'https://chargeloop.vercel.app/',
   credentials: false,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -52,6 +64,25 @@ app.use(securityMiddleware.inputLengthValidator);
 app.use(securityMiddleware.preventHttp);
 app.use(securityMiddleware.requestValidator);
 
+// ============================================================
+// Bull Board — Queue Monitoring Dashboard
+// ============================================================
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath('/admin/queues');
+
+createBullBoard({
+  queues: [
+    new BullMQAdapter(getEmailQueue()),
+    new BullMQAdapter(getBookingExpiryQueue()),
+  ],
+  serverAdapter,
+});
+
+app.use('/admin/queues', serverAdapter.getRouter());
+
+// ============================================================
+// Database Connection
+// ============================================================
 mongoose.connect(process.env.MONGO_URI, {
   maxPoolSize: 50,        // Increase connection pool size
   minPoolSize: 10,        // Minimum connections
@@ -60,9 +91,24 @@ mongoose.connect(process.env.MONGO_URI, {
   retryWrites: true,
   w: 'majority'
 })
-  .then(() => console.log('MongoDB Connected with Connection Pooling'))
-  .catch((err) => console.log('MongoDB Connection Error:', err));
+  .then(() => console.log('✅ MongoDB Connected with Connection Pooling'))
+  .catch((err) => console.log('❌ MongoDB Connection Error:', err));
 
+// ============================================================
+// Initialize Redis & BullMQ Workers
+// ============================================================
+try {
+  getRedisClient(); // Establish Redis connection
+  startEmailWorker(); // Start email processing worker
+  startBookingExpiryWorker(); // Start booking expiry worker
+} catch (err) {
+  console.error('⚠️  Redis/Worker initialization error:', err.message);
+  console.warn('⚠️  Server will run without Redis features. OTP and rate limiting will use fallback mode.');
+}
+
+// ============================================================
+// API Routes
+// ============================================================
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/host', hostRoutes);
@@ -74,10 +120,57 @@ app.get('/', (req, res) => {
     uptime: process.uptime(),
     message: 'OK',
     timestamp: Date.now(),
-    mongoStatus: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
+    mongoStatus: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+    redisStatus: getRedisClient()?.status || 'Unknown'
   };
   res.status(200).json(healthcheck);
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const server = app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
+// Initialize WebSockets
+socketService.init(server).then(() => {
+  console.log('✅ WebSockets (Socket.io) Initialized with Redis Adapter');
+}).catch(err => {
+  console.error('❌ WebSockets Initialization Error:', err);
+});
+
+// ============================================================
+// Graceful Shutdown
+// ============================================================
+async function gracefulShutdown(signal) {
+  console.log(`\n🛑 ${signal} received. Shutting down gracefully...`);
+  
+  server.close(async () => {
+    console.log('✅ HTTP server closed');
+    
+    // Stop workers first (let them finish current jobs)
+    await stopEmailWorker();
+    await stopBookingExpiryWorker();
+    
+    // Close queue connections
+    const { closeQueues } = require('./queues/jobQueues');
+    await closeQueues();
+    
+    // Close Redis
+    await closeRedis();
+    
+    // Close MongoDB
+    await mongoose.connection.close(false);
+    console.log('✅ MongoDB connection closed');
+    
+    console.log('✅ Graceful shutdown complete');
+    process.exit(0);
+  });
+  
+  // Force kill after 10 seconds if graceful shutdown hangs
+  setTimeout(() => {
+    console.error('❌ Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+

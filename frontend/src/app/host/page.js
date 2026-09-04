@@ -4,12 +4,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingCard from '@/components/LoadingCard';
 import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
+import { useSocket } from '@/contexts/SocketContext';
 
 export default function HostPage() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState('');
+  const { socket } = useSocket();
 
   const [registrationStatus, setRegistrationStatus] = useState(null);
   const [regStatusLoading, setRegStatusLoading] = useState(false);
@@ -104,6 +106,22 @@ export default function HostPage() {
 
     // return () => clearInterval(statusInterval);
   }, [router, fetchRegistrationStatus, fetchPendingRequests]);
+
+  useEffect(() => {
+    if (socket) {
+      const handleBookingEvent = (data) => {
+        fetchPendingRequests();
+      };
+
+      socket.on('new_booking_request', handleBookingEvent);
+      socket.on('booking_update', handleBookingEvent);
+
+      return () => {
+        socket.off('new_booking_request', handleBookingEvent);
+        socket.off('booking_update', handleBookingEvent);
+      };
+    }
+  }, [socket, fetchPendingRequests]);
 
   const handleAcceptRequest = async (requestId) => {
     setProcessingRequestId(requestId);

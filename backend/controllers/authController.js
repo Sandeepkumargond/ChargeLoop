@@ -2,7 +2,9 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
-const { verifyEmailAddress, sendOtpEmail } = require('../services/emailService');
+const { verifyEmailAddress } = require('../services/emailService');
+const { storeOtp, verifyOtp: verifyOtpFromRedis, deleteOtp } = require('../services/redisService');
+const { enqueueOtpEmail } = require('../queues/jobQueues');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -503,26 +505,12 @@ exports.sendOtp = async (req, res) => {
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    if (!global.otpStore) {
-      global.otpStore = {};
-    }
+    // Store OTP in Redis with 10-minute TTL (works across all cluster workers)
+    await storeOtp(email, otp, 600);
 
-    global.otpStore[email] = {
-      otp,
-      expiry: otpExpiry,
-      attempts: 0
-    };
-
-    // Send email asynchronously in background (don't wait for it)
-    sendOtpEmail(email, otp).catch(err => {
-      console.error('Failed to send OTP email:', err.message);
-      // Update store to mark email as failed
-      if (global.otpStore[email]) {
-        global.otpStore[email].emailFailed = true;
-      }
-    });
+    // Enqueue email via BullMQ (guaranteed delivery with retries)
+    await enqueueOtpEmail(email, otp);
 
     // Respond immediately to the client
     res.status(200).json({
@@ -542,28 +530,12 @@ exports.verifyOtp = async (req, res) => {
       return res.status(400).json({ msg: 'Email and OTP are required' });
     }
 
-    if (!global.otpStore || !global.otpStore[email]) {
-      return res.status(400).json({ msg: 'OTP not found or expired. Please request a new OTP' });
+    // Verify OTP from Redis (handles expiry, attempts, and cleanup)
+    const result = await verifyOtpFromRedis(email, otp);
+
+    if (!result.valid) {
+      return res.status(400).json({ msg: result.reason });
     }
-
-    const storedOtp = global.otpStore[email];
-
-    if (new Date() > storedOtp.expiry) {
-      delete global.otpStore[email];
-      return res.status(400).json({ msg: 'OTP has expired. Please request a new one' });
-    }
-
-    if (storedOtp.attempts >= 5) {
-      delete global.otpStore[email];
-      return res.status(400).json({ msg: 'Too many failed attempts. Please request a new OTP' });
-    }
-
-    if (storedOtp.otp !== otp) {
-      storedOtp.attempts += 1;
-      return res.status(400).json({ msg: 'Invalid OTP' });
-    }
-
-    delete global.otpStore[email];
 
     const verificationToken = jwt.sign({ email, otpVerified: true }, process.env.JWT_SECRET, { expiresIn: '30m' });
 

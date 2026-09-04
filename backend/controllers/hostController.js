@@ -1,4 +1,5 @@
 const Host = require('../models/Host');
+const { getCache, setCache, invalidateCachePattern } = require('../services/redisService');
 
 const getNearbyHosts = async (req, res) => {
   try {
@@ -43,6 +44,16 @@ const getNearbyHosts = async (req, res) => {
 const getAllHosts = async (req, res) => {
   try {
     const { city, state, chargerType } = req.query;
+
+    // Build cache key from query params
+    const cacheKey = `hosts:all:${city || ''}:${state || ''}:${chargerType || ''}`;
+
+    // Try Redis cache first (30s TTL)
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      return res.json({ hosts: cached });
+    }
+
     let filter = {
       verificationStatus: 'approved',
       isVisibleOnMap: true
@@ -59,6 +70,10 @@ const getAllHosts = async (req, res) => {
       }
       return h;
     });
+
+    // Cache for 30 seconds
+    await setCache(cacheKey, formattedHosts, 30);
+
     res.json({ hosts: formattedHosts });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch hosts' });
@@ -85,6 +100,10 @@ const updateHostAvailability = async (req, res) => {
     if (availableTo) updateData.availableTo = availableTo;
 
     const updatedHost = await Host.findByIdAndUpdate(hostId, updateData, { new: true });
+
+    // Invalidate hosts cache when availability changes
+    await invalidateCachePattern('hosts:*');
+
     res.json(updatedHost);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update host availability' });
@@ -111,6 +130,9 @@ const toggleMapVisibility = async (req, res) => {
 
     host.isVisibleOnMap = isVisibleOnMap;
     const updatedHost = await host.save();
+
+    // Invalidate hosts cache when visibility changes
+    await invalidateCachePattern('hosts:*');
 
     res.json({
       message: 'Map visibility updated successfully',

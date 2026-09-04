@@ -6,8 +6,9 @@ const Transaction = require('../models/Transaction');
 const BookingRequest = require('../models/BookingRequest');
 const ChargerStation = require('../models/ChargerStation');
 const authMiddleware = require('../middleware/auth');
-const { sendBookingConfirmationEmail } = require('../services/emailService');
 const pricingService = require('../services/pricingService');
+const { scheduleBookingExpiry } = require('../queues/jobQueues');
+
 const { 
   getProfile, 
   updateProfile, 
@@ -277,6 +278,27 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
 
       await bookingRequest.save();
 
+      // Emit WebSocket event to host
+      try {
+        const { getIo } = require('../services/socketService');
+        getIo().to(hostId.toString()).emit('new_booking_request', {
+          bookingId: bookingRequest._id,
+          requestId: bookingRequest.requestId,
+          vehicleNumber: bookingRequest.vehicleNumber,
+          scheduledTime: bookingRequest.scheduledTime
+        });
+      } catch (socketErr) {
+        console.error('Failed to emit socket event:', socketErr.message);
+      }
+
+      // Schedule auto-expiry if host doesn't respond within 15 minutes
+      try {
+        await scheduleBookingExpiry(bookingRequest._id.toString(), 15 * 60 * 1000);
+      } catch (queueErr) {
+        console.error('Failed to schedule booking expiry:', queueErr.message);
+        // Non-critical — booking still created successfully
+      }
+
       return res.status(201).json({
         success: true,
         msg: 'Booking request created successfully',
@@ -383,6 +405,17 @@ router.put('/bookings/requests/:requestId/cancel', authMiddleware, async (req, r
 
     request.status = 'declined';
     await request.save();
+
+    // Emit WebSocket event to host
+    try {
+      const { getIo } = require('../services/socketService');
+      getIo().to(request.hostId.toString()).emit('booking_update', {
+        bookingId: request._id,
+        status: 'declined' // Because user cancelled
+      });
+    } catch (socketErr) {
+      console.error('Failed to emit socket event:', socketErr.message);
+    }
 
     res.json({
       success: true,

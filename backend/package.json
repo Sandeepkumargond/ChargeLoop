@@ -4,10 +4,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "start:cluster": "node server-cluster.js",
-    "start:scale": "cross-env NODE_ENV=production WORKER_THREADS=4 node server-cluster.js",
+    "start:worker": "node workers/standalone.js",
     "dev": "nodemon server.js",
-    "dev:cluster": "nodemon server-cluster.js",
+    "dev:worker": "nodemon workers/standalone.js",
     "build": "echo 'Build complete'"
   },
   "keywords": [],
@@ -18,9 +17,14 @@
     "node": "22.22.0"
   },
   "dependencies": {
+    "@bull-board/api": "^9.8.0",
+    "@bull-board/express": "^9.8.0",
     "@imagekit/nodejs": "^7.3.0",
+    "@socket.io/redis-adapter": "^8.3.0",
     "axios": "^1.14.0",
     "bcryptjs": "^3.0.2",
+    "bull-board": "^1.7.2",
+    "bullmq": "^6.3.4",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
@@ -31,11 +35,14 @@
     "google-auth-library": "^10.2.1",
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongo-sanitize": "^1.1.0",
     "mongoose": "^8.16.4",
     "multer": "^2.1.1",
-    "nodemailer": "^7.0.5"
+    "nodemailer": "^7.0.5",
+    "rate-limit-redis": "^6.0.1",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
