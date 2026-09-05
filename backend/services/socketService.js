@@ -23,12 +23,30 @@ const init = async (server) => {
     }
   });
 
-  const redisOptions = getRedisConnectionOptions();
-  pubClient = new Redis(redisOptions);
-  subClient = pubClient.duplicate();
+  pubClient = new Redis(getRedisConnectionOptions('SocketPub'));
+  subClient = new Redis(getRedisConnectionOptions('SocketSub'));
 
+  pubClient.on('connect', () => {
+    console.log('✅ [Socket.io Redis Pub] Connected');
+  });
+  pubClient.on('ready', () => {
+    console.log('🚀 [Socket.io Redis Pub] Ready');
+  });
+  pubClient.on('close', () => {
+    console.warn('⚠️  [Socket.io Redis Pub] Connection closed');
+  });
   pubClient.on('error', (err) => {
     console.error('❌ [Socket.io Redis Pub] Error:', err.message);
+  });
+
+  subClient.on('connect', () => {
+    console.log('✅ [Socket.io Redis Sub] Connected');
+  });
+  subClient.on('ready', () => {
+    console.log('🚀 [Socket.io Redis Sub] Ready');
+  });
+  subClient.on('close', () => {
+    console.warn('⚠️  [Socket.io Redis Sub] Connection closed');
   });
   subClient.on('error', (err) => {
     console.error('❌ [Socket.io Redis Sub] Error:', err.message);

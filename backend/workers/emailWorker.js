@@ -79,7 +79,7 @@ function startEmailWorker() {
       throw error; // Re-throw so BullMQ retries
     }
   }, {
-    connection: getBullMQConnectionOptions(),
+    connection: getBullMQConnectionOptions('EmailWorker'),
     concurrency: 5,       // Process up to 5 emails concurrently
     limiter: {
       max: 20,            // Max 20 emails per minute (Gmail limits)
