@@ -18,26 +18,78 @@ let redisClient = null;
 let subscriberClient = null;
 
 /**
+ * Parse REDIS_URL and produce production-ready ioredis connection options.
+ * Compatible with local Redis, Docker, and Cloud providers (Upstash, Render, AWS, Heroku).
+ */
+function getRedisConnectionOptions() {
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+
+  try {
+    const parsed = new URL(redisUrl);
+    const isTls = parsed.protocol === 'rediss:';
+
+    const options = {
+      host: parsed.hostname || 'localhost',
+      port: Number(parsed.port) || 6379,
+      username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
+      password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+      maxRetriesPerRequest: null, // Required by BullMQ
+      enableReadyCheck: false,    // Prevents INFO command failures on cloud/proxy Redis
+      keepAlive: 10000,           // 10s TCP keepalive prevents idle connection drops (ECONNRESET)
+      connectTimeout: 15000,
+      retryStrategy(times) {
+        const delay = Math.min(times * 250, 5000);
+        if (times <= 5 || times % 10 === 0) {
+          console.log(`⚠️  Redis reconnecting in ${delay}ms (attempt ${times})`);
+        }
+        return delay;
+      },
+      reconnectOnError(err) {
+        // ONLY reconnect on Redis engine cluster failover errors (READONLY).
+        // NEVER reconnect on transport/socket errors (ECONNRESET/ETIMEDOUT are handled by retryStrategy).
+        const targetError = 'READONLY';
+        return Boolean(err && err.message && err.message.includes(targetError));
+      }
+    };
+
+    if (isTls) {
+      options.tls = {
+        servername: parsed.hostname,
+        rejectUnauthorized: process.env.REDIS_TLS_REJECT_UNAUTHORIZED !== 'false',
+      };
+    }
+
+    return options;
+  } catch (err) {
+    return {
+      host: 'localhost',
+      port: 6379,
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+      keepAlive: 10000,
+      retryStrategy(times) {
+        return Math.min(times * 250, 5000);
+      }
+    };
+  }
+}
+
+/**
+ * Get dedicated Redis connection options for BullMQ queues and workers.
+ * BullMQ uses this to instantiate and manage its own isolated connections.
+ */
+function getBullMQConnectionOptions() {
+  return getRedisConnectionOptions();
+}
+
+/**
  * Create and return the main Redis client (singleton)
  */
 function getRedisClient() {
   if (redisClient) return redisClient;
 
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-
-  redisClient = new Redis(redisUrl, {
-    maxRetriesPerRequest: null, // Required by BullMQ
-    enableReadyCheck: true,
-    retryStrategy(times) {
-      const delay = Math.min(times * 200, 5000);
-      console.log(`⚠️  Redis reconnecting in ${delay}ms (attempt ${times})`);
-      return delay;
-    },
-    reconnectOnError(err) {
-      const targetErrors = ['READONLY', 'ECONNRESET', 'ETIMEDOUT'];
-      return targetErrors.some(e => err.message.includes(e));
-    }
-  });
+  const options = getRedisConnectionOptions();
+  redisClient = new Redis(options);
 
   redisClient.on('connect', () => {
     console.log('✅ Redis connected');
@@ -55,7 +107,7 @@ function getRedisClient() {
 }
 
 /**
- * Get a duplicate connection for pub/sub (BullMQ requires separate connections)
+ * Get a duplicate connection for pub/sub
  */
 function getSubscriberClient() {
   if (subscriberClient) return subscriberClient;
@@ -64,11 +116,11 @@ function getSubscriberClient() {
 }
 
 /**
- * Get Redis connection config for BullMQ queues
+ * Legacy helper for BullMQ connection
  */
 function getBullMQConnection() {
   return {
-    connection: getRedisClient(),
+    connection: getBullMQConnectionOptions(),
   };
 }
 
@@ -245,6 +297,8 @@ async function closeRedis() {
 module.exports = {
   getRedisClient,
   getSubscriberClient,
+  getRedisConnectionOptions,
+  getBullMQConnectionOptions,
   getBullMQConnection,
   // OTP
   storeOtp,

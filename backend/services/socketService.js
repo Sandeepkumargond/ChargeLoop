@@ -2,8 +2,11 @@ const { Server } = require('socket.io');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const Redis = require('ioredis');
 const jwt = require('jsonwebtoken');
+const { getRedisConnectionOptions } = require('./redisService');
 
 let io;
+let pubClient = null;
+let subClient = null;
 
 const init = async (server) => {
   const allowedOrigins = [
@@ -20,9 +23,16 @@ const init = async (server) => {
     }
   });
 
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-  const pubClient = new Redis(redisUrl);
-  const subClient = pubClient.duplicate();
+  const redisOptions = getRedisConnectionOptions();
+  pubClient = new Redis(redisOptions);
+  subClient = pubClient.duplicate();
+
+  pubClient.on('error', (err) => {
+    console.error('❌ [Socket.io Redis Pub] Error:', err.message);
+  });
+  subClient.on('error', (err) => {
+    console.error('❌ [Socket.io Redis Sub] Error:', err.message);
+  });
 
   io.adapter(createAdapter(pubClient, subClient));
 
@@ -63,7 +73,21 @@ const getIo = () => {
   return io;
 };
 
+const closeSocketAdapter = async () => {
+  const promises = [];
+  if (pubClient) {
+    promises.push(pubClient.quit().catch(() => {}));
+    pubClient = null;
+  }
+  if (subClient) {
+    promises.push(subClient.quit().catch(() => {}));
+    subClient = null;
+  }
+  await Promise.all(promises);
+};
+
 module.exports = {
   init,
-  getIo
+  getIo,
+  closeSocketAdapter
 };

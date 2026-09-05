@@ -3,7 +3,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const mongoose = require('mongoose');
-const { getRedisClient } = require('../services/redisService');
+const { getBullMQConnectionOptions } = require('../services/redisService');
 
 /**
  * Booking Expiry Worker
@@ -62,7 +62,7 @@ function startBookingExpiryWorker() {
       throw error; // Re-throw for BullMQ retry
     }
   }, {
-    connection: getRedisClient(),
+    connection: getBullMQConnectionOptions(),
     concurrency: 10, // Can process multiple expiry checks in parallel
   });
 

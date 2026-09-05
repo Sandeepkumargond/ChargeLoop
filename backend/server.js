@@ -167,6 +167,11 @@ async function gracefulShutdown(signal) {
     const { closeQueues } = require('./queues/jobQueues');
     await closeQueues();
 
+    // Close Socket.io Redis adapter connections
+    if (socketService.closeSocketAdapter) {
+      await socketService.closeSocketAdapter();
+    }
+
     // Close Redis
     await closeRedis();
 
