@@ -16,7 +16,7 @@ const {
 /**
  * Email Worker
  * 
- * Processes all email jobs from the 'chargeloop:email' queue.
+ * Processes all email jobs from the 'chargeloop-email' queue.
  * Runs either in-process (dev) or as a separate process (production).
  * 
  * Job types:
@@ -34,7 +34,7 @@ let emailWorker = null;
 function startEmailWorker() {
   if (emailWorker) return emailWorker;
 
-  emailWorker = new Worker('chargeloop:email', async (job) => {
+  emailWorker = new Worker('chargeloop-email', async (job) => {
     const startTime = Date.now();
     console.log(`📧 [EmailWorker] Processing job ${job.id} | type: ${job.name}`);
 

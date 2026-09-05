@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '../contexts/ThemeContext';
 import { fetchWithFriendlyError } from '../utils/fetchWithFriendlyError';
+import { clearAuth, logout } from '../utils/auth';
 
 const NAV_LINKS = [
   { href: '/map', label: 'Find Chargers' },
@@ -96,9 +97,7 @@ export default function Navbar() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.clear();
-    window.dispatchEvent(new Event('authChange'));
-    router.push('/');
+    logout('/');
   };
 
   if (!mounted) return <div className="h-16" />;

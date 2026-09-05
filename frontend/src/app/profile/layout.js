@@ -1,7 +1,10 @@
-'use client';
-
 import DashboardLayout from '@/components/DashboardLayout';
+import AuthGuard from '@/components/AuthGuard';
 
 export default function ProfileLayout({ children }) {
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return (
+    <AuthGuard allowedRoles={['user', 'host', 'admin']}>
+      <DashboardLayout>{children}</DashboardLayout>
+    </AuthGuard>
+  );
 }

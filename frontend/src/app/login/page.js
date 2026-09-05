@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { GoogleLogin } from '@react-oauth/google';
 import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
+import { setAuth } from '@/utils/auth';
 
 export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
@@ -84,14 +85,17 @@ const handleSubmit = async (e) => {
       const result = await response.json();
 
       if (result.token) {
-        localStorage.setItem('token', result.token);
-        localStorage.setItem('userEmail', email);
-        localStorage.setItem('userRole', result.user.role);
-        localStorage.setItem('userName', result.user.name || result.user.hostName || 'User');
+        setAuth({
+          token: result.token,
+          userEmail: email,
+          userRole: result.user.role,
+          userName: result.user.name || result.user.hostName || 'User',
+        });
 
-        window.dispatchEvent(new Event('authChange'));
-
-        if (result.user.role === 'host') {
+        const redirectParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null;
+        if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
+          router.push(redirectParam);
+        } else if (result.user.role === 'host') {
           router.push('/host');
         } else if (result.user.role === 'admin') {
           router.push('/admin/dashboard');
@@ -160,14 +164,17 @@ const handleSubmit = async (e) => {
         } catch (error) {
         }
 
-        localStorage.setItem('token', result.token);
-        localStorage.setItem('userEmail', userEmail);
-        localStorage.setItem('userRole', userType);
-        localStorage.setItem('userName', result.user.name || result.user.hostName || 'User');
+        setAuth({
+          token: result.token,
+          userEmail: userEmail,
+          userRole: userType,
+          userName: result.user.name || result.user.hostName || 'User',
+        });
 
-        window.dispatchEvent(new Event('authChange'));
-
-        if (userType === 'host') {
+        const redirectParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('redirect') : null;
+        if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
+          router.push(redirectParam);
+        } else if (userType === 'host') {
           router.push('/host');
         } else if (userType === 'admin') {
           router.push('/admin/dashboard');

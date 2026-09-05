@@ -5,6 +5,7 @@ import GoogleOAuthWrapper from '../components/GoogleOAuthWrapper';
 import ClientThemeProvider from '../components/ClientThemeProvider';
 import { SidebarProvider } from '../contexts/SidebarContext';
 import { SocketProvider } from '../contexts/SocketContext';
+import AuthSync from '../components/AuthSync';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -29,6 +30,7 @@ export default function RootLayout({ children }) {
     <html lang="en" className="scroll-smooth">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ClientThemeProvider>
+          <AuthSync />
           <GoogleOAuthWrapper>
             <SocketProvider>
               <SidebarProvider>

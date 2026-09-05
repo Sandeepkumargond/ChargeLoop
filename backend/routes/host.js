@@ -3,6 +3,7 @@ const router = express.Router();
 const Host = require('../models/Host');
 const BookingRequest = require('../models/BookingRequest');
 const ChargerStation = require('../models/ChargerStation');
+const Transaction = require('../models/Transaction');
 const auth = require('../middleware/auth');
 const { enqueueBookingConfirmation, cancelBookingExpiry } = require('../queues/jobQueues');
 const { uploadFile } = require('../services/imagekitService');
@@ -17,10 +18,10 @@ const {
   getChargerStationDetails
 } = require('../controllers/chargerController');
 
-router.get('/nearby', auth, getNearbyHosts);
-router.get('/all', auth, getAllHosts);
-
-router.get('/chargers/nearby', auth, getNearbyChargerStations);
+// Public charger map discovery endpoints (accessible on public /map page)
+router.get('/nearby', getNearbyHosts);
+router.get('/all', getAllHosts);
+router.get('/chargers/nearby', getNearbyChargerStations);
 router.post('/chargers', auth, createChargerStation);
 router.get('/chargers/host/stations', auth, getHostChargerStations);
 router.get('/chargers/:id', auth, getChargerStationDetails);
@@ -89,6 +90,15 @@ router.get('/booking-requests/pending', auth, async (req, res) => {
       return res.status(404).json({ message: 'Host profile not found' });
     }
 
+    // Auto-expire past pending requests
+    await BookingRequest.updateMany({
+      hostId: host._id,
+      status: 'pending',
+      scheduledTime: { $lt: new Date() }
+    }, {
+      $set: { status: 'expired' }
+    });
+
     const pendingRequests = await BookingRequest.find({
       hostId: host._id,
       status: 'pending'
@@ -97,10 +107,22 @@ router.get('/booking-requests/pending', auth, async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
+    const normalizedPending = pendingRequests.map(r => ({
+      ...r,
+      totalUnitsKwh: r.totalUnitsKwh ?? r.desiredKwh ?? 0,
+      desiredKwh: r.totalUnitsKwh ?? r.desiredKwh ?? 0,
+      pricePerUnit: r.pricePerKwh ?? r.pricePerUnit ?? 0,
+      pricePerKwh: r.pricePerKwh ?? r.pricePerUnit ?? 0,
+      totalBill: r.totalBill ?? r.estimatedCost ?? r.energyCost ?? 0,
+      estimatedCost: r.totalBill ?? r.estimatedCost ?? r.energyCost ?? 0,
+      requestedDuration: r.requestedDuration ?? r.estimatedDuration ?? r.actualDuration ?? 0,
+      estimatedDuration: r.requestedDuration ?? r.estimatedDuration ?? r.actualDuration ?? 0,
+    }));
+
     res.json({
       success: true,
-      requests: pendingRequests,
-      count: pendingRequests.length,
+      requests: normalizedPending,
+      count: normalizedPending.length,
       hostId: host._id.toString()
     });
   } catch (error) {
@@ -108,7 +130,7 @@ router.get('/booking-requests/pending', auth, async (req, res) => {
   }
 });
 
-router.put('/requests/:requestId/accept', auth, async (req, res) => {
+const acceptBookingRequestHandler = async (req, res) => {
   try {
     const { requestId } = req.params;
 
@@ -232,9 +254,12 @@ router.put('/requests/:requestId/accept', auth, async (req, res) => {
       msg: 'Failed to accept booking request'
     });
   }
-});
+};
 
-router.put('/requests/:requestId/decline', auth, async (req, res) => {
+router.put('/requests/:requestId/accept', auth, acceptBookingRequestHandler);
+router.put('/booking-requests/:requestId/accept', auth, acceptBookingRequestHandler);
+
+const declineBookingRequestHandler = async (req, res) => {
   try {
     const { requestId } = req.params;
     const { reason } = req.body;
@@ -303,9 +328,12 @@ router.put('/requests/:requestId/decline', auth, async (req, res) => {
       error: error.message
     });
   }
-});
+};
 
-router.put('/requests/:requestId/cancel', auth, async (req, res) => {
+router.put('/requests/:requestId/decline', auth, declineBookingRequestHandler);
+router.put('/booking-requests/:requestId/decline', auth, declineBookingRequestHandler);
+
+const cancelBookingRequestHandler = async (req, res) => {
   try {
     const { requestId } = req.params;
     const { reason } = req.body;
@@ -368,9 +396,12 @@ router.put('/requests/:requestId/cancel', auth, async (req, res) => {
       msg: 'Failed to cancel booking'
     });
   }
-});
+};
 
-router.put('/requests/:requestId/mark-done', auth, async (req, res) => {
+router.put('/requests/:requestId/cancel', auth, cancelBookingRequestHandler);
+router.put('/booking-requests/:requestId/cancel', auth, cancelBookingRequestHandler);
+
+const markDoneBookingRequestHandler = async (req, res) => {
   try {
     const { requestId } = req.params;
 
@@ -407,6 +438,40 @@ router.put('/requests/:requestId/mark-done', auth, async (req, res) => {
 
     await request.save();
 
+    // Calculate host earnings (totalBill - platformFee)
+    const platformFee = request.platformFee ?? 10;
+    const hostEarned = Math.max(0, (request.totalBill || request.actualCost || 0) - platformFee);
+
+    if (hostEarned > 0) {
+      userHost.totalEarnings = (userHost.totalEarnings || 0) + hostEarned;
+      userHost.totalBookings = (userHost.totalBookings || 0) + 1;
+      await userHost.save();
+
+      // Record host credit transaction
+      try {
+        const hostTransaction = new Transaction({
+          userId: request.userId._id || request.userId,
+          hostId: userHost._id,
+          bookingId: request._id,
+          type: 'credit',
+          amount: hostEarned,
+          description: `Host Payout Credit - Session (${request.vehicleNumber || 'EV'})`,
+          paymentMethod: request.paymentMethod || 'razorpay',
+          status: 'completed',
+          referenceId: `CR_${Date.now()}_${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+          metadata: {
+            bookingId: request._id,
+            energyConsumed: request.totalUnitsKwh || request.desiredKwh,
+            totalBill: request.totalBill,
+            platformFee
+          }
+        });
+        await hostTransaction.save();
+      } catch (txnErr) {
+        console.error('Error logging host credit transaction:', txnErr.message);
+      }
+    }
+
     // Emit WebSocket event to user
     try {
       const { getIo } = require('../services/socketService');
@@ -437,7 +502,10 @@ router.put('/requests/:requestId/mark-done', auth, async (req, res) => {
       msg: 'Failed to mark booking as done'
     });
   }
-});
+};
+
+router.put('/requests/:requestId/mark-done', auth, markDoneBookingRequestHandler);
+router.put('/booking-requests/:requestId/mark-done', auth, markDoneBookingRequestHandler);
 
 router.post('/register', auth, async (req, res) => {
   try {
@@ -563,14 +631,18 @@ router.get('/bookings', auth, async (req, res) => {
     const formattedBookings = bookings.map(booking => ({
       _id: booking._id,
       customerName: booking.userId?.name || 'Unknown',
-      customerPhone: booking.userId?.phone || 'N/A',
-      startTime: booking.startTime,
+      customerPhone: booking.userPhone || booking.userId?.phone || 'N/A',
+      startTime: booking.startTime || booking.scheduledTime,
       endTime: booking.endTime,
-      duration: booking.duration,
-      amount: booking.cost,
+      duration: booking.actualDuration || booking.requestedDuration || booking.estimatedDuration || booking.duration || 0,
+      amount: booking.totalBill || booking.actualCost || booking.energyCost || booking.cost || 0,
       status: booking.status,
       vehicleNumber: booking.vehicleNumber || 'N/A',
-      energyConsumed: booking.energyConsumed || 0,
+      vehicleModel: booking.vehicleModel || '',
+      vehicleType: booking.vehicleType || '',
+      energyConsumed: booking.totalUnitsKwh || booking.desiredKwh || booking.energyConsumed || 0,
+      pricePerUnit: booking.pricePerKwh ?? booking.pricePerUnit ?? 0,
+      pricePerKwh: booking.pricePerKwh ?? booking.pricePerUnit ?? 0,
       rating: booking.rating
     }));
 
@@ -710,7 +782,7 @@ router.get('/booking-requests/history', auth, async (req, res) => {
     }
 
     const query = { hostId: host._id };
-    if (status) {
+    if (status && status !== 'all') {
       query.status = status;
     }
 
@@ -722,9 +794,21 @@ router.get('/booking-requests/history', auth, async (req, res) => {
       .skip((page - 1) * limit)
       .lean();
 
+    const normalizedRequests = requests.map(r => ({
+      ...r,
+      totalUnitsKwh: r.totalUnitsKwh ?? r.desiredKwh ?? 0,
+      desiredKwh: r.totalUnitsKwh ?? r.desiredKwh ?? 0,
+      pricePerUnit: r.pricePerKwh ?? r.pricePerUnit ?? 0,
+      pricePerKwh: r.pricePerKwh ?? r.pricePerUnit ?? 0,
+      totalBill: r.totalBill ?? r.estimatedCost ?? r.energyCost ?? 0,
+      estimatedCost: r.totalBill ?? r.estimatedCost ?? r.energyCost ?? 0,
+      requestedDuration: r.requestedDuration ?? r.estimatedDuration ?? r.actualDuration ?? 0,
+      estimatedDuration: r.requestedDuration ?? r.estimatedDuration ?? r.actualDuration ?? 0,
+    }));
+
     res.json({
       success: true,
-      requests: requests,
+      requests: normalizedRequests,
       pagination: {
         current: parseInt(page),
         pages: Math.ceil(total / limit),

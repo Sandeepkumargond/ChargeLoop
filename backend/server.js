@@ -11,6 +11,7 @@ const userRoutes = require('./routes/user');
 const hostRoutes = require('./routes/host');
 const adminRoutes = require('./routes/admin');
 const contactRoutes = require('./routes/contact');
+const paymentRoutes = require('./routes/payment');
 const securityMiddleware = require('./middleware/security');
 
 // Redis & Queue imports
@@ -39,9 +40,21 @@ app.use(compression({
 app.use(securityMiddleware.helmet);
 app.use(securityMiddleware.securityHeaders);
 
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://chargeloop.vercel.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: 'https://chargeloop.vercel.app/',
-  credentials: false,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   maxAge: 3600
@@ -114,6 +127,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/host', hostRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/payment', paymentRoutes);
 
 app.get('/', (req, res) => {
   const healthcheck = {
@@ -141,29 +155,29 @@ socketService.init(server).then(() => {
 // ============================================================
 async function gracefulShutdown(signal) {
   console.log(`\n🛑 ${signal} received. Shutting down gracefully...`);
-  
+
   server.close(async () => {
     console.log('✅ HTTP server closed');
-    
+
     // Stop workers first (let them finish current jobs)
     await stopEmailWorker();
     await stopBookingExpiryWorker();
-    
+
     // Close queue connections
     const { closeQueues } = require('./queues/jobQueues');
     await closeQueues();
-    
+
     // Close Redis
     await closeRedis();
-    
+
     // Close MongoDB
     await mongoose.connection.close(false);
     console.log('✅ MongoDB connection closed');
-    
+
     console.log('✅ Graceful shutdown complete');
     process.exit(0);
   });
-  
+
   // Force kill after 10 seconds if graceful shutdown hangs
   setTimeout(() => {
     console.error('❌ Forced shutdown after timeout');

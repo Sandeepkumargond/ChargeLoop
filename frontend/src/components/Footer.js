@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useRouter } from 'next/navigation';
+import { clearAuth, logout } from '../utils/auth';
 
 export default function Footer() {
   const { theme, toggleTheme } = useTheme();
@@ -35,11 +36,7 @@ export default function Footer() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userEmail');
-    setIsLoggedIn(false);
-    window.dispatchEvent(new Event('authChange'));
-    router.push('/');
+    logout('/');
   };
 
   return (

@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import LoadingCard from '@/components/LoadingCard';
+import PaymentModal from '@/components/PaymentModal';
+import ReceiptModal from '@/components/ReceiptModal';
 import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
 import { useSocket } from '@/contexts/SocketContext';
 
@@ -18,6 +20,8 @@ export default function UserDashboardPage() {
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [userData, setUserData] = useState({ chargingSessions: 0 });
   const [cancellingId, setCancellingId] = useState(null);
+  const [paymentModalBooking, setPaymentModalBooking] = useState(null);
+  const [receiptModalBookingId, setReceiptModalBookingId] = useState(null);
 
   const fetchCurrentBookings = useCallback(async (token) => {
     try {
@@ -267,78 +271,120 @@ export default function UserDashboardPage() {
             </div>
           )}
 
-          {}
+          {/* Current Bookings */}
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white mb-3 sm:mb-4\">Current Bookings</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-neutral-900 dark:text-white mb-3 sm:mb-4">Current Bookings</h2>
             {bookingsLoading ? (
               <LoadingCard variant="table" title="Loading..." />
             ) : bookings.length > 0 ? (
               <div>
-                {}
-                <div className="hidden lg:grid grid-cols-6 gap-4 bg-neutral-200 dark:bg-neutral-700 p-3 rounded-t font-semibold text-neutral-900 dark:text-white text-xs">
+                {/* Desktop Table Headers */}
+                <div className="hidden lg:grid grid-cols-7 gap-4 bg-neutral-200 dark:bg-neutral-700 p-3 rounded-t font-semibold text-neutral-900 dark:text-white text-xs">
                   <div>Station</div>
                   <div>Location</div>
                   <div>Scheduled</div>
                   <div>Duration</div>
                   <div>Cost</div>
                   <div>Status</div>
+                  <div>Payment & Action</div>
                 </div>
 
-                {}
+                {/* Bookings List */}
                 <div className="space-y-2 lg:space-y-0">
-                  {bookings.map((booking) => (
-                    <div
-                      key={booking._id || booking.id}
-                      className="grid grid-cols-1 lg:grid-cols-6 gap-2 sm:gap-3 lg:gap-4 bg-white dark:bg-neutral-800 p-3 sm:p-3 border border-neutral-200 dark:border-neutral-700 lg:border-b lg:border-l-0 lg:border-r-0 lg:border-t-0 rounded-lg lg:rounded-none items-start lg:items-center text-xs sm:text-sm hover:bg-neutral-50 dark:hover:bg-neutral-700/50 transition-colors"
-                    >
-                      {}
-                      <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Station</div>
-                      <div className="font-medium text-neutral-900 dark:text-white text-xs sm:text-sm line-clamp-1">
-                        {booking.hostName || 'Charging Station'}
-                      </div>
+                  {bookings.map((booking) => {
+                    const isPaid = booking.paymentStatus === 'paid';
+                    const billAmount = booking.totalBill || booking.actualCost || booking.energyCost || 0;
 
-                      {}
-                      <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Location</div>
-                      <div className="text-neutral-600 dark:text-neutral-400 text-xs sm:text-sm line-clamp-1">
-                        {booking.hostLocation || 'N/A'}
-                      </div>
+                    return (
+                      <div
+                        key={booking._id || booking.id}
+                        className="grid grid-cols-1 lg:grid-cols-7 gap-2 sm:gap-3 lg:gap-4 bg-white dark:bg-neutral-800 p-3 sm:p-3 border border-neutral-200 dark:border-neutral-700 lg:border-b lg:border-l-0 lg:border-r-0 lg:border-t-0 rounded-lg lg:rounded-none items-start lg:items-center text-xs sm:text-sm hover:bg-neutral-50 dark:hover:bg-neutral-700/50 transition-colors"
+                      >
+                        {/* Mobile Header: Station */}
+                        <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Station</div>
+                        <div className="font-medium text-neutral-900 dark:text-white text-xs sm:text-sm line-clamp-1">
+                          {booking.hostName || 'Charging Station'}
+                        </div>
 
-                      {}
-                      <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Scheduled</div>
-                      <div className="text-neutral-600 dark:text-neutral-400 text-xs sm:text-sm">
-                        {booking.scheduledTime ? new Date(booking.scheduledTime).toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) : 'N/A'}
-                      </div>
+                        {/* Mobile Header: Location */}
+                        <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Location</div>
+                        <div className="text-neutral-600 dark:text-neutral-400 text-xs sm:text-sm line-clamp-1">
+                          {booking.hostLocation || 'N/A'}
+                        </div>
 
-                      {}
-                      <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Duration</div>
-                      <div className="text-neutral-600 dark:text-neutral-400 text-xs sm:text-sm">
-                        {booking.actualDuration || booking.estimatedDuration || 'N/A'} min
-                      </div>
+                        {/* Mobile Header: Scheduled */}
+                        <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Scheduled</div>
+                        <div className="text-neutral-600 dark:text-neutral-400 text-xs sm:text-sm">
+                          {booking.scheduledTime ? new Date(booking.scheduledTime).toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) : 'N/A'}
+                        </div>
 
-                      {}
-                      <div className="hidden md:block lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Energy</div>
-                      <div className="hidden md:block text-neutral-900 dark:text-white text-xs sm:text-sm font-medium">
-                        {booking.energyConsumed || 0} kWh
-                      </div>
+                        {/* Mobile Header: Duration */}
+                        <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Duration</div>
+                        <div className="text-neutral-600 dark:text-neutral-400 text-xs sm:text-sm">
+                          {booking.actualDuration || booking.estimatedDuration || 'N/A'} min
+                        </div>
 
-                      {}
-                      <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold\">Status</div>
-                      <div>
-                        <span className={`px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded inline-block ${
-                          booking.status === 'ongoing' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                          booking.status === 'accepted' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                          booking.status === 'completed' ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-700 dark:text-neutral-300' :
-                          'bg-neutral-100 text-neutral-800 dark:bg-neutral-700 dark:text-neutral-300'
-                        }`}>
-                          {booking.status === 'ongoing' && 'Active'}
-                          {booking.status === 'accepted' && 'Accepted'}
-                          {booking.status === 'completed' && 'Completed'}
-                          {booking.status === 'cancelled' && 'Cancelled'}
-                          {booking.status === 'pending' && 'Pending'}
-                        </span>
+                        {/* Mobile Header: Cost */}
+                        <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Cost</div>
+                        <div className="text-green-600 dark:text-green-400 font-bold text-xs sm:text-sm">
+                          ₹{billAmount}
+                        </div>
+
+                        {/* Mobile Header: Status */}
+                        <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Status</div>
+                        <div>
+                          <span className={`px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded inline-block ${
+                            booking.status === 'ongoing' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                            booking.status === 'accepted' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
+                            booking.status === 'completed' ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-700 dark:text-neutral-300' :
+                            'bg-neutral-100 text-neutral-800 dark:bg-neutral-700 dark:text-neutral-300'
+                          }`}>
+                            {booking.status === 'ongoing' && 'Active'}
+                            {booking.status === 'accepted' && 'Accepted'}
+                            {booking.status === 'completed' && 'Completed'}
+                            {booking.status === 'cancelled' && 'Cancelled'}
+                            {booking.status === 'pending' && 'Pending'}
+                          </span>
+                        </div>
+
+                        {/* Payment & Actions */}
+                        <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Payment</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {isPaid ? (
+                            <>
+                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                ✓ Paid
+                              </span>
+                              <button
+                                onClick={() => setReceiptModalBookingId(booking._id || booking.id)}
+                                className="px-2.5 py-1 text-xs font-medium bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-800 dark:text-neutral-200 rounded transition border border-neutral-300 dark:border-neutral-600 flex items-center gap-1"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Receipt
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                Unpaid
+                              </span>
+                              <button
+                                onClick={() => setPaymentModalBooking(booking)}
+                                className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded shadow-sm hover:shadow transition flex items-center gap-1.5"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                Pay Now (₹{billAmount})
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ) : (
@@ -355,6 +401,30 @@ export default function UserDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Payment Checkout Modal */}
+      {paymentModalBooking && (
+        <PaymentModal
+          booking={paymentModalBooking}
+          onClose={() => setPaymentModalBooking(null)}
+          onSuccess={(paidBooking) => {
+            const token = localStorage.getItem('token');
+            if (token) {
+              fetchCurrentBookings(token);
+              fetchMyBookingRequests(token);
+            }
+            setReceiptModalBookingId(paidBooking?._id || paymentModalBooking._id || paymentModalBooking.id);
+          }}
+        />
+      )}
+
+      {/* Official Payment Receipt Modal */}
+      {receiptModalBookingId && (
+        <ReceiptModal
+          bookingId={receiptModalBookingId}
+          onClose={() => setReceiptModalBookingId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -74,8 +74,21 @@ router.get('/bookings/history', authMiddleware, async (req, res) => {
 
     const totalSessions = await BookingRequest.countDocuments(query);
 
+    const normalizedSessions = sessions.map(s => ({
+      ...s,
+      totalUnitsKwh: s.totalUnitsKwh ?? s.desiredKwh ?? s.energyConsumed ?? 0,
+      desiredKwh: s.totalUnitsKwh ?? s.desiredKwh ?? s.energyConsumed ?? 0,
+      energyConsumed: s.energyConsumed ?? s.totalUnitsKwh ?? s.desiredKwh ?? 0,
+      totalBill: s.totalBill ?? s.estimatedCost ?? s.actualCost ?? 0,
+      actualCost: s.actualCost ?? s.totalBill ?? s.estimatedCost ?? 0,
+      pricePerUnit: s.pricePerKwh ?? s.pricePerUnit ?? 0,
+      pricePerKwh: s.pricePerKwh ?? s.pricePerUnit ?? 0,
+      requestedDuration: s.requestedDuration ?? s.estimatedDuration ?? s.actualDuration ?? 0,
+      estimatedDuration: s.estimatedDuration ?? s.requestedDuration ?? s.actualDuration ?? 0
+    }));
+
     res.json({
-      sessions: sessions,
+      sessions: normalizedSessions,
       pagination: {
         current: page,
         pages: Math.ceil(totalSessions / limit),
@@ -94,11 +107,24 @@ router.get('/bookings/current', authMiddleware, async (req, res) => {
       userId: req.user.id,
       status: { $in: ['accepted', 'ongoing'] }
     })
-      .select('hostName hostLocation chargerType scheduledTime requestedDuration estimatedCost vehicleNumber status actualCost actualDuration energyConsumed')
+      .select('hostName hostLocation hostPhone chargerType scheduledTime requestedDuration estimatedDuration estimatedCost totalBill energyCost pricePerKwh pricePerUnit vehicleNumber vehicleType vehicleModel status actualCost actualDuration energyConsumed totalUnitsKwh desiredKwh')
       .sort({ createdAt: -1 })
       .lean();
 
-    res.json(currentBookings);
+    const normalizedBookings = currentBookings.map(b => ({
+      ...b,
+      totalUnitsKwh: b.totalUnitsKwh ?? b.desiredKwh ?? b.energyConsumed ?? 0,
+      desiredKwh: b.totalUnitsKwh ?? b.desiredKwh ?? b.energyConsumed ?? 0,
+      energyConsumed: b.energyConsumed ?? b.totalUnitsKwh ?? b.desiredKwh ?? 0,
+      totalBill: b.totalBill ?? b.estimatedCost ?? b.actualCost ?? 0,
+      actualCost: b.actualCost ?? b.totalBill ?? b.estimatedCost ?? 0,
+      pricePerUnit: b.pricePerKwh ?? b.pricePerUnit ?? 0,
+      pricePerKwh: b.pricePerKwh ?? b.pricePerUnit ?? 0,
+      requestedDuration: b.requestedDuration ?? b.estimatedDuration ?? b.actualDuration ?? 0,
+      estimatedDuration: b.estimatedDuration ?? b.requestedDuration ?? b.actualDuration ?? 0
+    }));
+
+    res.json(normalizedBookings);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -256,14 +282,17 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
         userChargerPowerKw,
         socketMaxCapacity,
         pricePerKwh,
+        pricePerUnit: pricePerKwh,
         convenienceFee: convenienceFee || 0,
         platformFee: 10,
         
         // Calculated pricing values
         totalUnitsKwh: pricingResult.totalUnitsKwh,
+        desiredKwh: pricingResult.totalUnitsKwh,
         energyCost: pricingResult.energyCost,
         estimatedRange: pricingResult.estimatedRange,
         totalBill: pricingResult.totalBill,
+        estimatedCost: pricingResult.totalBill,
         
         // Safety validation
         safetyAlert: pricingResult.safetyAlert,
@@ -271,6 +300,7 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
         
         // Duration info
         requestedDuration: finalBookingDuration,
+        estimatedDuration: finalBookingDuration,
         
         status: 'pending',
         requestId
@@ -291,9 +321,12 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
         console.error('Failed to emit socket event:', socketErr.message);
       }
 
-      // Schedule auto-expiry if host doesn't respond within 15 minutes
+      // Schedule auto-expiry if host doesn't respond before the scheduled time (or at least 15 mins)
       try {
-        await scheduleBookingExpiry(bookingRequest._id.toString(), 15 * 60 * 1000);
+        const scheduledTimeMs = new Date(bookingRequest.scheduledTime).getTime();
+        const timeUntilSchedule = scheduledTimeMs - Date.now();
+        const expiryDelay = Math.max(15 * 60 * 1000, timeUntilSchedule);
+        await scheduleBookingExpiry(bookingRequest._id.toString(), expiryDelay);
       } catch (queueErr) {
         console.error('Failed to schedule booking expiry:', queueErr.message);
         // Non-critical — booking still created successfully
@@ -339,14 +372,35 @@ router.get('/bookings/requests/my-requests', authMiddleware, async (req, res) =>
       query.status = status;
     }
 
+    // Auto-expire past pending requests
+    await BookingRequest.updateMany({
+      userId: req.user.id,
+      status: 'pending',
+      scheduledTime: { $lt: new Date() }
+    }, {
+      $set: { status: 'expired' }
+    });
+
     const requests = await BookingRequest.find(query)
       .sort({ createdAt: -1 })
       .lean();
 
+    const normalizedRequests = requests.map(r => ({
+      ...r,
+      totalUnitsKwh: r.totalUnitsKwh ?? r.desiredKwh ?? 0,
+      desiredKwh: r.totalUnitsKwh ?? r.desiredKwh ?? 0,
+      pricePerUnit: r.pricePerKwh ?? r.pricePerUnit ?? 0,
+      pricePerKwh: r.pricePerKwh ?? r.pricePerUnit ?? 0,
+      totalBill: r.totalBill ?? r.estimatedCost ?? r.energyCost ?? 0,
+      estimatedCost: r.totalBill ?? r.estimatedCost ?? r.energyCost ?? 0,
+      requestedDuration: r.requestedDuration ?? r.estimatedDuration ?? r.actualDuration ?? 0,
+      estimatedDuration: r.requestedDuration ?? r.estimatedDuration ?? r.actualDuration ?? 0
+    }));
+
     res.json({
       success: true,
-      requests: requests,
-      count: requests.length
+      requests: normalizedRequests,
+      count: normalizedRequests.length
     });
 
   } catch (error) {
@@ -470,10 +524,12 @@ router.put('/bookings/:sessionId/complete', authMiddleware, async (req, res) => 
     if (finalCost > 0) {
       const transaction = new Transaction({
         userId: req.user.id,
+        hostId: booking.hostId,
+        bookingId: booking._id,
         type: 'debit',
         amount: finalCost,
         description: `Charging Session at ${booking.hostLocation}`,
-        paymentMethod: 'direct',
+        paymentMethod: booking.paymentMethod || 'direct',
         status: 'completed',
         referenceId: `TXN${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
         metadata: {

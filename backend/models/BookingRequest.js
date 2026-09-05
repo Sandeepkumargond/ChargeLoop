@@ -93,6 +93,10 @@ const bookingRequestSchema = new mongoose.Schema({
     type: Number,
     description: 'Total units in kWh: User_Charger_kW × Booking_Duration_Hours'
   },
+  desiredKwh: {
+    type: Number,
+    description: 'Total units in kWh alias'
+  },
   
   // Detailed pricing breakdown
   energyCost: {
@@ -106,6 +110,14 @@ const bookingRequestSchema = new mongoose.Schema({
   totalBill: {
     type: Number,
     description: 'Final bill: energyCost + convenienceFee + platformFee'
+  },
+  estimatedCost: {
+    type: Number,
+    description: 'Final bill alias'
+  },
+  estimatedDuration: {
+    type: Number,
+    description: 'Estimated duration in minutes'
   },
   
   vehicleNumber: {
@@ -131,6 +143,33 @@ const bookingRequestSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['pending', 'accepted', 'declined', 'expired', 'ongoing', 'completed', 'cancelled'],
+    default: 'pending'
+  },
+  // Payment tracking fields
+  paymentStatus: {
+    type: String,
+    enum: ['unpaid', 'pending', 'paid', 'refunded'],
+    default: 'unpaid'
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['upi', 'card', 'netbanking', 'wallet', 'razorpay', 'cash', 'direct', null],
+    default: null
+  },
+  paymentId: {
+    type: String,
+    description: 'Razorpay or gateway payment ID'
+  },
+  orderId: {
+    type: String,
+    description: 'Razorpay or gateway order ID'
+  },
+  paidAt: {
+    type: Date
+  },
+  payoutStatus: {
+    type: String,
+    enum: ['pending', 'processed', 'failed'],
     default: 'pending'
   },
   requestId: {
@@ -176,6 +215,5 @@ const bookingRequestSchema = new mongoose.Schema({
 bookingRequestSchema.index({ userId: 1, createdAt: -1 });
 bookingRequestSchema.index({ hostId: 1, status: 1 });
 bookingRequestSchema.index({ status: 1 });
-bookingRequestSchema.index({ requestId: 1 });
 
 module.exports = mongoose.model('BookingRequest', bookingRequestSchema);

@@ -1,5 +1,10 @@
 import DashboardLayout from '@/components/DashboardLayout';
+import AuthGuard from '@/components/AuthGuard';
 
 export default function UserLayout({ children }) {
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return (
+    <AuthGuard allowedRoles={['user', 'host', 'admin']}>
+      <DashboardLayout>{children}</DashboardLayout>
+    </AuthGuard>
+  );
 }

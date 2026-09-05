@@ -18,6 +18,8 @@ export default function BookingsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [cancellingRequestId, setCancellingRequestId] = useState(null);
   const [markingDoneRequestId, setMarkingDoneRequestId] = useState(null);
+  const [acceptingRequestId, setAcceptingRequestId] = useState(null);
+  const [decliningRequestId, setDecliningRequestId] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState({});
 
   const fetchPendingRequests = useCallback(async (token) => {
@@ -70,10 +72,11 @@ export default function BookingsPage() {
   }, []);
 
   const handleAcceptRequest = async (requestId) => {
+    setAcceptingRequestId(requestId);
     try {
       const token = localStorage.getItem('token');
       const response = await fetchWithFriendlyError(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/host/booking-requests/${requestId}/accept`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/host/requests/${requestId}/accept`,
         {
           method: 'PUT',
           headers: {
@@ -85,20 +88,25 @@ export default function BookingsPage() {
 
       if (response.ok) {
         fetchPendingRequests(token);
+        fetchBookingHistory(token, currentPage, filterStatus);
         alert('Booking request accepted successfully!');
       } else {
-        alert('Failed to accept booking request');
+        const err = await response.json().catch(() => ({}));
+        alert(err.msg || 'Failed to accept booking request');
       }
     } catch (error) {
       alert(error.message || 'Error accepting booking request');
+    } finally {
+      setAcceptingRequestId(null);
     }
   };
 
   const handleDeclineRequest = async (requestId, reason = '') => {
+    setDecliningRequestId(requestId);
     try {
       const token = localStorage.getItem('token');
       const response = await fetchWithFriendlyError(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/host/booking-requests/${requestId}/decline`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/host/requests/${requestId}/decline`,
         {
           method: 'PUT',
           headers: {
@@ -111,12 +119,16 @@ export default function BookingsPage() {
 
       if (response.ok) {
         fetchPendingRequests(token);
+        fetchBookingHistory(token, currentPage, filterStatus);
         alert('Booking request declined successfully!');
       } else {
-        alert('Failed to decline booking request');
+        const err = await response.json().catch(() => ({}));
+        alert(err.msg || 'Failed to decline booking request');
       }
     } catch (error) {
       alert(error.message || 'Error declining booking request');
+    } finally {
+      setDecliningRequestId(null);
     }
   };
 
@@ -361,50 +373,112 @@ export default function BookingsPage() {
                     key={request._id}
                     className="grid grid-cols-1 md:grid-cols-7 gap-4 md:gap-4 bg-white dark:bg-neutral-800 p-4 md:p-4 border border-neutral-200 dark:border-neutral-700 md:border-b md:border-l-0 md:border-r-0 md:border-t-0 rounded-lg md:rounded-none items-center text-sm"
                   >
-                    {}
+                    {/* Customer */}
                     <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Customer</div>
-                    <div className="font-semibold text-neutral-900 dark:text-white">
-                      {request.userId?.name || 'User'}
+                    <div>
+                      <div className="font-semibold text-neutral-900 dark:text-white">
+                        {request.userId?.name || 'User'}
+                      </div>
+                      {(request.userPhone || request.userId?.phone) && (
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400 font-mono mt-0.5">
+                          {request.userPhone || request.userId?.phone}
+                        </div>
+                      )}
                     </div>
 
-                    {}
+                    {/* Vehicle */}
                     <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Vehicle</div>
                     <div className="text-neutral-600 dark:text-neutral-400">
-                      {request.vehicleNumber || 'N/A'}
+                      <div className="font-medium text-neutral-900 dark:text-white">
+                        {request.vehicleNumber || 'N/A'}
+                      </div>
+                      {(request.vehicleModel || request.vehicleType) && (
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                          {[request.vehicleModel, request.vehicleType].filter(Boolean).join(' • ')}
+                        </div>
+                      )}
                     </div>
 
-                    {}
+                    {/* Desired kWh */}
                     <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Desired kWh</div>
                     <div className="text-neutral-600 dark:text-neutral-400">
-                      {request.desiredKwh || 0} kWh
+                      <div className="font-medium text-neutral-900 dark:text-white">
+                        {request.totalUnitsKwh || request.desiredKwh || 0} kWh
+                      </div>
+                      {(request.requestedDuration || request.estimatedDuration) && (
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                          {request.requestedDuration || request.estimatedDuration} min
+                        </div>
+                      )}
                     </div>
 
-                    {}
+                    {/* Price/Unit */}
                     <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Price/Unit</div>
-                    <div className="font-semibold text-neutral-900 dark:text-white">
-                      ₹{request.pricePerUnit || 0}/kWh
+                    <div>
+                      <div className="font-semibold text-neutral-900 dark:text-white">
+                        ₹{request.pricePerKwh ?? request.pricePerUnit ?? 0}/kWh
+                      </div>
+                      {(request.totalBill || request.estimatedCost) && (
+                        <div className="text-xs font-semibold text-green-600 dark:text-green-400 mt-0.5">
+                          Total: ₹{request.totalBill || request.estimatedCost}
+                        </div>
+                      )}
                     </div>
 
-                    {}
+                    {/* Scheduled */}
                     <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Scheduled</div>
                     <div className="text-neutral-600 dark:text-neutral-400 text-xs">
-                      {new Date(request.scheduledTime).toLocaleDateString()}
+                      <div>{new Date(request.scheduledTime).toLocaleDateString()}</div>
+                      <div className="text-neutral-500 dark:text-neutral-400 mt-0.5">
+                        {new Date(request.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
                     </div>
 
-                    {}
+                    {/* Status & Actions */}
                     <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Status</div>
                     <div className="flex flex-col gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold inline-block w-fit ${
-                        request.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                          : request.status === 'accepted'
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                          : request.status === 'completed'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                      }`}>
-                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold inline-block ${
+                          request.status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                            : request.status === 'accepted'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                            : request.status === 'completed'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : request.status === 'cancelled'
+                            ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                        }`}>
+                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold inline-block ${
+                          request.paymentStatus === 'paid'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                        }`}>
+                          {request.paymentStatus === 'paid' ? '✓ Paid' : 'Unpaid'}
+                        </span>
+                      </div>
+
+                      {request.status === 'pending' && (
+                        <div className="flex gap-2 flex-wrap">
+                          <button
+                            onClick={() => handleAcceptRequest(request._id)}
+                            disabled={acceptingRequestId === request._id}
+                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-all"
+                          >
+                            {acceptingRequestId === request._id ? 'Accepting...' : 'Accept'}
+                          </button>
+                          <button
+                            onClick={() => handleDeclineRequest(request._id)}
+                            disabled={decliningRequestId === request._id}
+                            className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded text-xs font-medium transition-all"
+                          >
+                            {decliningRequestId === request._id ? 'Declining...' : 'Decline'}
+                          </button>
+                        </div>
+                      )}
+
                       {request.status === 'accepted' && (
                         <>
                           {timeRemaining[request._id] && (
@@ -440,7 +514,7 @@ export default function BookingsPage() {
                       )}
                     </div>
 
-                    {}
+                    {/* Request ID */}
                     <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Request ID</div>
                     <div className="text-neutral-600 dark:text-neutral-400 text-xs font-mono">
                       {request._id?.slice(-8) || request.requestId}
