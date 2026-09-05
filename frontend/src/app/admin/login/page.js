@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
+import { setAuth } from '@/utils/auth';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -38,22 +39,19 @@ export default function AdminLogin() {
       const data = await response.json();
 
       if (response.ok) {
-
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('userEmail', data.user.email);
-        localStorage.setItem('userName', data.user.name || data.user.email?.split('@')[0] || 'Admin');
-        localStorage.setItem('userRole', 'admin');
-
-        window.dispatchEvent(new Event('authChange'));
+        setAuth({
+          token: data.token,
+          userEmail: data.user.email,
+          userName: data.user.name || data.user.email?.split('@')[0] || 'Admin',
+          userRole: 'admin',
+        });
 
         setError('');
         setSuccess(true);
 
         setTimeout(() => {
-
           router.push('/admin/dashboard');
         }, 1000);
-
       } else {
         if (response.status === 401 || response.status === 400) {
           setError('Email or password is wrong. Please try again.');

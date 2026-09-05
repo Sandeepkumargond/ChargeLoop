@@ -40,7 +40,10 @@ app.use(securityMiddleware.helmet);
 app.use(securityMiddleware.securityHeaders);
 
 app.use(cors({
-  origin: 'https://chargeloop.vercel.app/',
+  origin: [
+    'http://localhost:3000',
+    'https://chargeloop.vercel.app'
+  ],
   credentials: false,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -141,29 +144,29 @@ socketService.init(server).then(() => {
 // ============================================================
 async function gracefulShutdown(signal) {
   console.log(`\n🛑 ${signal} received. Shutting down gracefully...`);
-  
+
   server.close(async () => {
     console.log('✅ HTTP server closed');
-    
+
     // Stop workers first (let them finish current jobs)
     await stopEmailWorker();
     await stopBookingExpiryWorker();
-    
+
     // Close queue connections
     const { closeQueues } = require('./queues/jobQueues');
     await closeQueues();
-    
+
     // Close Redis
     await closeRedis();
-    
+
     // Close MongoDB
     await mongoose.connection.close(false);
     console.log('✅ MongoDB connection closed');
-    
+
     console.log('✅ Graceful shutdown complete');
     process.exit(0);
   });
-  
+
   // Force kill after 10 seconds if graceful shutdown hangs
   setTimeout(() => {
     console.error('❌ Forced shutdown after timeout');

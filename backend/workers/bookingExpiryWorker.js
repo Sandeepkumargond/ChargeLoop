@@ -18,7 +18,7 @@ let bookingExpiryWorker = null;
 function startBookingExpiryWorker() {
   if (bookingExpiryWorker) return bookingExpiryWorker;
 
-  bookingExpiryWorker = new Worker('chargeloop:booking-expiry', async (job) => {
+  bookingExpiryWorker = new Worker('chargeloop-booking-expiry', async (job) => {
     const { bookingId } = job.data;
     console.log(`⏰ [BookingExpiry] Processing expiry for booking ${bookingId}`);
 

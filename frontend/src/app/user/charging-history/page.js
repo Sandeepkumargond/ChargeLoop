@@ -192,11 +192,11 @@ export default function ChargingHistoryPage() {
           </div>
           <div className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 shadow-sm">
             <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-2">Energy Used</p>
-            <p className="text-2xl font-bold text-neutral-900 dark:text-white">{bookings.reduce((sum, s) => sum + (s.energyConsumed || 0), 0).toFixed(1)} <span className="text-sm">kWh</span></p>
+            <p className="text-2xl font-bold text-neutral-900 dark:text-white">{bookings.reduce((sum, s) => sum + (s.energyConsumed || s.totalUnitsKwh || s.desiredKwh || 0), 0).toFixed(1)} <span className="text-sm">kWh</span></p>
           </div>
           <div className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 shadow-sm">
             <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-2">Total Cost</p>
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">₹{bookings.reduce((sum, s) => sum + (s.totalBill || s.actualCost || 0), 0).toFixed(0)}</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">₹{bookings.reduce((sum, s) => sum + (s.totalBill || s.actualCost || s.energyCost || 0), 0).toFixed(0)}</p>
           </div>
         </div>
 
@@ -284,13 +284,13 @@ export default function ChargingHistoryPage() {
                     {/* Energy */}
                     <div>
                       <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Energy</p>
-                      <p className="text-sm font-medium text-neutral-900 dark:text-white">{booking.energyConsumed || booking.totalUnitsKwh || 0} kWh</p>
+                      <p className="text-sm font-medium text-neutral-900 dark:text-white">{booking.energyConsumed || booking.totalUnitsKwh || booking.desiredKwh || 0} kWh</p>
                     </div>
 
                     {/* Price */}
                     <div>
                       <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Price</p>
-                      <p className="text-sm font-bold text-green-600 dark:text-green-400">₹{booking.totalBill || booking.actualCost || 0}</p>
+                      <p className="text-sm font-bold text-green-600 dark:text-green-400">₹{booking.totalBill || booking.actualCost || booking.energyCost || 0}</p>
                     </div>
 
                     {/* Status */}

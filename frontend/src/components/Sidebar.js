@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useSidebar } from '@/contexts/SidebarContext';
+import { clearAuth, logout } from '@/utils/auth';
 
 export default function Sidebar({ activeTab, setActiveTab }) {
   const router = useRouter();
@@ -88,12 +89,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userName');
-    window.dispatchEvent(new Event('authChange'));
-    router.push('/');
+    logout('/');
   };
 
   const handleMenuClick = (item) => {

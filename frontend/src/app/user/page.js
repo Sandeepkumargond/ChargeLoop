@@ -316,9 +316,9 @@ export default function UserDashboardPage() {
                       </div>
 
                       {}
-                      <div className="hidden md:block lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Energy</div>
-                      <div className="hidden md:block text-neutral-900 dark:text-white text-xs sm:text-sm font-medium">
-                        {booking.energyConsumed || 0} kWh
+                      <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Cost</div>
+                      <div className="text-green-600 dark:text-green-400 font-bold text-xs sm:text-sm">
+                        ₹{booking.totalBill || booking.actualCost || booking.energyCost || 0}
                       </div>
 
                       {}

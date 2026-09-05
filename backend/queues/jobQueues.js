@@ -20,7 +20,7 @@ let bookingExpiryQueue = null;
 function getEmailQueue() {
   if (emailQueue) return emailQueue;
 
-  emailQueue = new Queue('chargeloop:email', {
+  emailQueue = new Queue('chargeloop-email', {
     connection: getRedisClient(),
     defaultJobOptions: {
       attempts: 3,
@@ -42,7 +42,7 @@ function getEmailQueue() {
 function getBookingExpiryQueue() {
   if (bookingExpiryQueue) return bookingExpiryQueue;
 
-  bookingExpiryQueue = new Queue('chargeloop:booking-expiry', {
+  bookingExpiryQueue = new Queue('chargeloop-booking-expiry', {
     connection: getRedisClient(),
     defaultJobOptions: {
       attempts: 2,

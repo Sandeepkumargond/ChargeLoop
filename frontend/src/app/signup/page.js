@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { GoogleLogin } from '@react-oauth/google';
 import { useNotification } from '@/contexts/NotificationContext';
 import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
+import { setAuth } from '@/utils/auth';
 
 export default function SignupPage() {
   const [mounted, setMounted] = useState(false);
@@ -134,11 +135,12 @@ export default function SignupPage() {
       const result = await response.json();
 
       if (result.token) {
-        localStorage.setItem('token', result.token);
-        localStorage.setItem('userEmail', result.user.email);
-        localStorage.setItem('userRole', result.user.role);
-
-        window.dispatchEvent(new Event('authChange'));
+        setAuth({
+          token: result.token,
+          userEmail: result.user.email,
+          userRole: result.user.role,
+          userName: data.name || '',
+        });
 
         setSuccess('Account created successfully!');
         showSuccess('Account created successfully!');
@@ -287,11 +289,12 @@ export default function SignupPage() {
       const result = await response.json();
 
       if (result.token) {
-        localStorage.setItem('token', result.token);
-        localStorage.setItem('userEmail', result.user.email);
-        localStorage.setItem('userRole', result.user.role);
-
-        window.dispatchEvent(new Event('authChange'));
+        setAuth({
+          token: result.token,
+          userEmail: result.user.email,
+          userRole: result.user.role,
+          userName: result.user.name || '',
+        });
 
         showSuccess('Signup successful! Redirecting...');
 
