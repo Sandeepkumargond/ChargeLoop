@@ -145,6 +145,33 @@ const bookingRequestSchema = new mongoose.Schema({
     enum: ['pending', 'accepted', 'declined', 'expired', 'ongoing', 'completed', 'cancelled'],
     default: 'pending'
   },
+  // Payment tracking fields
+  paymentStatus: {
+    type: String,
+    enum: ['unpaid', 'pending', 'paid', 'refunded'],
+    default: 'unpaid'
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['upi', 'card', 'netbanking', 'wallet', 'razorpay', 'cash', 'direct', null],
+    default: null
+  },
+  paymentId: {
+    type: String,
+    description: 'Razorpay or gateway payment ID'
+  },
+  orderId: {
+    type: String,
+    description: 'Razorpay or gateway order ID'
+  },
+  paidAt: {
+    type: Date
+  },
+  payoutStatus: {
+    type: String,
+    enum: ['pending', 'processed', 'failed'],
+    default: 'pending'
+  },
   requestId: {
     type: String,
     unique: true,

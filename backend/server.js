@@ -11,6 +11,7 @@ const userRoutes = require('./routes/user');
 const hostRoutes = require('./routes/host');
 const adminRoutes = require('./routes/admin');
 const contactRoutes = require('./routes/contact');
+const paymentRoutes = require('./routes/payment');
 const securityMiddleware = require('./middleware/security');
 
 // Redis & Queue imports
@@ -117,6 +118,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/host', hostRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/payment', paymentRoutes);
 
 app.get('/', (req, res) => {
   const healthcheck = {

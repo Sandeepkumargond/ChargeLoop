@@ -437,19 +437,28 @@ export default function BookingsPage() {
                     {/* Status & Actions */}
                     <div className="md:hidden text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Status</div>
                     <div className="flex flex-col gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold inline-block w-fit ${
-                        request.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                          : request.status === 'accepted'
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                          : request.status === 'completed'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                          : request.status === 'cancelled'
-                          ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                      }`}>
-                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold inline-block ${
+                          request.status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                            : request.status === 'accepted'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                            : request.status === 'completed'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : request.status === 'cancelled'
+                            ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-300'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                        }`}>
+                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold inline-block ${
+                          request.paymentStatus === 'paid'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                        }`}>
+                          {request.paymentStatus === 'paid' ? '✓ Paid' : 'Unpaid'}
+                        </span>
+                      </div>
 
                       {request.status === 'pending' && (
                         <div className="flex gap-2 flex-wrap">

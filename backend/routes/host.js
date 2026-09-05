@@ -3,6 +3,7 @@ const router = express.Router();
 const Host = require('../models/Host');
 const BookingRequest = require('../models/BookingRequest');
 const ChargerStation = require('../models/ChargerStation');
+const Transaction = require('../models/Transaction');
 const auth = require('../middleware/auth');
 const { enqueueBookingConfirmation, cancelBookingExpiry } = require('../queues/jobQueues');
 const { uploadFile } = require('../services/imagekitService');
@@ -436,6 +437,40 @@ const markDoneBookingRequestHandler = async (req, res) => {
     }
 
     await request.save();
+
+    // Calculate host earnings (totalBill - platformFee)
+    const platformFee = request.platformFee ?? 10;
+    const hostEarned = Math.max(0, (request.totalBill || request.actualCost || 0) - platformFee);
+
+    if (hostEarned > 0) {
+      userHost.totalEarnings = (userHost.totalEarnings || 0) + hostEarned;
+      userHost.totalBookings = (userHost.totalBookings || 0) + 1;
+      await userHost.save();
+
+      // Record host credit transaction
+      try {
+        const hostTransaction = new Transaction({
+          userId: request.userId._id || request.userId,
+          hostId: userHost._id,
+          bookingId: request._id,
+          type: 'credit',
+          amount: hostEarned,
+          description: `Host Payout Credit - Session (${request.vehicleNumber || 'EV'})`,
+          paymentMethod: request.paymentMethod || 'razorpay',
+          status: 'completed',
+          referenceId: `CR_${Date.now()}_${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+          metadata: {
+            bookingId: request._id,
+            energyConsumed: request.totalUnitsKwh || request.desiredKwh,
+            totalBill: request.totalBill,
+            platformFee
+          }
+        });
+        await hostTransaction.save();
+      } catch (txnErr) {
+        console.error('Error logging host credit transaction:', txnErr.message);
+      }
+    }
 
     // Emit WebSocket event to user
     try {

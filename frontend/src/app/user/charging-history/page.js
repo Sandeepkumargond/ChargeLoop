@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import PaymentModal from "@/components/PaymentModal";
+import ReceiptModal from "@/components/ReceiptModal";
 
 export default function ChargingHistoryPage() {
   const [bookings, setBookings] = useState([]);
@@ -9,17 +11,18 @@ export default function ChargingHistoryPage() {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
+  const [paymentModalBooking, setPaymentModalBooking] = useState(null);
+  const [receiptModalBookingId, setReceiptModalBookingId] = useState(null);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchChargingHistory = async () => {
-      try {
-        const token = localStorage.getItem("token");
+  const fetchChargingHistory = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
 
-        if (!token) {
-          router.push("/login");
-          return;
-        }
+      if (!token) {
+        router.push("/login");
+        return;
+      }
 
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/user/bookings/history`,
@@ -54,10 +57,15 @@ export default function ChargingHistoryPage() {
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchChargingHistory();
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
   }, [router]);
+
+  useEffect(() => {
+    fetchChargingHistory();
+  }, [fetchChargingHistory]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -262,52 +270,120 @@ export default function ChargingHistoryPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {sortedSessions.map((booking) => (
-                <div
-                  key={booking._id || booking.id}
-                  className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl p-4 hover:shadow-md transition shadow-sm"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    {/* Host Name */}
-                    <div>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Host Name</p>
-                      <h3 className="font-medium text-neutral-900 dark:text-white text-sm">{booking.hostName}</h3>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">{booking.hostPhone || 'N/A'}</p>
-                    </div>
+              {sortedSessions.map((booking) => {
+                const isPaid = booking.paymentStatus === 'paid';
+                const billAmount = booking.totalBill || booking.actualCost || booking.energyCost || 0;
+                const canPay = !isPaid && !['cancelled', 'declined'].includes(booking.status);
 
-                    {/* Location */}
-                    <div>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Location</p>
-                      <p className="text-sm font-medium text-neutral-900 dark:text-white line-clamp-2">{booking.hostLocation}</p>
-                    </div>
+                return (
+                  <div
+                    key={booking._id || booking.id}
+                    className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl p-4 hover:shadow-md transition shadow-sm"
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center">
+                      {/* Host Name */}
+                      <div>
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Host Name</p>
+                        <h3 className="font-medium text-neutral-900 dark:text-white text-sm">{booking.hostName}</h3>
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">{booking.hostPhone || 'N/A'}</p>
+                      </div>
 
-                    {/* Energy */}
-                    <div>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Energy</p>
-                      <p className="text-sm font-medium text-neutral-900 dark:text-white">{booking.energyConsumed || booking.totalUnitsKwh || booking.desiredKwh || 0} kWh</p>
-                    </div>
+                      {/* Location */}
+                      <div>
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Location</p>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white line-clamp-2">{booking.hostLocation}</p>
+                      </div>
 
-                    {/* Price */}
-                    <div>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Price</p>
-                      <p className="text-sm font-bold text-green-600 dark:text-green-400">₹{booking.totalBill || booking.actualCost || booking.energyCost || 0}</p>
-                    </div>
+                      {/* Energy */}
+                      <div>
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Energy</p>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">{booking.energyConsumed || booking.totalUnitsKwh || booking.desiredKwh || 0} kWh</p>
+                      </div>
 
-                    {/* Status */}
-                    <div>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Status</p>
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-medium inline-block ${getStatusColor(booking.status)}`}>
-                        {getStatusIcon(booking.status)}
-                      </span>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-2">{formatDateTime(booking.scheduledTime)}</p>
+                      {/* Price */}
+                      <div>
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Price</p>
+                        <p className="text-sm font-bold text-green-600 dark:text-green-400">₹{billAmount}</p>
+                      </div>
+
+                      {/* Status */}
+                      <div>
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Status</p>
+                        <span className={`px-2.5 py-1 rounded-lg text-xs font-medium inline-block ${getStatusColor(booking.status)}`}>
+                          {getStatusIcon(booking.status)}
+                        </span>
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-2">{formatDateTime(booking.scheduledTime)}</p>
+                      </div>
+
+                      {/* Payment & Action */}
+                      <div>
+                        <p className="text-xs text-neutral-600 dark:text-neutral-400 font-medium mb-1">Payment</p>
+                        {isPaid ? (
+                          <div className="space-y-1.5">
+                            <span className="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 inline-block">
+                              ✓ Paid
+                            </span>
+                            <div>
+                              <button
+                                onClick={() => setReceiptModalBookingId(booking._id || booking.id)}
+                                className="px-2.5 py-1 text-xs font-medium bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-800 dark:text-neutral-200 rounded transition border border-neutral-300 dark:border-neutral-600 flex items-center gap-1"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Receipt
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <span className="px-2 py-0.5 text-xs font-semibold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 inline-block">
+                              Unpaid
+                            </span>
+                            {canPay && (
+                              <div>
+                                <button
+                                  onClick={() => setPaymentModalBooking(booking)}
+                                  className="px-2.5 py-1 text-xs font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded shadow-sm hover:shadow transition flex items-center gap-1"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                  </svg>
+                                  Pay ₹{billAmount}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </div>
+
+      {/* Payment Checkout Modal */}
+      {paymentModalBooking && (
+        <PaymentModal
+          booking={paymentModalBooking}
+          onClose={() => setPaymentModalBooking(null)}
+          onSuccess={(paidBooking) => {
+            fetchChargingHistory();
+            setReceiptModalBookingId(paidBooking?._id || paymentModalBooking._id || paymentModalBooking.id);
+          }}
+        />
+      )}
+
+      {/* Official Payment Receipt Modal */}
+      {receiptModalBookingId && (
+        <ReceiptModal
+          bookingId={receiptModalBookingId}
+          onClose={() => setReceiptModalBookingId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -524,10 +524,12 @@ router.put('/bookings/:sessionId/complete', authMiddleware, async (req, res) => 
     if (finalCost > 0) {
       const transaction = new Transaction({
         userId: req.user.id,
+        hostId: booking.hostId,
+        bookingId: booking._id,
         type: 'debit',
         amount: finalCost,
         description: `Charging Session at ${booking.hostLocation}`,
-        paymentMethod: 'direct',
+        paymentMethod: booking.paymentMethod || 'direct',
         status: 'completed',
         referenceId: `TXN${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
         metadata: {
