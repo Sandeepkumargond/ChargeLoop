@@ -2,7 +2,7 @@ const { Worker } = require('bullmq');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
-const { getRedisClient } = require('../services/redisService');
+const { getBullMQConnectionOptions } = require('../services/redisService');
 const {
   sendOtpEmail,
   sendBookingConfirmationEmail,
@@ -79,7 +79,7 @@ function startEmailWorker() {
       throw error; // Re-throw so BullMQ retries
     }
   }, {
-    connection: getRedisClient(),
+    connection: getBullMQConnectionOptions(),
     concurrency: 5,       // Process up to 5 emails concurrently
     limiter: {
       max: 20,            // Max 20 emails per minute (Gmail limits)

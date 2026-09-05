@@ -1,5 +1,5 @@
 const { Queue } = require('bullmq');
-const { getRedisClient } = require('../services/redisService');
+const { getBullMQConnectionOptions } = require('../services/redisService');
 
 /**
  * ChargeLoop Email Queue
@@ -21,7 +21,7 @@ function getEmailQueue() {
   if (emailQueue) return emailQueue;
 
   emailQueue = new Queue('chargeloop-email', {
-    connection: getRedisClient(),
+    connection: getBullMQConnectionOptions(),
     defaultJobOptions: {
       attempts: 3,
       backoff: {
@@ -43,7 +43,7 @@ function getBookingExpiryQueue() {
   if (bookingExpiryQueue) return bookingExpiryQueue;
 
   bookingExpiryQueue = new Queue('chargeloop-booking-expiry', {
-    connection: getRedisClient(),
+    connection: getBullMQConnectionOptions(),
     defaultJobOptions: {
       attempts: 2,
       backoff: { type: 'fixed', delay: 3000 },
