@@ -62,7 +62,7 @@ function startBookingExpiryWorker() {
       throw error; // Re-throw for BullMQ retry
     }
   }, {
-    connection: getBullMQConnectionOptions(),
+    connection: getBullMQConnectionOptions('BookingExpiryWorker'),
     concurrency: 10, // Can process multiple expiry checks in parallel
   });
 
@@ -72,6 +72,10 @@ function startBookingExpiryWorker() {
 
   bookingExpiryWorker.on('failed', (job, err) => {
     console.error(`❌ [BookingExpiry] Job ${job?.id} failed:`, err.message);
+  });
+
+  bookingExpiryWorker.on('error', (err) => {
+    console.error('❌ [BookingExpiryWorker] Worker error:', err.message);
   });
 
   console.log('✅ Booking expiry worker started');

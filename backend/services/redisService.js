@@ -17,11 +17,16 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 let redisClient = null;
 let subscriberClient = null;
 
+// Track initialized client tags to avoid log flooding
+const loggedTags = new Set();
+
 /**
  * Parse REDIS_URL and produce production-ready ioredis connection options.
  * Compatible with local Redis, Docker, and Cloud providers (Upstash, Render, AWS, Heroku).
+ * 
+ * @param {string} clientTag - Component identifier (e.g. 'MainRedis', 'EmailWorker', 'SocketPub')
  */
-function getRedisConnectionOptions() {
+function getRedisConnectionOptions(clientTag = 'MainRedis') {
   const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
   try {
@@ -37,10 +42,12 @@ function getRedisConnectionOptions() {
       enableReadyCheck: false,    // Prevents INFO command failures on cloud/proxy Redis
       keepAlive: 10000,           // 10s TCP keepalive prevents idle connection drops (ECONNRESET)
       connectTimeout: 15000,
+      protocol: 2,                // Force RESP2: eliminates HELLO 3 which causes ECONNRESET on Render/Upstash
+      disableClientInfo: true,    // Disable CLIENT SETINFO: prevents proxy connection resets
       retryStrategy(times) {
         const delay = Math.min(times * 250, 5000);
         if (times <= 5 || times % 10 === 0) {
-          console.log(`⚠️  Redis reconnecting in ${delay}ms (attempt ${times})`);
+          console.log(`⚠️  [${clientTag}] Redis reconnecting in ${delay}ms (attempt ${times})`);
         }
         return delay;
       },
@@ -53,20 +60,30 @@ function getRedisConnectionOptions() {
     };
 
     if (isTls) {
+      // Cloud Redis providers (Render, Upstash, Heroku) use self-signed certificates.
+      // Default rejectUnauthorized to false unless explicitly set to 'true'.
       options.tls = {
         servername: parsed.hostname,
-        rejectUnauthorized: process.env.REDIS_TLS_REJECT_UNAUTHORIZED !== 'false',
+        rejectUnauthorized: process.env.REDIS_TLS_REJECT_UNAUTHORIZED === 'true',
       };
+    }
+
+    if (!loggedTags.has(clientTag)) {
+      loggedTags.add(clientTag);
+      console.log(`📡 [${clientTag}] Redis config initialized: host=${options.host}, port=${options.port}, tls=${Boolean(options.tls)}, protocol=${options.protocol}`);
     }
 
     return options;
   } catch (err) {
+    console.error(`❌ [${clientTag}] Error parsing REDIS_URL:`, err.message);
     return {
       host: 'localhost',
       port: 6379,
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
       keepAlive: 10000,
+      protocol: 2,
+      disableClientInfo: true,
       retryStrategy(times) {
         return Math.min(times * 250, 5000);
       }
@@ -77,9 +94,11 @@ function getRedisConnectionOptions() {
 /**
  * Get dedicated Redis connection options for BullMQ queues and workers.
  * BullMQ uses this to instantiate and manage its own isolated connections.
+ * 
+ * @param {string} clientTag - BullMQ component identifier (e.g. 'EmailQueue', 'EmailWorker')
  */
-function getBullMQConnectionOptions() {
-  return getRedisConnectionOptions();
+function getBullMQConnectionOptions(clientTag = 'BullMQ') {
+  return getRedisConnectionOptions(clientTag);
 }
 
 /**
@@ -88,19 +107,23 @@ function getBullMQConnectionOptions() {
 function getRedisClient() {
   if (redisClient) return redisClient;
 
-  const options = getRedisConnectionOptions();
+  const options = getRedisConnectionOptions('MainRedis');
   redisClient = new Redis(options);
 
   redisClient.on('connect', () => {
-    console.log('✅ Redis connected');
+    console.log('✅ [MainRedis] Connected');
+  });
+
+  redisClient.on('ready', () => {
+    console.log('🚀 [MainRedis] Ready');
   });
 
   redisClient.on('error', (err) => {
-    console.error('❌ Redis error:', err.message);
+    console.error('❌ [MainRedis] Error:', err.message);
   });
 
   redisClient.on('close', () => {
-    console.warn('⚠️  Redis connection closed');
+    console.warn('⚠️  [MainRedis] Connection closed');
   });
 
   return redisClient;

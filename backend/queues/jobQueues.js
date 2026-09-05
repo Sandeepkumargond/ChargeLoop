@@ -21,7 +21,7 @@ function getEmailQueue() {
   if (emailQueue) return emailQueue;
 
   emailQueue = new Queue('chargeloop-email', {
-    connection: getBullMQConnectionOptions(),
+    connection: getBullMQConnectionOptions('EmailQueue'),
     defaultJobOptions: {
       attempts: 3,
       backoff: {
@@ -31,6 +31,10 @@ function getEmailQueue() {
       removeOnComplete: { count: 100 },  // Keep last 100 completed jobs
       removeOnFail: { count: 500 },      // Keep last 500 failed jobs for debugging
     },
+  });
+
+  emailQueue.on('error', (err) => {
+    console.error('❌ [EmailQueue] Queue error:', err.message);
   });
 
   return emailQueue;
@@ -43,13 +47,17 @@ function getBookingExpiryQueue() {
   if (bookingExpiryQueue) return bookingExpiryQueue;
 
   bookingExpiryQueue = new Queue('chargeloop-booking-expiry', {
-    connection: getBullMQConnectionOptions(),
+    connection: getBullMQConnectionOptions('BookingExpiryQueue'),
     defaultJobOptions: {
       attempts: 2,
       backoff: { type: 'fixed', delay: 3000 },
       removeOnComplete: { count: 200 },
       removeOnFail: { count: 100 },
     },
+  });
+
+  bookingExpiryQueue.on('error', (err) => {
+    console.error('❌ [BookingExpiryQueue] Queue error:', err.message);
   });
 
   return bookingExpiryQueue;
