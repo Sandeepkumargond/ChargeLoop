@@ -1,0 +1,45 @@
+# ============================================================
+# ChargeLoop BullMQ Worker - Kubernetes Deployment
+# ============================================================
+# Runs email + booking expiry workers as a separate deployment.
+# In production, workers run in their own pods to avoid
+# blocking the API server.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chargeloop-worker
+  namespace: chargeloop
+  labels:
+    app: chargeloop
+    component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chargeloop
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: chargeloop
+        component: worker
+    spec:
+      containers:
+        - name: worker
+          image: chargeloop/backend:latest
+          # Override CMD to run workers instead of API server
+          command: ["node"]
+          args: ["workers/standalone.js"]
+          envFrom:
+            - configMapRef:
+                name: chargeloop-config
+            - secretRef:
+                name: chargeloop-secrets
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

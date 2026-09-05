@@ -1,0 +1,83 @@
+# ============================================================
+# Redis - Kubernetes Deployment
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: chargeloop
+  labels:
+    app: chargeloop
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chargeloop
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: chargeloop
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          command: ["redis-server"]
+          args:
+            - "--appendonly"
+            - "yes"
+            - "--maxmemory"
+            - "256mb"
+            - "--maxmemory-policy"
+            - "allkeys-lru"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+          # For production, use a PersistentVolumeClaim:
+          # persistentVolumeClaim:
+          #   claimName: redis-pvc
+
+---
+# ============================================================
+# Redis Service
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: chargeloop
+  labels:
+    app: chargeloop
+    component: redis
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: chargeloop
+    component: redis

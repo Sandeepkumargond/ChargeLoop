@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import LoadingCard from '@/components/LoadingCard';
 import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
+import { useSocket } from '@/contexts/SocketContext';
 
 export default function UserDashboardPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function UserDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState('');
   const [bookings, setBookings] = useState([]);
+  const { socket } = useSocket();
   const [bookingRequests, setBookingRequests] = useState([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [userData, setUserData] = useState({ chargingSessions: 0 });
@@ -121,6 +123,24 @@ export default function UserDashboardPage() {
 
     return () => {};
   }, [router, fetchCurrentBookings, fetchMyBookingRequests, fetchUserData]);
+
+  useEffect(() => {
+    if (socket) {
+      const handleBookingUpdate = (data) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+          fetchCurrentBookings(token);
+          fetchMyBookingRequests(token);
+        }
+      };
+
+      socket.on('booking_update', handleBookingUpdate);
+
+      return () => {
+        socket.off('booking_update', handleBookingUpdate);
+      };
+    }
+  }, [socket, fetchCurrentBookings, fetchMyBookingRequests]);
 
   const getStatusColor = (status) => {
     const statusMap = {

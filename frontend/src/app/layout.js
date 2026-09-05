@@ -4,6 +4,7 @@ import NavbarFooterWrapper, { FooterWrapper } from '../components/NavbarFooterWr
 import GoogleOAuthWrapper from '../components/GoogleOAuthWrapper';
 import ClientThemeProvider from '../components/ClientThemeProvider';
 import { SidebarProvider } from '../contexts/SidebarContext';
+import { SocketProvider } from '../contexts/SocketContext';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -29,13 +30,15 @@ export default function RootLayout({ children }) {
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ClientThemeProvider>
           <GoogleOAuthWrapper>
-            <SidebarProvider>
-              <div className="min-h-screen bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 transition-colors flex flex-col">
-                <NavbarFooterWrapper />
-                <main className="flex-1">{children}</main>
-                <FooterWrapper />
-              </div>
-            </SidebarProvider>
+            <SocketProvider>
+              <SidebarProvider>
+                <div className="min-h-screen bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 transition-colors flex flex-col">
+                  <NavbarFooterWrapper />
+                  <main className="flex-1">{children}</main>
+                  <FooterWrapper />
+                </div>
+              </SidebarProvider>
+            </SocketProvider>
           </GoogleOAuthWrapper>
         </ClientThemeProvider>
       </body>

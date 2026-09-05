@@ -1,0 +1,81 @@
+# ============================================================
+# ChargeLoop Frontend - Kubernetes Deployment
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chargeloop-frontend
+  namespace: chargeloop
+  labels:
+    app: chargeloop
+    component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: chargeloop
+      component: frontend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: chargeloop
+        component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: chargeloop/frontend:latest
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: chargeloop-config
+                  key: API_URL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+
+---
+# ============================================================
+# Frontend Service
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: chargeloop-frontend
+  namespace: chargeloop
+  labels:
+    app: chargeloop
+    component: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app: chargeloop
+    component: frontend

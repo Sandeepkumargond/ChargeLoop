@@ -4,7 +4,7 @@ const Host = require('../models/Host');
 const BookingRequest = require('../models/BookingRequest');
 const ChargerStation = require('../models/ChargerStation');
 const auth = require('../middleware/auth');
-const { sendBookingConfirmationEmail } = require('../services/emailService');
+const { enqueueBookingConfirmation, cancelBookingExpiry } = require('../queues/jobQueues');
 const { uploadFile } = require('../services/imagekitService');
 const { getNearbyHosts, getAllHosts, updateHostAvailability, toggleMapVisibility } = require('../controllers/hostController');
 const {
@@ -183,13 +183,32 @@ router.put('/requests/:requestId/accept', auth, async (req, res) => {
         pricePerKwh: request.pricePerKwh
       };
 
-      await sendBookingConfirmationEmail(request.userId?.email, bookingDetails);
-      console.log('Booking confirmation email sent to:', request.userId?.email);
+      // Send via BullMQ queue (guaranteed delivery with retries)
+      await enqueueBookingConfirmation(request.userId?.email, bookingDetails);
+      console.log('Booking confirmation email queued for:', request.userId?.email);
     } catch (emailError) {
-      console.error('Error sending booking confirmation email:', emailError.message);
+      console.error('Error queuing booking confirmation email:', emailError.message);
+    }
+
+    // Cancel auto-expiry since host has responded
+    try {
+      await cancelBookingExpiry(requestId);
+    } catch (cancelErr) {
+      console.error('Error cancelling booking expiry:', cancelErr.message);
     }
 
     await request.save();
+
+    // Emit WebSocket event to user
+    try {
+      const { getIo } = require('../services/socketService');
+      getIo().to(request.userId._id.toString()).emit('booking_update', {
+        bookingId: request._id,
+        status: 'accepted'
+      });
+    } catch (socketErr) {
+      console.error('Failed to emit socket event:', socketErr.message);
+    }
 
     res.json({
       success: true,
@@ -248,6 +267,25 @@ router.put('/requests/:requestId/decline', auth, async (req, res) => {
     };
     await request.save();
 
+    // Emit WebSocket event to user
+    try {
+      const { getIo } = require('../services/socketService');
+      getIo().to(request.userId.toString()).emit('booking_update', {
+        bookingId: request._id,
+        status: 'declined',
+        reason: reason || 'No reason provided'
+      });
+    } catch (socketErr) {
+      console.error('Failed to emit socket event:', socketErr.message);
+    }
+
+    // Cancel auto-expiry since host has responded
+    try {
+      await cancelBookingExpiry(requestId);
+    } catch (cancelErr) {
+      console.error('Error cancelling booking expiry:', cancelErr.message);
+    }
+
     res.json({
       success: true,
       msg: 'Booking request declined successfully',
@@ -299,6 +337,18 @@ router.put('/requests/:requestId/cancel', auth, async (req, res) => {
       cancelReason: reason || 'Host cancelled the booking'
     };
     await request.save();
+
+    // Emit WebSocket event to user
+    try {
+      const { getIo } = require('../services/socketService');
+      getIo().to(request.userId._id.toString()).emit('booking_update', {
+        bookingId: request._id,
+        status: 'cancelled',
+        reason: reason || 'Host cancelled the booking'
+      });
+    } catch (socketErr) {
+      console.error('Failed to emit socket event:', socketErr.message);
+    }
 
     res.json({
       success: true,
@@ -356,6 +406,17 @@ router.put('/requests/:requestId/mark-done', auth, async (req, res) => {
     }
 
     await request.save();
+
+    // Emit WebSocket event to user
+    try {
+      const { getIo } = require('../services/socketService');
+      getIo().to(request.userId._id.toString()).emit('booking_update', {
+        bookingId: request._id,
+        status: 'completed'
+      });
+    } catch (socketErr) {
+      console.error('Failed to emit socket event:', socketErr.message);
+    }
 
     res.json({
       success: true,
@@ -556,10 +617,11 @@ router.put('/bookings/:bookingId/status', auth, async (req, res) => {
       };
 
       try {
-        await sendBookingConfirmationEmail(booking.userId?.email, bookingDetails);
-        console.log('Booking confirmation email sent to:', booking.userId?.email);
+        // Send via BullMQ queue (guaranteed delivery with retries)
+        await enqueueBookingConfirmation(booking.userId?.email, bookingDetails);
+        console.log('Booking confirmation email queued for:', booking.userId?.email);
       } catch (emailError) {
-        console.error('Error sending booking confirmation email:', emailError.message);
+        console.error('Error queuing booking confirmation email:', emailError.message);
       }
 
       booking.hostResponse = {

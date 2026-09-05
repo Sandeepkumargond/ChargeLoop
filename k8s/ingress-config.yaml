@@ -1,0 +1,112 @@
+# ============================================================
+# ChargeLoop - Ingress (Traffic Routing)
+# ============================================================
+# Routes external traffic to frontend and API pods.
+# Requires an Ingress Controller (e.g., nginx-ingress).
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chargeloop-ingress
+  namespace: chargeloop
+  labels:
+    app: chargeloop
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    # Enable CORS
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    # Rate limiting at ingress level
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    # SSL redirect
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  # Uncomment and configure for SSL:
+  # tls:
+  #   - hosts:
+  #       - chargeloop.com
+  #       - api.chargeloop.com
+  #     secretName: chargeloop-tls
+  rules:
+    # Frontend: chargeloop.com → frontend pods
+    - host: chargeloop.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: chargeloop-frontend
+                port:
+                  number: 3000
+
+    # API: api.chargeloop.com → backend pods
+    - host: api.chargeloop.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: chargeloop-api
+                port:
+                  number: 5000
+
+---
+# ============================================================
+# Namespace
+# ============================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chargeloop
+  labels:
+    app: chargeloop
+
+---
+# ============================================================
+# ConfigMap (non-secret environment variables)
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chargeloop-config
+  namespace: chargeloop
+data:
+  NODE_ENV: "production"
+  PORT: "5000"
+  FRONTEND_URL: "https://chargeloop.com"
+  API_URL: "https://api.chargeloop.com"
+  REDIS_URL: "redis://redis:6379"
+
+---
+# ============================================================
+# Secrets (sensitive data — base64 encoded)
+# ============================================================
+# In production, use:
+#   kubectl create secret generic chargeloop-secrets \
+#     --from-literal=MONGO_URI='mongodb+srv://...' \
+#     --from-literal=JWT_SECRET='...' \
+#     --from-literal=EMAIL_USER='...' \
+#     --from-literal=EMAIL_PASS='...'
+#
+# The values below are PLACEHOLDERS — replace before deploying!
+apiVersion: v1
+kind: Secret
+metadata:
+  name: chargeloop-secrets
+  namespace: chargeloop
+type: Opaque
+stringData:
+  MONGO_URI: "REPLACE_WITH_YOUR_MONGO_URI"
+  JWT_SECRET: "REPLACE_WITH_YOUR_JWT_SECRET"
+  EMAIL_USER: "REPLACE_WITH_YOUR_EMAIL"
+  EMAIL_PASS: "REPLACE_WITH_YOUR_EMAIL_PASS"
+  GOOGLE_CLIENT_ID: "REPLACE_WITH_YOUR_GOOGLE_CLIENT_ID"
+  GOOGLE_CLIENT_SECRET: "REPLACE_WITH_YOUR_GOOGLE_CLIENT_SECRET"
+  IMAGEKIT_PUBLIC_KEY: "REPLACE_WITH_YOUR_IMAGEKIT_PUBLIC_KEY"
+  IMAGEKIT_PRIVATE_KEY: "REPLACE_WITH_YOUR_IMAGEKIT_PRIVATE_KEY"
+  IMAGEKIT_ID: "REPLACE_WITH_YOUR_IMAGEKIT_ID"

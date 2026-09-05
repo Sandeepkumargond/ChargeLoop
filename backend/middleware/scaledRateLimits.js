@@ -1,8 +1,16 @@
 const rateLimit = require('express-rate-limit');
+const { RedisStore } = require('rate-limit-redis');
+const { getRedisClient } = require('../services/redisService');
 
 /**
- * Express Rate Limit v7 - Scaled Configuration
- * Compatible with IPv6 and no deprecated options
+ * Express Rate Limit v7 - Redis-Backed Scaled Configuration
+ * 
+ * Uses Redis as the backing store so rate limits are shared across:
+ * - All Node.js cluster workers (server-cluster.js)
+ * - All Kubernetes pods (future deployment)
+ * 
+ * Without Redis, each worker has its own in-memory counter,
+ * effectively multiplying the allowed requests by the number of workers.
  */
 const createRateLimitConfig = (windowMs, maxRequests, message, keyGenerator) => {
   const config = {
@@ -12,8 +20,12 @@ const createRateLimitConfig = (windowMs, maxRequests, message, keyGenerator) => 
     standardHeaders: true, // Return rate limit info in RateLimit-* headers
     legacyHeaders: false, // Disable X-RateLimit-* headers
     statusCode: 429,
+    // Redis-backed store — shared across all workers/pods
+    store: new RedisStore({
+      sendCommand: (...args) => getRedisClient().call(...args),
+      prefix: 'rl:', // Rate limit key prefix in Redis
+    }),
     skip: (req) => {
-      // Skip rate limiting for health checks
       return req.path === '/api/health';
     },
     handler: (req, res) => {
