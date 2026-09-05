@@ -40,12 +40,21 @@ app.use(compression({
 app.use(securityMiddleware.helmet);
 app.use(securityMiddleware.securityHeaders);
 
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://chargeloop.vercel.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://chargeloop.vercel.app'
-  ],
-  credentials: false,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   maxAge: 3600

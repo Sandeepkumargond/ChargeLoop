@@ -6,12 +6,15 @@ const jwt = require('jsonwebtoken');
 let io;
 
 const init = async (server) => {
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'https://chargeloop.vercel.app',
+    process.env.FRONTEND_URL
+  ].filter(Boolean);
+
   io = new Server(server, {
     cors: {
-      origin: [
-        'http://localhost:3000',
-        'https://chargeloop.vercel.app'
-      ],
+      origin: allowedOrigins,
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
       credentials: true
     }
