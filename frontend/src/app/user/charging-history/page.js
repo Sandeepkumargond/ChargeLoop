@@ -57,10 +57,6 @@ export default function ChargingHistoryPage() {
       } finally {
         setLoading(false);
       }
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
   }, [router]);
 
   useEffect(() => {
