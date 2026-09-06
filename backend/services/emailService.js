@@ -3,7 +3,27 @@ const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@chargeloop.com';
 
 let transporter;
 
-if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.startsWith('SG.')) {
+  const sgMail = require('@sendgrid/mail');
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  console.log('✅ SendGrid Email Service Initialized (HTTP Port 443 - Cloud/Render Compatible)');
+
+  transporter = {
+    sendMail: async (mailOptions) => {
+      const fromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.EMAIL_USER || SUPPORT_EMAIL;
+      const msg = {
+        to: mailOptions.to,
+        from: fromEmail,
+        subject: mailOptions.subject,
+        html: mailOptions.html,
+        text: mailOptions.text || mailOptions.subject.replace(/<[^>]*>?/gm, ''),
+        ...(mailOptions.replyTo ? { replyTo: mailOptions.replyTo } : {})
+      };
+      const res = await sgMail.send(msg);
+      return { success: true, messageId: res[0]?.headers?.['x-message-id'] || `sg-${Date.now()}` };
+    }
+  };
+} else if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
   transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -14,9 +34,9 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
     greetingTimeout: 5000,
     socketTimeout: 8000
   });
+  console.log('✅ Gmail SMTP Email Service Initialized');
 } else {
-
-  console.warn('EMAIL_USER or EMAIL_PASS not configured. Using test mode for emails.');
+  console.warn('⚠️ EMAIL_USER / SENDGRID_API_KEY not configured. Using test mode for emails.');
   transporter = {
     sendMail: async (mailOptions) => {
       console.log('[TEST MODE] Email would be sent to:', mailOptions.to);
