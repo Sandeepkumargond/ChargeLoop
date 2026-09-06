@@ -5,22 +5,19 @@ let razorpayInstance = null;
 function getRazorpayInstance() {
   if (razorpayInstance) return razorpayInstance;
 
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-  if (keyId && keySecret && keyId.trim() !== '' && keySecret.trim() !== '') {
+  if (paymentService.isConfigured()) {
     try {
       const Razorpay = require('razorpay');
       razorpayInstance = new Razorpay({
-        key_id: keyId,
-        key_secret: keySecret
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET
       });
       console.log('✅ Razorpay Payment Gateway Initialized');
     } catch (err) {
       console.error('⚠️ Failed to initialize Razorpay:', err.message);
     }
   } else {
-    console.log('ℹ️ Razorpay keys not provided. Running in Payment Simulation / Sandbox mode.');
+    console.log('ℹ️ Razorpay keys not provided or using placeholders. Running in Payment Simulation / Sandbox mode.');
   }
 
   return razorpayInstance;
@@ -28,15 +25,19 @@ function getRazorpayInstance() {
 
 const paymentService = {
   isConfigured() {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
     return Boolean(
-      process.env.RAZORPAY_KEY_ID &&
-      process.env.RAZORPAY_KEY_SECRET &&
-      process.env.RAZORPAY_KEY_ID.trim() !== ''
+      keyId &&
+      keySecret &&
+      keyId.trim() !== '' &&
+      !keyId.includes('your_key') &&
+      !keySecret.includes('your_razorpay')
     );
   },
 
   getKeyId() {
-    return process.env.RAZORPAY_KEY_ID || 'rzp_test_chargeloop_sim';
+    return paymentService.isConfigured() ? process.env.RAZORPAY_KEY_ID : 'rzp_test_chargeloop_sim';
   },
 
   async createOrder({ amount, currency = 'INR', receipt, notes = {} }) {
@@ -65,8 +66,7 @@ const paymentService = {
           isSimulation: false
         };
       } catch (error) {
-        console.error('Razorpay order creation error:', error);
-        throw new Error(error.error?.description || error.message || 'Payment order creation failed');
+        console.warn('⚠️ Razorpay API error, falling back to simulated order:', error.message || error.error?.description);
       }
     }
 

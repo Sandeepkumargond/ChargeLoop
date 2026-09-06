@@ -19,14 +19,26 @@ router.post('/', async (req, res) => {
       });
     }
 
-    await sendContactEmail({
-      name,
-      email,
-      subject,
-      message,
-      type: type || 'general',
-      to: to || process.env.EMAIL_USER || 'errorincode404@gmail.com'
-    });
+    try {
+      const { enqueueContactEmail } = require('../queues/jobQueues');
+      await enqueueContactEmail({
+        name,
+        email,
+        subject,
+        message,
+        type: type || 'general',
+        to: to || process.env.EMAIL_USER || 'errorincode404@gmail.com'
+      });
+    } catch (queueErr) {
+      sendContactEmail({
+        name,
+        email,
+        subject,
+        message,
+        type: type || 'general',
+        to: to || process.env.EMAIL_USER || 'errorincode404@gmail.com'
+      }).catch(err => console.error('Direct contact email error:', err.message));
+    }
 
     return res.status(200).json({
       message: 'Email sent successfully',

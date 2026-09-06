@@ -68,13 +68,24 @@ function getBookingExpiryQueue() {
 // ============================================================
 
 /**
- * Queue an OTP verification email
+ * Queue an OTP verification email with instant direct-send fallback
  */
 async function enqueueOtpEmail(email, otp) {
-  const queue = getEmailQueue();
-  return queue.add('send-otp', { email, otp }, {
-    priority: 1, // Highest priority — user is waiting
-  });
+  try {
+    const queue = getEmailQueue();
+    return await Promise.race([
+      queue.add('send-otp', { email, otp }, {
+        priority: 1, // Highest priority — user is waiting
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Queue timeout')), 2500))
+    ]);
+  } catch (queueErr) {
+    console.warn(`⚠️ [BullMQ] enqueueOtpEmail fallback to direct send: ${queueErr.message}`);
+    const { sendOtpEmail } = require('../services/emailService');
+    // Send directly in background so client request is not blocked
+    sendOtpEmail(email, otp).catch(err => console.error('Direct sendOtpEmail error:', err.message));
+    return { id: `fallback-${Date.now()}` };
+  }
 }
 
 /**
@@ -150,7 +161,7 @@ async function scheduleBookingExpiry(bookingId, delayMs = 15 * 60 * 1000) {
   const queue = getBookingExpiryQueue();
   return queue.add('expire-booking', { bookingId }, {
     delay: delayMs,
-    jobId: `expire:${bookingId}`, // Prevent duplicate expiry jobs
+    jobId: `expire_${bookingId}`, // Prevent duplicate expiry jobs (BullMQ forbids colons in custom IDs)
   });
 }
 
@@ -160,7 +171,7 @@ async function scheduleBookingExpiry(bookingId, delayMs = 15 * 60 * 1000) {
  */
 async function cancelBookingExpiry(bookingId) {
   const queue = getBookingExpiryQueue();
-  const job = await queue.getJob(`expire:${bookingId}`);
+  const job = await queue.getJob(`expire_${bookingId}`);
   if (job) {
     await job.remove();
   }

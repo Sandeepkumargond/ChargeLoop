@@ -71,6 +71,19 @@ const approveHost = async (req, res) => {
     host.rejectionReason = undefined;
     await host.save();
 
+    // Promote user role to host
+    if (host.userId) {
+      await User.findByIdAndUpdate(host.userId._id || host.userId, { role: 'host' });
+    }
+
+    // Send host approval notification email
+    try {
+      const { enqueueHostApprovalEmail } = require('../queues/jobQueues');
+      await enqueueHostApprovalEmail(host.email || host.userId?.email, host.hostName);
+    } catch (emailErr) {
+      console.error('Error queuing host approval email:', emailErr.message);
+    }
+
     res.json({
       message: 'Host approved successfully',
       host: {
@@ -108,6 +121,14 @@ const rejectHost = async (req, res) => {
     host.verificationStatus = 'rejected';
     host.rejectionReason = reason.trim();
     await host.save();
+
+    // Send host denial notification email
+    try {
+      const { enqueueHostDenialEmail } = require('../queues/jobQueues');
+      await enqueueHostDenialEmail(host.email || host.userId?.email, host.hostName, reason.trim());
+    } catch (emailErr) {
+      console.error('Error queuing host denial email:', emailErr.message);
+    }
 
     res.json({
       message: 'Host rejected successfully',

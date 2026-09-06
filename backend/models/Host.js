@@ -40,34 +40,37 @@ const HostSchema = new mongoose.Schema({
   chargerType: {
     type: String,
     required: true,
-    enum: [
-      'Regular Charging (22kW)',
-      'Fast Charging (50kW)',
-      'Super Fast (100kW)',
-      'Ultra Fast (150kW)',
-      'Tesla Supercharger'
-    ]
+    default: 'Regular Charging (22kW)'
   },
-  // NEW: Charger power capacity (kW)
+  // Charger power capacity (kW)
   chargerPowerKw: {
     type: Number,
     min: 0.5,
+    default: 22,
     description: 'Charger power in kilowatts (e.g., 3.3, 7.4, 22, 50 kW)'
   },
   // Socket max capacity - host's charger rating
   socketMaxCapacity: {
     type: Number,
     default: 3.3,
-    enum: [3.3, 7, 7.4, 22, 50, 100, 150],
+    min: 0.5,
     description: 'Host socket max capacity in kW. User must not exceed this.'
   },
   // Price per kWh in ₹
   pricePerKwh: {
     type: Number,
     min: 0,
+    default: 0,
     description: 'Price per kWh in ₹'
   },
-  // NEW: Convenience fee for parking/maintenance
+  // Legacy price per hour support
+  pricePerHour: {
+    type: Number,
+    min: 0,
+    default: 0,
+    description: 'Price per hour in ₹'
+  },
+  // Convenience fee for parking/maintenance
   convenienceFee: {
     type: Number,
     default: 0,
@@ -101,11 +104,11 @@ const HostSchema = new mongoose.Schema({
     type: String
   },
   rating: {
-    average: Number,
-    count: Number
+    average: { type: Number, default: 0 },
+    count: { type: Number, default: 0 }
   },
-  totalBookings: Number,
-  totalEarnings: Number,
+  totalBookings: { type: Number, default: 0 },
+  totalEarnings: { type: Number, default: 0 },
   documents: {
     addressProofUrl: String,
     aadharCardUrl: String,

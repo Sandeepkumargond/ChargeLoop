@@ -706,11 +706,15 @@ router.put('/bookings/:bookingId/status', auth, async (req, res) => {
 
     if (status === 'completed' && !booking.endTime) {
       booking.endTime = new Date();
-      booking.actualDuration = Math.ceil((booking.endTime - booking.startTime) / (1000 * 60));
-      booking.actualCost = Math.ceil((booking.actualDuration / 60) * host.pricePerHour);
+      const startTime = booking.startTime || booking.scheduledTime || new Date();
+      booking.actualDuration = Math.max(1, Math.ceil((booking.endTime - startTime) / (1000 * 60)));
+      const platformFee = booking.platformFee ?? 10;
+      const finalCost = booking.totalBill || booking.actualCost || Math.ceil((booking.actualDuration / 60) * (host.pricePerKwh || host.pricePerHour || 10));
+      booking.actualCost = finalCost;
 
-      host.totalEarnings += booking.actualCost;
-      host.totalBookings += 1;
+      const hostEarned = Math.max(0, finalCost - platformFee);
+      host.totalEarnings = (host.totalEarnings || 0) + hostEarned;
+      host.totalBookings = (host.totalBookings || 0) + 1;
       await host.save();
     }
 

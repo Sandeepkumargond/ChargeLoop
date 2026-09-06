@@ -30,11 +30,11 @@ const securityMiddleware = {
       return next();
     }
     
-    // For other requests, require application/json
-    if (contentType && !contentType.includes('application/json')) {
+    // For other requests, require valid content types
+    if (contentType && !contentType.includes('application/json') && !contentType.includes('application/x-www-form-urlencoded')) {
       if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'DELETE') {
         return res.status(415).json({
-          msg: 'Unsupported Media Type. Use application/json or multipart/form-data for file uploads',
+          msg: 'Unsupported Media Type. Use application/json, multipart/form-data, or application/x-www-form-urlencoded',
           code: 'UNSUPPORTED_MEDIA_TYPE'
         });
       }
@@ -54,7 +54,7 @@ const securityMiddleware = {
   },
 
   inputLengthValidator: (req, res, next) => {
-    const MAX_STRING_LENGTH = 10000;
+    const MAX_STRING_LENGTH = 10 * 1024 * 1024; // 10MB max to allow base64 images and documents
     const validateValue = (value) => {
       if (typeof value === 'string' && value.length > MAX_STRING_LENGTH) {
         throw new Error('Input string too long');

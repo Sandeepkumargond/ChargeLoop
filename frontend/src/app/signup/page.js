@@ -34,10 +34,14 @@ export default function SignupPage() {
   useEffect(() => {
     setMounted(true);
 
+    // Pre-warm backend service to prevent cloud cold-start delay
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/`).catch(() => {});
+    }
+
     const token = localStorage.getItem('token');
 
     if (token) {
-
       const userRole = localStorage.getItem('userRole');
       if (userRole === 'host') {
         router.push('/host');

@@ -9,7 +9,10 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
-    }
+    },
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 8000
   });
 } else {
 
@@ -62,12 +65,12 @@ const sendHostOnboardingEmail = async (hostData) => {
               <div class="info-card">
                 <h3> Your Registration Details:</h3>
                 <ul>
-                  <li><strong>Host Name:</strong> ${hostData.hostName}</li>
-                  <li><strong>Email:</strong> ${hostData.email}</li>
-                  <li><strong>Phone:</strong> ${hostData.phone}</li>
-                  <li><strong>Charger Type:</strong> ${hostData.chargerType}</li>
-                  <li><strong>Price per Hour:</strong> ₹${hostData.pricePerHour}</li>
-                  <li><strong>Address:</strong> ${hostData.location.address}</li>
+                  <li><strong>Host Name:</strong> ${hostData.hostName || 'Host'}</li>
+                  <li><strong>Email:</strong> ${hostData.email || ''}</li>
+                  <li><strong>Phone:</strong> ${hostData.phone || 'N/A'}</li>
+                  <li><strong>Charger Type:</strong> ${hostData.chargerType || 'Standard'}</li>
+                  <li><strong>Price:</strong> ₹${hostData.pricePerHour || hostData.pricePerUnit || 0}/hr</li>
+                  <li><strong>Address:</strong> ${hostData.location?.address || hostData.address || 'Registered Location'}</li>
                 </ul>
               </div>
 

@@ -50,12 +50,26 @@ function startBookingExpiryWorker() {
 
       console.log(`✅ [BookingExpiry] Booking ${bookingId} expired successfully`);
 
-      // Optionally notify the user that their booking expired
+      // Emit WebSocket event to notify user and host in real-time
       try {
-        const { enqueueBookingExpiryNotification } = require('../queues/jobQueues');
-        // Future: enqueue a notification email to the user
-      } catch (e) {
-        // Notification not critical
+        const { getIo } = require('../services/socketService');
+        const io = getIo();
+        if (booking.userId) {
+          io.to(booking.userId.toString()).emit('booking_update', {
+            bookingId: booking._id,
+            status: 'expired',
+            reason: 'Booking expired due to no host response'
+          });
+        }
+        if (booking.hostId) {
+          io.to(booking.hostId.toString()).emit('booking_update', {
+            bookingId: booking._id,
+            status: 'expired',
+            reason: 'Booking expired due to no response'
+          });
+        }
+      } catch (socketErr) {
+        // Socket emission non-fatal
       }
     } catch (error) {
       console.error(`❌ [BookingExpiry] Error expiring booking ${bookingId}:`, error.message);

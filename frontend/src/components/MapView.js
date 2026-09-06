@@ -99,136 +99,72 @@
           let locationSource = 'default';
           let accuracy = 0;
 
-          if (navigator.geolocation) {
-
-            let permissionStatus = 'unknown';
-            try {
-              if (navigator.permissions) {
-                const permission = await navigator.permissions.query({name: 'geolocation'});
-                permissionStatus = permission.state;
-
-                if (permission.state === 'denied') {
-
-                  alert(' Location Permission Denied\n\nTo show your accurate location:\n1. Click the location icon in your browser address bar\n2. Select "Allow" for location access\n3. Refresh the page\n\nUsing IP-based location as fallback.');
-                }
-              }
-            } catch (permError) {
-
-            }
-
-            let gpsSuccess = false;
-
-            if (permissionStatus !== 'denied') {
-              for (let attempt = 1; attempt <= 2 && !gpsSuccess; attempt++) {
-                try {
-
-                  const position = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(
-                      (pos) => {
-                        resolve(pos);
-                      },
-                      (err) => {
-
-                        if (err.code === 1) {
-                        } else if (err.code === 2) {
-                        } else if (err.code === 3) {
-                        }
-                        reject(err);
-                      },
-                      {
-                        timeout: attempt === 1 ? 25000 : 15000,
-                        enableHighAccuracy: true,
-                        maximumAge: attempt === 1 ? 0 : 5000
-                      }
-                    );
-                  });
-
-                  const lat = position.coords.latitude;
-                  const lng = position.coords.longitude;
-                  const posAccuracy = position.coords.accuracy;
-
-                  if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && posAccuracy < 10000) {
-                    center = [lat, lng];
-                    setUserLocation(center);
-                    locationSource = 'gps';
-                    setLocationSource('gps');
-                    accuracy = posAccuracy;
-                    setLocationAccuracy(accuracy);
-                    gpsSuccess = true;
-
-                    if (posAccuracy <= 100) {
-                    } else if (posAccuracy <= 1000) {
-                    } else {
-                    }
-                    break;
-                  } else {
-                    if (attempt < 2) {
-                      await new Promise(resolve => setTimeout(resolve, 3000));
-                    }
-                  }
-                } catch (gpsError) {
-                  if (attempt < 2) {
-                    await new Promise(resolve => setTimeout(resolve, 3000));
-                  }
-                }
-              }
-            }
-
-            if (!gpsSuccess) {
-              try {
-                const ipResponse = await fetchWithFriendlyError('https://ipapi.co/json/');
-                const ipData = await ipResponse.json();
-
-                if (ipData.latitude && ipData.longitude) {
-                  const lat = parseFloat(ipData.latitude);
-                  const lng = parseFloat(ipData.longitude);
-
-                  if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-                    center = [lat, lng];
-                    setUserLocation(center);
-                    locationSource = 'ip';
-                    setLocationSource('ip');
-                    accuracy = 5000;
-                    setLocationAccuracy(accuracy);
-                  } else {
-                    throw new Error('Invalid location data');
-                  }
-                } else {
-                  throw new Error('Unable to detect location');
-                }
-              } catch (ipError) {
-                setUserLocation(center);
-                setLocationSource('default');
-                setLocationAccuracy(0);
-              }
-            }
-          } else {
-
-            try {
-              const ipResponse = await fetchWithFriendlyError('https://ipapi.co/json/');
-              const ipData = await ipResponse.json();
-              if (ipData.latitude && ipData.longitude) {
-                center = [parseFloat(ipData.latitude), parseFloat(ipData.longitude)];
-                setUserLocation(center);
-                locationSource = 'ip';
-                setLocationSource('ip');
-                accuracy = 5000;
-                setLocationAccuracy(accuracy);
-              }
-            } catch (error) {
-              setUserLocation(center);
-              setLocationSource('default');
-              setLocationAccuracy(0);
-            }
-          }
-
           if (mapElement && mapElement._leaflet_map) {
-
             mapElement._leaflet_map.remove();
           }
 
           map = window.L.map('map').setView(center, 13);
           setMapInstance(map);
+
+          // Asynchronous non-blocking background location detector
+          const detectUserLocationAsync = async (userMarker, circleMarker) => {
+            let gpsResolved = false;
+
+            if (navigator.geolocation) {
+              try {
+                const position = await new Promise((resolve, reject) => {
+                  navigator.geolocation.getCurrentPosition(
+                    resolve,
+                    reject,
+                    { timeout: 6000, enableHighAccuracy: true, maximumAge: 10000 }
+                  );
+                });
+
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const posAccuracy = position.coords.accuracy;
+
+                if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                  const newCenter = [lat, lng];
+                  setUserLocation(newCenter);
+                  setLocationSource('gps');
+                  setLocationAccuracy(posAccuracy);
+                  userMarker.setLatLng(newCenter);
+                  if (circleMarker) circleMarker.setLatLng(newCenter);
+                  map.flyTo(newCenter, 14, { duration: 1.2 });
+                  fetchAndDisplayChargers(map, newCenter, 'all', false);
+                  gpsResolved = true;
+                }
+              } catch (err) {
+                // Silently fallback without blocking alert
+              }
+            }
+
+            if (!gpsResolved) {
+              try {
+                const ipResponse = await fetchWithFriendlyError('https://ipapi.co/json/');
+                if (ipResponse.ok) {
+                  const ipData = await ipResponse.json();
+                  if (ipData.latitude && ipData.longitude) {
+                    const lat = parseFloat(ipData.latitude);
+                    const lng = parseFloat(ipData.longitude);
+                    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                      const ipCenter = [lat, lng];
+                      setUserLocation(ipCenter);
+                      setLocationSource('ip');
+                      setLocationAccuracy(5000);
+                      userMarker.setLatLng(ipCenter);
+                      if (circleMarker) circleMarker.setLatLng(ipCenter);
+                      map.setView(ipCenter, 13);
+                      fetchAndDisplayChargers(map, ipCenter, 'all', false);
+                    }
+                  }
+                }
+              } catch (ipErr) {
+                // Keep default center
+              }
+            }
+          };
 
           const tileLayer = window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
@@ -280,19 +216,17 @@
             </div>
           `).openPopup();
 
+          // Kick off non-blocking background location detection
+          detectUserLocationAsync(userMarker, circleMarker);
+
           window.updateUserLocation = async () => {
             try {
-
               const position = await new Promise((resolve, reject) => {
                 navigator.geolocation.getCurrentPosition(
-                  (pos) => {
-                    resolve(pos);
-                  },
-                  (err) => {
-                    reject(err);
-                  },
+                  resolve,
+                  reject,
                   {
-                    timeout: 20000,
+                    timeout: 8000,
                     enableHighAccuracy: true,
                     maximumAge: 0
                   }
@@ -306,7 +240,9 @@
               setLocationSource('gps');
               setLocationAccuracy(newAccuracy);
               userMarker.setLatLng(newCenter);
-              map.setView(newCenter, 16);
+              if (circleMarker) circleMarker.setLatLng(newCenter);
+              map.flyTo(newCenter, 15, { duration: 1.2 });
+              fetchAndDisplayChargers(map, newCenter, 'all', false);
 
               userMarker.bindPopup(`
                 <div style="text-align: center; padding: 10px;">
@@ -321,7 +257,7 @@
               `).openPopup();
 
             } catch (error) {
-              alert(`Failed to get precise location: ${error.message}\n\nTips:\n- Enable location services\n- Allow location access for this website\n- Try going outside for better GPS signal`);
+              console.warn('Could not update precise location:', error.message);
             }
           };
 
@@ -444,7 +380,7 @@
         setAvailableChargers([]);
         displayChargersOnMap(map, []);
         const friendlyError = error.message || 'Unable to load charging stations. Please check your internet connection.';
-        if (showAlert) alert(friendlyError);
+        console.warn(friendlyError);
       }
     };
 

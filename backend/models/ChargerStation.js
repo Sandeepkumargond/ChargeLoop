@@ -44,7 +44,7 @@ const chargerStationSchema = new mongoose.Schema({
     type: Number,
     required: true,
     default: 3.3,
-    enum: [3.3, 7, 7.4, 22, 50, 100, 150],
+    min: 0.5,
     description: 'Host socket max capacity in kW (default 3.3kW for 16A). User must not exceed this with their charger.'
   },
   // Energy-based pricing fields (Approach A)

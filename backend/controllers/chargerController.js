@@ -56,11 +56,16 @@ const createChargerStation = async (req, res) => {
     await chargerStation.save();
 
     try {
-      await sendHostOnboardingEmail(req.user.email, {
-        hostName: req.user.name,
+      const { enqueueHostOnboardingEmail } = require('../queues/jobQueues');
+      enqueueHostOnboardingEmail({
+        email: req.user.email,
+        hostName: req.user.name || 'Host',
         stationName: name,
+        chargerType: chargerType,
+        pricePerHour: finalPrice,
+        location: location,
         stationId: chargerStation._id
-      });
+      }).catch(err => console.error('Error queuing host onboarding email:', err.message));
     } catch (emailError) {
       // Email error doesn't block the response
     }

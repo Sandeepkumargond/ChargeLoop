@@ -2,7 +2,7 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
-const { verifyEmailAddress } = require('../services/emailService');
+const { verifyEmailAddress, sendOtpEmail } = require('../services/emailService');
 const { storeOtp, verifyOtp: verifyOtpFromRedis, deleteOtp } = require('../services/redisService');
 const { enqueueOtpEmail } = require('../queues/jobQueues');
 
@@ -12,18 +12,30 @@ exports.signup = async (req, res) => {
   try {
     const { name, email, password, phone, userType } = req.body;
 
-    const emailVerification = await verifyEmailAddress(email);
+    if (!email || !password) {
+      return res.status(400).json({ msg: 'Email and password are required' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    const emailVerification = await verifyEmailAddress(cleanEmail);
     if (!emailVerification.valid) {
       return res.status(400).json({ msg: emailVerification.reason });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser) return res.status(400).json({ msg: 'Email already exists' });
 
     const role = userType === 'host' ? 'host' : 'user';
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await User.create({ name, email, password: hashedPassword, phone, role });
+    const newUser = await User.create({
+      name: name ? name.trim() : '',
+      email: cleanEmail,
+      password: hashedPassword,
+      phone: phone ? phone.trim() : '',
+      role
+    });
 
     const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
@@ -41,8 +53,17 @@ exports.login = async (req, res) => {
   try {
     const { email, password, loginType } = req.body;
 
-    const user = await User.findOne({ email });
+    if (!email || !password) {
+      return res.status(400).json({ msg: 'Email and password are required' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) return res.status(400).json({ msg: 'User not found' });
+
+    if (!user.password) {
+      return res.status(400).json({ msg: 'This account was registered using Google. Please log in with Google.' });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: 'Invalid credentials' });
@@ -60,7 +81,7 @@ exports.login = async (req, res) => {
         });
       }
     } else if (loginType === 'user') {
-      if (user.role !== 'user') {
+      if (user.role !== 'user' && user.role !== 'host') {
         return res.status(400).json({
           msg: 'User not found'
         });
@@ -156,7 +177,7 @@ exports.googleLogin = async (req, res) => {
         return res.status(400).json({ msg: 'User not found' });
       }
 
-      if (loginType === 'user' && user.role !== 'user') {
+      if (loginType === 'user' && user.role !== 'user' && user.role !== 'host') {
         return res.status(400).json({ msg: 'User not found' });
       }
     } else {
@@ -368,6 +389,17 @@ exports.requestHostRegistration = async (req, res) => {
       }
     }
 
+    const power = parseFloat(chargerPowerKw) || 22;
+    let calculatedChargerType = 'Regular Charging (22kW)';
+    if (power >= 150) calculatedChargerType = 'Ultra Fast (150kW)';
+    else if (power >= 100) calculatedChargerType = 'Super Fast (100kW)';
+    else if (power >= 50) calculatedChargerType = 'Fast Charging (50kW)';
+    else calculatedChargerType = 'Regular Charging (22kW)';
+
+    const finalChargerType = (chargerTypes && chargerTypes[0]) || req.body.chargerType || calculatedChargerType;
+    const finalSocketCapacity = parseFloat(socketMaxCapacity) || power || 3.3;
+    const finalPricePerKwh = parseFloat(pricePerKwh || pricePerUnit || req.body.pricePerHour) || 0;
+
     const newHost = new Host({
       userId: req.user.id,
       hostName: name || user.name,
@@ -383,11 +415,11 @@ exports.requestHostRegistration = async (req, res) => {
           lng: parseFloat(longitude)
         }
       },
-      chargerType: chargerTypes && chargerTypes[0] ? chargerTypes[0] : null,
-      // NEW: Charger power and pricing fields (from user input only)
-      chargerPowerKw: parseFloat(chargerPowerKw) || 22,
-      socketMaxCapacity: parseFloat(socketMaxCapacity) || 3.3,
-      pricePerKwh: parseFloat(pricePerKwh || pricePerUnit) || 0,
+      chargerType: finalChargerType,
+      chargerPowerKw: power,
+      socketMaxCapacity: finalSocketCapacity,
+      pricePerKwh: finalPricePerKwh,
+      pricePerHour: finalPricePerKwh,
       convenienceFee: parseFloat(convenienceFee) || 0,
       verificationStatus: 'pending',
       documents: {
@@ -494,23 +526,25 @@ exports.sendOtp = async (req, res) => {
       return res.status(400).json({ msg: 'Email is required' });
     }
 
-    const emailVerification = await verifyEmailAddress(email);
+    const cleanEmail = email.toLowerCase().trim();
+
+    const emailVerification = await verifyEmailAddress(cleanEmail);
     if (!emailVerification.valid) {
       return res.status(400).json({ msg: emailVerification.reason });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser) {
       return res.status(400).json({ msg: 'Email already exists' });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Store OTP in Redis with 10-minute TTL (works across all cluster workers)
-    await storeOtp(email, otp, 600);
+    // Store OTP in Redis with in-memory fallback
+    await storeOtp(cleanEmail, otp, 600);
 
-    // Enqueue email via BullMQ (guaranteed delivery with retries)
-    await enqueueOtpEmail(email, otp);
+    // Enqueue email with background direct-send fallback
+    await enqueueOtpEmail(cleanEmail, otp);
 
     // Respond immediately to the client
     res.status(200).json({
@@ -530,14 +564,17 @@ exports.verifyOtp = async (req, res) => {
       return res.status(400).json({ msg: 'Email and OTP are required' });
     }
 
-    // Verify OTP from Redis (handles expiry, attempts, and cleanup)
-    const result = await verifyOtpFromRedis(email, otp);
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanOtp = otp.toString().trim();
+
+    // Verify OTP from Redis (with memory store fallback)
+    const result = await verifyOtpFromRedis(cleanEmail, cleanOtp);
 
     if (!result.valid) {
       return res.status(400).json({ msg: result.reason });
     }
 
-    const verificationToken = jwt.sign({ email, otpVerified: true }, process.env.JWT_SECRET, { expiresIn: '30m' });
+    const verificationToken = jwt.sign({ email: cleanEmail, otpVerified: true }, process.env.JWT_SECRET, { expiresIn: '30m' });
 
     res.status(200).json({
       msg: 'OTP verified successfully',
@@ -557,11 +594,17 @@ exports.completeSignup = async (req, res) => {
       return res.status(401).json({ msg: 'Verification token is required' });
     }
 
+    if (!email || !password) {
+      return res.status(400).json({ msg: 'Email and password are required' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
     if (!phone || phone.trim().length === 0) {
       return res.status(400).json({ msg: 'Phone number is required' });
     }
 
-    if (phone.includes('@') || phone === email) {
+    if (phone.includes('@') || phone.trim() === cleanEmail) {
       return res.status(400).json({ msg: 'Invalid phone number - cannot be an email address' });
     }
 
@@ -577,11 +620,11 @@ exports.completeSignup = async (req, res) => {
       return res.status(401).json({ msg: 'Email not verified with OTP' });
     }
 
-    if (decoded.email !== email) {
+    if (decoded.email.toLowerCase().trim() !== cleanEmail) {
       return res.status(401).json({ msg: 'Email mismatch - token was created for different email' });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser) {
       return res.status(400).json({ msg: 'Email already exists' });
     }
@@ -591,8 +634,8 @@ exports.completeSignup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await User.create({
-      name,
-      email,
+      name: name ? name.trim() : '',
+      email: cleanEmail,
       password: hashedPassword,
       phone: phone.trim(),
       role,
@@ -627,7 +670,8 @@ exports.forgotPassword = async (req, res) => {
       return res.status(400).json({ msg: 'Email is required' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(400).json({ msg: 'User not found' });
     }
@@ -635,10 +679,8 @@ exports.forgotPassword = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 15 * 60 * 1000);
 
-    const emailResult = await sendOtpEmail(email, otp);
-    if (!emailResult.success) {
-      return res.status(500).json({ msg: 'Failed to send OTP email' });
-    }
+    // Enqueue with BullMQ / fallback
+    await enqueueOtpEmail(cleanEmail, otp);
 
     user.otp = otp;
     user.otpExpiry = otpExpiry;
@@ -663,7 +705,10 @@ exports.verifyOtpForReset = async (req, res) => {
       return res.status(400).json({ msg: 'Email and OTP are required' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanOtp = otp.toString().trim();
+
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(400).json({ msg: 'User not found' });
     }
@@ -679,7 +724,7 @@ exports.verifyOtpForReset = async (req, res) => {
       return res.status(400).json({ msg: 'OTP has expired. Please request a new OTP' });
     }
 
-    if (user.otp !== otp) {
+    if (user.otp !== cleanOtp) {
       return res.status(400).json({ msg: 'Invalid OTP' });
     }
 
@@ -712,7 +757,8 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ msg: 'Password must be at least 6 characters long' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(400).json({ msg: 'User not found' });
     }
@@ -739,3 +785,4 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+

@@ -153,7 +153,7 @@ const bookingRequestSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['upi', 'card', 'netbanking', 'wallet', 'razorpay', 'cash', 'direct', null],
+    enum: ['upi', 'card', 'netbanking', 'wallet', 'razorpay', 'cash', 'direct', 'online', null],
     default: null
   },
   paymentId: {
@@ -198,7 +198,9 @@ const bookingRequestSchema = new mongoose.Schema({
     respondedAt: Date,
     acceptedAt: Date,
     declinedAt: Date,
-    declineReason: String
+    declineReason: String,
+    autoExpired: Boolean,
+    expiryReason: String
   },
   metadata: {
     chargerId: String,

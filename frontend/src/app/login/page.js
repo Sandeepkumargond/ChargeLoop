@@ -30,11 +30,15 @@ export default function LoginPage() {
   useEffect(() => {
     setMounted(true);
 
+    // Pre-warm backend service on page load to eliminate cloud cold start latency
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/`).catch(() => {});
+    }
+
     const token = localStorage.getItem('token');
     const userRole = localStorage.getItem('userRole');
 
     if (token) {
-
       if (userRole === 'host') {
         router.push('/host');
       } else if (userRole === 'admin') {
@@ -143,26 +147,8 @@ const handleSubmit = async (e) => {
       const result = await response.json();
 
       if (result.token) {
-
         const userEmail = result.user.email;
-        let userType = 'user';
-
-        try {
-          const userTypeResponse = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/check-user-type`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${result.token}`
-            },
-            body: JSON.stringify({ email: userEmail }),
-          });
-
-          if (userTypeResponse.ok) {
-            const userTypeData = await userTypeResponse.json();
-            userType = userTypeData.userType || 'user';
-          }
-        } catch (error) {
-        }
+        const userType = result.user.role || 'user';
 
         setAuth({
           token: result.token,

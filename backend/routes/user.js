@@ -213,29 +213,41 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
 
     if (hostId) {
       host = await require('../models/Host').findById(hostId).select(
-        'chargerPowerKw pricePerKwh socketMaxCapacity convenienceFee phone'
+        'chargerPowerKw pricePerKwh pricePerHour socketMaxCapacity convenienceFee phone'
       );
+      if (!host && chargerId) {
+        const station = await require('../models/ChargerStation').findById(chargerId);
+        if (station) {
+          host = await require('../models/Host').findOne({ userId: station.hostId });
+          if (!host) {
+            pricePerKwh = station.pricePerKwh ?? station.pricePerUnit ?? 10;
+            convenienceFee = station.convenienceFee ?? 0;
+            socketMaxCapacity = station.socketMaxCapacity ?? station.powerOutput ?? 3.3;
+            chargerPowerKw = station.chargerPowerKw ?? station.powerOutput ?? 22;
+          }
+        }
+      }
     }
 
-    // Only use REAL data from host - no defaults
+    // Only use REAL data from host with sensible fallbacks
     if (host) {
-      pricePerKwh = host.pricePerKwh;
-      convenienceFee = host.convenienceFee;
-      socketMaxCapacity = host.socketMaxCapacity;
-      chargerPowerKw = host.chargerPowerKw;
+      pricePerKwh = host.pricePerKwh ?? host.pricePerHour ?? 10;
+      convenienceFee = host.convenienceFee ?? 0;
+      socketMaxCapacity = host.socketMaxCapacity ?? host.chargerPowerKw ?? 3.3;
+      chargerPowerKw = host.chargerPowerKw ?? host.socketMaxCapacity ?? 22;
       hostPhone = host.phone;
     }
 
     // Get user phone from profile
     const userPhone = user.phone;
 
-      // Validate that we have real host data
-      if (!pricePerKwh || socketMaxCapacity === null) {
-        return res.status(400).json({
-          success: false,
-          msg: 'Host charger pricing information not found. Please contact the host.'
-        });
-      }
+    // Validate that we have real host data
+    if (pricePerKwh === undefined || pricePerKwh === null || socketMaxCapacity === null || socketMaxCapacity === undefined) {
+      return res.status(400).json({
+        success: false,
+        msg: 'Host charger pricing information not found. Please contact the host.'
+      });
+    }
 
       // Calculate pricing with REAL data
       const pricingResult = pricingService.calculateNewPricing({
@@ -368,7 +380,7 @@ router.get('/bookings/requests/my-requests', authMiddleware, async (req, res) =>
     const { status } = req.query;
     const query = { userId: req.user.id };
 
-    if (status && ['pending', 'accepted', 'declined', 'expired'].includes(status)) {
+    if (status && ['pending', 'accepted', 'declined', 'expired', 'cancelled'].includes(status)) {
       query.status = status;
     }
 

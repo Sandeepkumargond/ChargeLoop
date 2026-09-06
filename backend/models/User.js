@@ -28,12 +28,12 @@ const vehicleSchema = new mongoose.Schema({
 });
 
 const userSchema = new mongoose.Schema({
-  name: String,
-  email: { type: String, unique: true },
+  name: { type: String, trim: true },
+  email: { type: String, unique: true, required: true, lowercase: true, trim: true, index: true },
   password: String,
-  googleId: String,
+  googleId: { type: String, index: true },
   profilePicture: String,
-  phone: { type: String, default: '' },
+  phone: { type: String, default: '', trim: true },
   location: String,
   chargingSessions: { type: Number, default: 0 },
   hostSessions: { type: Number, default: 0 },
@@ -41,7 +41,7 @@ const userSchema = new mongoose.Schema({
   otp: String,
   otpExpiry: Date,
   otpVerified: { type: Boolean, default: false },
-  role: { type: String, enum: ['user', 'host', 'admin'], default: 'user' },
+  role: { type: String, enum: ['user', 'host', 'admin'], default: 'user', index: true },
   vehicles: [vehicleSchema],
   lastLogin: { type: Date, default: Date.now }
 }, { timestamps: true });

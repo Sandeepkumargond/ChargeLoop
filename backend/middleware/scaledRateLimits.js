@@ -20,9 +20,19 @@ const createRateLimitConfig = (windowMs, maxRequests, message, keyGenerator) => 
     standardHeaders: true, // Return rate limit info in RateLimit-* headers
     legacyHeaders: false, // Disable X-RateLimit-* headers
     statusCode: 429,
+    // When Redis is restarting or slow, pass through to avoid locking users out
+    passOnStoreError: true,
     // Redis-backed store — shared across all workers/pods
     store: new RedisStore({
-      sendCommand: (...args) => getRedisClient().call(...args),
+      sendCommand: async (...args) => {
+        const client = getRedisClient();
+        return Promise.race([
+          client.call(...args),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Rate-limit Redis timeout')), 5000)
+          )
+        ]);
+      },
       prefix: 'rl:', // Rate limit key prefix in Redis
     }),
     skip: (req) => {

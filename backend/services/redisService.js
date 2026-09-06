@@ -19,6 +19,9 @@ let subscriberClient = null;
 
 // Track initialized client tags to avoid log flooding
 const loggedTags = new Set();
+// In-memory fallback stores for high resilience (reconnection, offline or cold start)
+const memoryOtpStore = new Map();
+const memoryCacheStore = new Map();
 
 /**
  * Parse REDIS_URL and produce production-ready ioredis connection options.
@@ -31,7 +34,9 @@ function getRedisConnectionOptions(clientTag = 'MainRedis') {
 
   try {
     const parsed = new URL(redisUrl);
-    const isTls = parsed.protocol === 'rediss:';
+    const isUpstash = parsed.hostname.includes('upstash.io');
+    // Upstash ALWAYS requires TLS. Also enable TLS if rediss: is specified or explicit env flag
+    const isTls = parsed.protocol === 'rediss:' || isUpstash || process.env.REDIS_TLS === 'true';
 
     const options = {
       host: parsed.hostname || 'localhost',
@@ -41,27 +46,24 @@ function getRedisConnectionOptions(clientTag = 'MainRedis') {
       maxRetriesPerRequest: null, // Required by BullMQ
       enableReadyCheck: false,    // Prevents INFO command failures on cloud/proxy Redis
       keepAlive: 10000,           // 10s TCP keepalive prevents idle connection drops (ECONNRESET)
-      connectTimeout: 15000,
+      connectTimeout: 8000,
       protocol: 2,                // Force RESP2: eliminates HELLO 3 which causes ECONNRESET on Render/Upstash
       disableClientInfo: true,    // Disable CLIENT SETINFO: prevents proxy connection resets
       retryStrategy(times) {
         const delay = Math.min(times * 250, 5000);
-        if (times <= 5 || times % 10 === 0) {
+        if (times <= 3 || times % 20 === 0) {
           console.log(`⚠️  [${clientTag}] Redis reconnecting in ${delay}ms (attempt ${times})`);
         }
         return delay;
       },
       reconnectOnError(err) {
-        // ONLY reconnect on Redis engine cluster failover errors (READONLY).
-        // NEVER reconnect on transport/socket errors (ECONNRESET/ETIMEDOUT are handled by retryStrategy).
         const targetError = 'READONLY';
         return Boolean(err && err.message && err.message.includes(targetError));
       }
     };
 
     if (isTls) {
-      // Cloud Redis providers (Render, Upstash, Heroku) use self-signed certificates.
-      // Default rejectUnauthorized to false unless explicitly set to 'true'.
+      // Cloud Redis providers (Upstash, Render, Heroku) require SNI servername
       options.tls = {
         servername: parsed.hostname,
         rejectUnauthorized: process.env.REDIS_TLS_REJECT_UNAUTHORIZED === 'true',
@@ -148,7 +150,7 @@ function getBullMQConnection() {
 }
 
 // ============================================================
-// OTP Operations (replaces global.otpStore)
+// OTP Operations (with in-memory resilience fallback)
 // ============================================================
 
 const OTP_PREFIX = 'otp:';
@@ -162,16 +164,33 @@ const OTP_MAX_ATTEMPTS = 5;
  * @param {number} ttl - Time to live in seconds (default: 600 = 10 min)
  */
 async function storeOtp(email, otp, ttl = OTP_TTL) {
-  const client = getRedisClient();
-  const key = `${OTP_PREFIX}${email.toLowerCase()}`;
-  
+  const normEmail = email.toLowerCase().trim();
+  const key = `${OTP_PREFIX}${normEmail}`;
   const data = JSON.stringify({
     otp,
     attempts: 0,
     createdAt: Date.now()
   });
 
-  await client.setex(key, ttl, data);
+  // Always store in memory fallback so OTP is instantly available
+  memoryOtpStore.set(normEmail, {
+    otp,
+    attempts: 0,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + ttl * 1000
+  });
+
+  try {
+    const client = getRedisClient();
+    if (client && client.status === 'ready') {
+      await Promise.race([
+        client.setex(key, ttl, data),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+      ]);
+    }
+  } catch (err) {
+    console.warn(`⚠️ [Redis] storeOtp using memory store fallback: ${err.message}`);
+  }
 }
 
 /**
@@ -181,36 +200,65 @@ async function storeOtp(email, otp, ttl = OTP_TTL) {
  * @returns {{ valid: boolean, reason: string }}
  */
 async function verifyOtp(email, otp) {
-  const client = getRedisClient();
-  const key = `${OTP_PREFIX}${email.toLowerCase()}`;
+  const normEmail = email.toLowerCase().trim();
+  const key = `${OTP_PREFIX}${normEmail}`;
+  let data = null;
+
+  try {
+    const client = getRedisClient();
+    if (client && client.status === 'ready') {
+      const stored = await Promise.race([
+        client.get(key),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+      ]);
+      if (stored) {
+        data = JSON.parse(stored);
+      }
+    }
+  } catch (err) {
+    console.warn(`⚠️ [Redis] verifyOtp fallback to memory store: ${err.message}`);
+  }
+
+  // Fallback to memory store if Redis didn't yield the key
+  if (!data && memoryOtpStore.has(normEmail)) {
+    const memData = memoryOtpStore.get(normEmail);
+    if (Date.now() <= memData.expiresAt) {
+      data = memData;
+    } else {
+      memoryOtpStore.delete(normEmail);
+    }
+  }
   
-  const stored = await client.get(key);
-  
-  if (!stored) {
+  if (!data) {
     return { valid: false, reason: 'OTP not found or expired. Please request a new OTP' };
   }
 
-  const data = JSON.parse(stored);
-
   // Check max attempts
   if (data.attempts >= OTP_MAX_ATTEMPTS) {
-    await client.del(key);
+    deleteOtp(email).catch(() => {});
     return { valid: false, reason: 'Too many failed attempts. Please request a new OTP' };
   }
 
   // Check OTP match
   if (data.otp !== otp) {
-    // Increment attempts atomically
     data.attempts += 1;
-    const ttl = await client.ttl(key);
-    if (ttl > 0) {
-      await client.setex(key, ttl, JSON.stringify(data));
+    if (memoryOtpStore.has(normEmail)) {
+      memoryOtpStore.get(normEmail).attempts = data.attempts;
     }
+    try {
+      const client = getRedisClient();
+      if (client && client.status === 'ready') {
+        const ttl = await client.ttl(key);
+        if (ttl > 0) {
+          await client.setex(key, ttl, JSON.stringify(data));
+        }
+      }
+    } catch (e) {}
     return { valid: false, reason: 'Invalid OTP' };
   }
 
   // OTP is valid — delete it (one-time use)
-  await client.del(key);
+  await deleteOtp(email);
   return { valid: true, reason: 'OTP verified successfully' };
 }
 
@@ -219,8 +267,14 @@ async function verifyOtp(email, otp) {
  * @param {string} email
  */
 async function deleteOtp(email) {
-  const client = getRedisClient();
-  await client.del(`${OTP_PREFIX}${email.toLowerCase()}`);
+  const normEmail = email.toLowerCase().trim();
+  memoryOtpStore.delete(normEmail);
+  try {
+    const client = getRedisClient();
+    if (client && client.status === 'ready') {
+      await client.del(`${OTP_PREFIX}${normEmail}`);
+    }
+  } catch (err) {}
 }
 
 // ============================================================
@@ -235,8 +289,12 @@ const BLACKLIST_PREFIX = 'blacklist:';
  * @param {number} expiresInSeconds - How long to keep in blacklist
  */
 async function blacklistToken(tokenId, expiresInSeconds = 7 * 24 * 3600) {
-  const client = getRedisClient();
-  await client.setex(`${BLACKLIST_PREFIX}${tokenId}`, expiresInSeconds, 'revoked');
+  try {
+    const client = getRedisClient();
+    if (client && client.status === 'ready') {
+      await client.setex(`${BLACKLIST_PREFIX}${tokenId}`, expiresInSeconds, 'revoked');
+    }
+  } catch (err) {}
 }
 
 /**
@@ -245,13 +303,18 @@ async function blacklistToken(tokenId, expiresInSeconds = 7 * 24 * 3600) {
  * @returns {boolean}
  */
 async function isTokenBlacklisted(tokenId) {
-  const client = getRedisClient();
-  const result = await client.get(`${BLACKLIST_PREFIX}${tokenId}`);
-  return result !== null;
+  try {
+    const client = getRedisClient();
+    if (client && client.status === 'ready') {
+      const result = await client.get(`${BLACKLIST_PREFIX}${tokenId}`);
+      return result !== null;
+    }
+  } catch (err) {}
+  return false;
 }
 
 // ============================================================
-// Cache Operations
+// Cache Operations (with fallback)
 // ============================================================
 
 const CACHE_PREFIX = 'cache:';
@@ -262,9 +325,27 @@ const CACHE_PREFIX = 'cache:';
  * @returns {any|null} Parsed data or null if not cached
  */
 async function getCache(key) {
-  const client = getRedisClient();
-  const data = await client.get(`${CACHE_PREFIX}${key}`);
-  return data ? JSON.parse(data) : null;
+  try {
+    const client = getRedisClient();
+    if (client && client.status === 'ready') {
+      const data = await Promise.race([
+        client.get(`${CACHE_PREFIX}${key}`),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1000))
+      ]);
+      return data ? JSON.parse(data) : null;
+    }
+  } catch (err) {}
+
+  // Check memory cache fallback
+  if (memoryCacheStore.has(key)) {
+    const item = memoryCacheStore.get(key);
+    if (Date.now() <= item.expiresAt) {
+      return item.data;
+    }
+    memoryCacheStore.delete(key);
+  }
+
+  return null;
 }
 
 /**
@@ -274,8 +355,17 @@ async function getCache(key) {
  * @param {number} ttl - Time to live in seconds
  */
 async function setCache(key, data, ttl = 30) {
-  const client = getRedisClient();
-  await client.setex(`${CACHE_PREFIX}${key}`, ttl, JSON.stringify(data));
+  memoryCacheStore.set(key, {
+    data,
+    expiresAt: Date.now() + ttl * 1000
+  });
+
+  try {
+    const client = getRedisClient();
+    if (client && client.status === 'ready') {
+      await client.setex(`${CACHE_PREFIX}${key}`, ttl, JSON.stringify(data));
+    }
+  } catch (err) {}
 }
 
 /**
@@ -283,8 +373,13 @@ async function setCache(key, data, ttl = 30) {
  * @param {string} key - Cache key
  */
 async function invalidateCache(key) {
-  const client = getRedisClient();
-  await client.del(`${CACHE_PREFIX}${key}`);
+  memoryCacheStore.delete(key);
+  try {
+    const client = getRedisClient();
+    if (client && client.status === 'ready') {
+      await client.del(`${CACHE_PREFIX}${key}`);
+    }
+  } catch (err) {}
 }
 
 /**
@@ -292,11 +387,16 @@ async function invalidateCache(key) {
  * @param {string} pattern - e.g. 'hosts:*'
  */
 async function invalidateCachePattern(pattern) {
-  const client = getRedisClient();
-  const keys = await client.keys(`${CACHE_PREFIX}${pattern}`);
-  if (keys.length > 0) {
-    await client.del(...keys);
-  }
+  memoryCacheStore.clear();
+  try {
+    const client = getRedisClient();
+    if (client && client.status === 'ready') {
+      const keys = await client.keys(`${CACHE_PREFIX}${pattern}`);
+      if (keys.length > 0) {
+        await client.del(...keys);
+      }
+    }
+  } catch (err) {}
 }
 
 // ============================================================
