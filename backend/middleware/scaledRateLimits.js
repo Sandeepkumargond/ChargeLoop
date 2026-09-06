@@ -20,6 +20,8 @@ const createRateLimitConfig = (windowMs, maxRequests, message, keyGenerator) => 
     standardHeaders: true, // Return rate limit info in RateLimit-* headers
     legacyHeaders: false, // Disable X-RateLimit-* headers
     statusCode: 429,
+    // Disable strict header validation crash; Express trust proxy extracts real client IP
+    validate: { xForwardedForHeader: false },
     // When Redis is restarting or slow, pass through to avoid locking users out
     passOnStoreError: true,
     // Redis-backed store — shared across all workers/pods

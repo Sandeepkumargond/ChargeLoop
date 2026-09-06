@@ -31,8 +31,8 @@ const { getEmailQueue, getBookingExpiryQueue } = require('./queues/jobQueues');
 
 const app = express();
 
-
-process.setMaxListeners(100);
+// Trust reverse proxy (Render, AWS, Heroku, Nginx) so client IP is accurately extracted from X-Forwarded-For
+app.set('trust proxy', 1);
 
 // Enable compression for all responses
 app.use(compression({
