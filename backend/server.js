@@ -6,6 +6,11 @@ const compression = require('compression');
 const fileUpload = require('express-fileupload');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+// Redis & Queue imports
+const { getRedisClient, closeRedis } = require('./services/redisService');
+// Initiate Redis connection immediately so it connects in parallel with module loading
+getRedisClient();
+
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const hostRoutes = require('./routes/host');
@@ -14,8 +19,6 @@ const contactRoutes = require('./routes/contact');
 const paymentRoutes = require('./routes/payment');
 const securityMiddleware = require('./middleware/security');
 
-// Redis & Queue imports
-const { getRedisClient, closeRedis } = require('./services/redisService');
 const { startEmailWorker, stopEmailWorker } = require('./workers/emailWorker');
 const { startBookingExpiryWorker, stopBookingExpiryWorker } = require('./workers/bookingExpiryWorker');
 const socketService = require('./services/socketService');

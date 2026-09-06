@@ -26,12 +26,22 @@ const createRateLimitConfig = (windowMs, maxRequests, message, keyGenerator) => 
     store: new RedisStore({
       sendCommand: async (...args) => {
         const client = getRedisClient();
-        return Promise.race([
-          client.call(...args),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Rate-limit Redis timeout')), 5000)
-          )
-        ]);
+        if (!client) {
+          throw new Error('Redis client not available');
+        }
+        // Allow up to 15s during cold-start script loading, 4s once ready
+        const timeoutMs = client.status === 'ready' ? 4000 : 15000;
+        let timer;
+        try {
+          return await Promise.race([
+            client.call(...args),
+            new Promise((_, reject) => {
+              timer = setTimeout(() => reject(new Error('Rate-limit Redis timeout')), timeoutMs);
+            })
+          ]);
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
       },
       prefix: 'rl:', // Rate limit key prefix in Redis
     }),
