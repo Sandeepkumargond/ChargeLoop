@@ -146,9 +146,23 @@ exports.googleLogin = async (req, res) => {
   try {
     const { credential, loginType } = req.body;
 
+    if (!credential) {
+      return res.status(400).json({ msg: 'Google credential token is required' });
+    }
+
+    const audiences = (process.env.GOOGLE_CLIENT_ID || '')
+      .split(',')
+      .map(id => id.trim())
+      .filter(Boolean);
+
+    if (audiences.length === 0) {
+      console.error('GOOGLE_CLIENT_ID is not configured in backend environment variables');
+      return res.status(500).json({ error: 'Server configuration error: GOOGLE_CLIENT_ID is missing on backend' });
+    }
+
     const ticket = await client.verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: audiences.length === 1 ? audiences[0] : audiences,
     });
 
     const payload = ticket.getPayload();
@@ -162,10 +176,10 @@ exports.googleLogin = async (req, res) => {
     });
 
     if (user) {
-
       if (!user.googleId) {
         user.googleId = googleId;
         user.profilePicture = picture;
+        user.emailVerified = true;
         await user.save();
       }
 
@@ -181,7 +195,6 @@ exports.googleLogin = async (req, res) => {
         return res.status(400).json({ msg: 'User not found' });
       }
     } else {
-
       const defaultRole = loginType === 'host' ? 'host' : (loginType === 'admin' ? 'admin' : 'user');
 
       user = await User.create({
@@ -190,8 +203,7 @@ exports.googleLogin = async (req, res) => {
         googleId,
         profilePicture: picture,
         role: defaultRole,
-
-        password: undefined
+        emailVerified: true
       });
     }
 
@@ -209,7 +221,8 @@ exports.googleLogin = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: 'Google authentication failed' });
+    console.error('Google authentication error:', err.message);
+    res.status(500).json({ error: err.message || 'Google authentication failed' });
   }
 };
 

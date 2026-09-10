@@ -135,13 +135,18 @@ const handleSubmit = async (e) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 400) {
-          throw new Error('Google authentication failed. Invalid credentials. Please try again.');
-        } else if (response.status === 500) {
-          throw new Error('Server error during authentication. Please try again later.');
+        let errorMsg = 'Google login failed';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorData.msg || errorMsg;
+        } catch (e) {
+          if (response.status === 400) {
+            errorMsg = 'Google authentication failed. Invalid credentials. Please try again.';
+          } else if (response.status === 500) {
+            errorMsg = 'Server error during authentication. Please try again later.';
+          }
         }
-        throw new Error(errorData.error || 'Google login failed');
+        throw new Error(errorMsg);
       }
 
       const result = await response.json();
