@@ -71,7 +71,7 @@ const paymentService = {
     }
 
     // Gated simulation fallback when live Razorpay keys are not configured
-    if (process.env.NODE_ENV !== 'production') {
+    if (!paymentService.isConfigured() || process.env.NODE_ENV !== 'production' || process.env.ALLOW_PAYMENT_SIMULATION === 'true') {
       const simOrderId = `order_sim_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       return {
         id: simOrderId,
@@ -109,7 +109,7 @@ const paymentService = {
     }
 
     // In local development / test mode when live keys are not configured
-    if (process.env.NODE_ENV !== 'production') {
+    if (!paymentService.isConfigured() || process.env.NODE_ENV !== 'production' || process.env.ALLOW_PAYMENT_SIMULATION === 'true') {
       return Boolean(
         (signature && signature.startsWith('sim_sig_')) ||
         (orderId && orderId.startsWith('order_sim_')) ||

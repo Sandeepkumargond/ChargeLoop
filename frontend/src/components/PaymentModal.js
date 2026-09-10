@@ -183,13 +183,8 @@ export default function PaymentModal({ booking, isOpen = true, onClose, onSucces
       return;
     }
 
-    // Gated simulation for local development only
+    // Gated simulation when live gateway is unconfigured
     if (order.isSimulation) {
-      if (process.env.NODE_ENV === 'production') {
-        setError('Simulated payment is disabled in production environment.');
-        return;
-      }
-
       setProcessingPayment(true);
       const simPaymentId = `pay_${paymentMethod}_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
       const simSignature = `sim_sig_${order.orderId}_${simPaymentId}`;

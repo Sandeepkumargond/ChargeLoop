@@ -33,6 +33,7 @@ export default function BookingsPage() {
   });
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [fetchError, setFetchError] = useState(null);
@@ -407,7 +408,7 @@ export default function BookingsPage() {
           ) : (
             <div className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-sm overflow-hidden">
               {/* Desktop Table Header */}
-              <div className="hidden lg:grid grid-cols-7 gap-4 bg-neutral-100 dark:bg-neutral-750 px-6 py-3.5 font-semibold text-neutral-700 dark:text-neutral-300 text-xs border-b border-neutral-200 dark:border-neutral-700">
+              <div className="hidden lg:grid grid-cols-7 gap-4 bg-neutral-100 dark:bg-neutral-800/90 px-6 py-3.5 font-semibold text-neutral-700 dark:text-neutral-300 text-xs border-b border-neutral-200 dark:border-neutral-700">
                 <div>Customer</div>
                 <div>Vehicle</div>
                 <div>Energy & Duration</div>
@@ -426,7 +427,7 @@ export default function BookingsPage() {
                   return (
                     <div
                       key={request._id}
-                      className="p-5 lg:px-6 lg:py-4 grid grid-cols-1 lg:grid-cols-7 gap-4 items-center text-xs hover:bg-neutral-50 dark:hover:bg-neutral-750/50 transition-colors"
+                      className="p-5 lg:px-6 lg:py-4 grid grid-cols-1 lg:grid-cols-7 gap-4 items-center text-xs hover:bg-neutral-50 dark:hover:bg-neutral-700/40 transition-colors"
                     >
                       {/* Customer */}
                       <div>
