@@ -56,7 +56,7 @@ const bookingRequestSchema = new mongoose.Schema({
   },
   platformFee: {
     type: Number,
-    default: 10,
+    default: () => parseFloat(process.env.PLATFORM_FEE) || 10,
     min: 0,
     description: 'ChargeLoop platform fee in ₹'
   },

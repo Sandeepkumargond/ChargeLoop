@@ -312,62 +312,63 @@
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
         const token = localStorage.getItem('token');
         const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-        const response = await fetchWithFriendlyError(`${apiUrl}/api/host/all`, {
-          headers
-        });
-
-        let allHosts = [];
-        if (response.ok) {
-          const data = await response.json();
-          allHosts = data.hosts || [];
-        } else {
-          const errorText = await response.text();
-          throw new Error(`Failed to load chargers. Please check your connection and try again.`);
-        }
-
         const currentRadius = radiusOverride !== null ? radiusOverride : searchRadius;
+        let allHosts = [];
 
-        let filteredHosts = allHosts;
+        // When user coordinates and radius are available, use MongoDB $nearSphere geospatial backend query
         if (userCenter && currentRadius !== 'all') {
           const [userLat, userLng] = userCenter;
+          const nearbyUrl = `${apiUrl}/api/host/nearby?latitude=${userLat}&longitude=${userLng}&radius=${currentRadius}`;
+          try {
+            const nearbyRes = await fetchWithFriendlyError(nearbyUrl, { headers });
+            if (nearbyRes.ok) {
+              const data = await nearbyRes.json();
+              allHosts = data.hosts || [];
+            } else {
+              throw new Error('Nearby query returned non-200');
+            }
+          } catch (e) {
+            // Graceful fallback to all hosts
+            const fallbackRes = await fetchWithFriendlyError(`${apiUrl}/api/host/all`, { headers });
+            if (fallbackRes.ok) {
+              const data = await fallbackRes.json();
+              allHosts = data.hosts || [];
+            }
+          }
+        } else {
+          const response = await fetchWithFriendlyError(`${apiUrl}/api/host/all`, {
+            headers
+          });
 
-          filteredHosts = allHosts.filter((host, index) => {
+          if (response.ok) {
+            const data = await response.json();
+            allHosts = data.hosts || [];
+          } else {
+            throw new Error(`Failed to load chargers. Please check your connection and try again.`);
+          }
+        }
 
+        // Calculate exact distance for display
+        let filteredHosts = allHosts.map(host => {
+          if (userCenter) {
+            const [userLat, userLng] = userCenter;
             let hostLat, hostLng;
-            if (Array.isArray(host.location.coordinates)) {
+            if (Array.isArray(host.location?.coordinates)) {
               hostLng = host.location.coordinates[0];
               hostLat = host.location.coordinates[1];
-            } else if (host.location.coordinates && typeof host.location.coordinates === 'object') {
+            } else if (host.location?.coordinates && typeof host.location.coordinates === 'object') {
               hostLat = host.location.coordinates.lat;
               hostLng = host.location.coordinates.lng;
             } else {
-              return false;
+              return { ...host, distance: 0 };
             }
+            return { ...host, distance: calculateDistance(userLat, userLng, hostLat, hostLng) };
+          }
+          return { ...host, distance: 0 };
+        });
 
-            const distance = calculateDistance(userLat, userLng, hostLat, hostLng);
-            host.distance = distance;
-
-            return distance <= currentRadius;
-          });
-        } else {
-
-          filteredHosts = allHosts.map(host => {
-            host.distance = userCenter ? (() => {
-              const [userLat, userLng] = userCenter;
-              let hostLat, hostLng;
-              if (Array.isArray(host.location.coordinates)) {
-                hostLng = host.location.coordinates[0];
-                hostLat = host.location.coordinates[1];
-              } else if (host.location.coordinates && typeof host.location.coordinates === 'object') {
-                hostLat = host.location.coordinates.lat;
-                hostLng = host.location.coordinates.lng;
-              } else {
-                return 0;
-              }
-              return calculateDistance(userLat, userLng, hostLat, hostLng);
-            })() : 0;
-            return host;
-          });
+        if (userCenter && currentRadius !== 'all') {
+          filteredHosts = filteredHosts.filter(h => h.distance <= currentRadius);
         }
 
         if (userCenter) {

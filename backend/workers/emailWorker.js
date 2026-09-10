@@ -82,7 +82,7 @@ function startEmailWorker() {
     connection: getBullMQConnectionOptions('EmailWorker'),
     concurrency: 5,       // Process up to 5 emails concurrently
     limiter: {
-      max: 20,            // Max 20 emails per minute (Gmail limits)
+      max: 60,            // Max 60 emails per minute (SendGrid standard rate limit)
       duration: 60000,
     },
   });

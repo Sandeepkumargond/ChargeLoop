@@ -26,6 +26,12 @@ export default function HostPage() {
   const [processingRequestId, setProcessingRequestId] = useState(null);
   const [processingAction, setProcessingAction] = useState(null);
 
+  const [currentBookings, setCurrentBookings] = useState([]);
+  const [currentBookingsLoading, setCurrentBookingsLoading] = useState(false);
+  const [currentBookingsError, setCurrentBookingsError] = useState('');
+  const [cancellingBookingId, setCancellingBookingId] = useState(null);
+  const [markingDoneBookingId, setMarkingDoneBookingId] = useState(null);
+
   const [stats, setStats] = useState({
     totalChargers: 0,
     totalEarnings: 0,
@@ -83,6 +89,30 @@ export default function HostPage() {
     }
   }, []);
 
+  const fetchCurrentBookings = useCallback(async () => {
+    setCurrentBookingsLoading(true);
+    setCurrentBookingsError('');
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetchWithFriendlyError(`${process.env.NEXT_PUBLIC_API_URL}/api/host/bookings/current`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) throw new Error('Failed to load current bookings');
+      const data = await response.json();
+      const list = data.bookings || [];
+      setCurrentBookings(list);
+      setStats(prev => ({
+        ...prev,
+        activeBookings: list.length
+      }));
+    } catch (err) {
+      setCurrentBookingsError(err.message);
+    } finally {
+      setCurrentBookingsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const email = localStorage.getItem('userEmail');
@@ -98,30 +128,27 @@ export default function HostPage() {
 
     fetchRegistrationStatus();
     fetchPendingRequests();
-
-    // The statusInterval was causing the auto-refresh. It has been removed.
-    // const statusInterval = setInterval(() => {
-    //   fetchRegistrationStatus();
-    // }, 10000);
-
-    // return () => clearInterval(statusInterval);
-  }, [router, fetchRegistrationStatus, fetchPendingRequests]);
+    fetchCurrentBookings();
+  }, [router, fetchRegistrationStatus, fetchPendingRequests, fetchCurrentBookings]);
 
   useEffect(() => {
     if (socket) {
-      const handleBookingEvent = (data) => {
+      const handleBookingEvent = () => {
         fetchPendingRequests();
+        fetchCurrentBookings();
       };
 
       socket.on('new_booking_request', handleBookingEvent);
       socket.on('booking_update', handleBookingEvent);
+      socket.on('booking_status_updated', handleBookingEvent);
 
       return () => {
         socket.off('new_booking_request', handleBookingEvent);
         socket.off('booking_update', handleBookingEvent);
+        socket.off('booking_status_updated', handleBookingEvent);
       };
     }
-  }, [socket, fetchPendingRequests]);
+  }, [socket, fetchPendingRequests, fetchCurrentBookings]);
 
   const handleAcceptRequest = async (requestId) => {
     setProcessingRequestId(requestId);
@@ -141,12 +168,13 @@ export default function HostPage() {
         throw new Error(data.msg || data.error || 'Failed to accept request');
       }
 
-      const data = await response.json();
       setBookingRequests(prev => prev.filter(req => req._id !== requestId));
       setStats(prev => ({
         ...prev,
         pendingRequests: Math.max(0, prev.pendingRequests - 1)
       }));
+      await fetchCurrentBookings();
+      alert('Booking request accepted successfully!');
     } catch (err) {
       console.error(err.message || 'Error accepting request');
       alert(err.message || 'Error accepting request');
@@ -154,6 +182,96 @@ export default function HostPage() {
       setProcessingRequestId(null);
       setProcessingAction(null);
     }
+  };
+
+  const handleMarkDoneBooking = async (requestId) => {
+    if (!confirm('Mark this charging session as completed?')) return;
+    setMarkingDoneBookingId(requestId);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetchWithFriendlyError(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/host/requests/${requestId}/mark-done`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.ok) {
+        await fetchCurrentBookings();
+        alert('Charging marked as completed successfully!');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(errorData.msg || 'Failed to mark charging as done');
+      }
+    } catch (error) {
+      alert(error.message || 'Error marking charging done');
+    } finally {
+      setMarkingDoneBookingId(null);
+    }
+  };
+
+  const handleCancelBooking = async (requestId) => {
+    const reason = prompt('Please enter cancellation reason (optional):');
+    if (reason === null) return;
+    setCancellingBookingId(requestId);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetchWithFriendlyError(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/host/requests/${requestId}/cancel`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ reason: reason || '' }),
+        }
+      );
+
+      if (response.ok) {
+        await fetchCurrentBookings();
+        alert('Booking cancelled successfully!');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(errorData.msg || 'Failed to cancel booking');
+      }
+    } catch (error) {
+      alert(error.message || 'Error cancelling booking');
+    } finally {
+      setCancellingBookingId(null);
+    }
+  };
+
+  const calculateTimeRemaining = (startTime, requestedDuration) => {
+    if (!startTime) return null;
+    const start = new Date(startTime);
+    const duration = requestedDuration || 60;
+    const end = new Date(start.getTime() + duration * 60 * 1000);
+    const now = new Date();
+
+    if (now < start) {
+      const diffMins = Math.ceil((start - now) / (1000 * 60));
+      if (diffMins < 60) return `Starts in ${diffMins}m`;
+      const hours = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      return `Starts in ${hours}h ${mins}m`;
+    }
+
+    const remainingMs = end - now;
+    const remainingMinutes = Math.ceil(remainingMs / (1000 * 60));
+
+    if (remainingMinutes <= 0) {
+      return 'Time expired - Mark as done';
+    }
+
+    const hours = Math.floor(remainingMinutes / 60);
+    const mins = remainingMinutes % 60;
+    if (hours > 0) return `${hours}h ${mins}m remaining`;
+    return `${mins}m remaining`;
   };
 
   const handleDeclineRequest = async (requestId) => {
@@ -333,7 +451,135 @@ export default function HostPage() {
             </div>
           </div>
 
-        {}
+          {/* Quick Stats Overview */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl p-4 shadow-sm">
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 font-semibold mb-1">Upcoming (24h)</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.activeBookings}</p>
+            </div>
+            <div className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl p-4 shadow-sm">
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 font-semibold mb-1">Pending Requests</p>
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.pendingRequests}</p>
+            </div>
+            <div className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl p-4 shadow-sm">
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 font-semibold mb-1">Station Status</p>
+              <p className={`text-sm font-bold capitalize ${
+                registrationStatus?.verificationStatus === 'approved' ? 'text-green-600' : 'text-amber-600'
+              }`}>
+                {registrationStatus?.verificationStatus || 'Pending'}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl p-4 shadow-sm">
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 font-semibold mb-1">Map Visibility</p>
+              <p className={`text-sm font-bold ${isVisibleOnMap ? 'text-green-600' : 'text-neutral-500'}`}>
+                {isVisibleOnMap ? '🟢 Live on Map' : '⚪ Hidden'}
+              </p>
+            </div>
+          </div>
+
+          {/* Current Bookings Section (Upcoming 24h) */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Current Bookings</h2>
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                  Next 24h: {currentBookings.length}
+                </span>
+              </div>
+              <button 
+                onClick={fetchCurrentBookings} 
+                className="px-3 py-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+
+            {currentBookingsLoading ? (
+              <LoadingCard variant="table" title="Loading current bookings..." />
+            ) : currentBookingsError ? (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded p-4">
+                <p className="text-red-800 dark:text-red-300 text-sm">{currentBookingsError}</p>
+              </div>
+            ) : currentBookings.length === 0 ? (
+              <div className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded p-6 text-center">
+                <p className="text-neutral-600 dark:text-neutral-400 text-sm">No upcoming bookings scheduled in the next 24 hours</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {currentBookings.map((booking) => {
+                  const timingBadge = calculateTimeRemaining(booking.scheduledTime, booking.requestedDuration || booking.estimatedDuration);
+                  const isPaid = booking.paymentStatus === 'paid';
+                  return (
+                    <div key={booking._id} className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4 shadow-sm">
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-3 text-xs items-center">
+                        <div>
+                          <p className="text-neutral-500 dark:text-neutral-400 mb-1 font-semibold">Customer</p>
+                          <p className="text-neutral-900 dark:text-white font-medium">{booking.userId?.name || 'Customer'}</p>
+                          <p className="text-neutral-600 dark:text-neutral-400">{booking.userPhone || booking.userId?.phone || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-neutral-500 dark:text-neutral-400 mb-1 font-semibold">Vehicle</p>
+                          <p className="text-neutral-900 dark:text-white font-medium">{booking.vehicleNumber || 'N/A'}</p>
+                          <p className="text-neutral-600 dark:text-neutral-400">{[booking.vehicleModel, booking.vehicleType].filter(Boolean).join(' • ') || 'EV'}</p>
+                        </div>
+                        <div>
+                          <p className="text-neutral-500 dark:text-neutral-400 mb-1 font-semibold">Scheduled</p>
+                          <p className="text-neutral-900 dark:text-white font-medium">
+                            {booking.scheduledTime ? new Date(booking.scheduledTime).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : 'N/A'}, {booking.scheduledTime ? new Date(booking.scheduledTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </p>
+                          {timingBadge && (
+                            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-semibold ${
+                              timingBadge.includes('expired')
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
+                            }`}>
+                              ⏱ {timingBadge}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-neutral-500 dark:text-neutral-400 mb-1 font-semibold">Energy & Pricing</p>
+                          <p className="text-neutral-900 dark:text-white font-medium">{booking.totalUnitsKwh || booking.desiredKwh || 0} kWh ({booking.requestedDuration || booking.estimatedDuration || 60} min)</p>
+                          <p className="text-green-600 dark:text-green-400 font-bold">Total: ₹{booking.totalBill || booking.estimatedCost || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-neutral-500 dark:text-neutral-400 mb-1 font-semibold">Status</p>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 capitalize">
+                              {booking.status}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                              isPaid
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                            }`}>
+                              {isPaid ? '✓ Paid' : 'Unpaid'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleMarkDoneBooking(booking._id)}
+                            disabled={markingDoneBookingId === booking._id}
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-2 rounded font-medium transition disabled:opacity-50"
+                          >
+                            {markingDoneBookingId === booking._id ? 'Saving...' : 'Mark Done'}
+                          </button>
+                          <button
+                            onClick={() => handleCancelBooking(booking._id)}
+                            disabled={cancellingBookingId === booking._id}
+                            className="flex-1 border border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs px-3 py-2 rounded font-medium transition disabled:opacity-50"
+                          >
+                            {cancellingBookingId === booking._id ? 'Cancelling...' : 'Cancel'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Pending Requests</h2>

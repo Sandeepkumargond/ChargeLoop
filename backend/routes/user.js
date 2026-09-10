@@ -2,12 +2,15 @@ const express = require('express');
 const mongoose = require('mongoose');
 const router = express.Router();
 const User = require('../models/User');
+const Host = require('../models/Host');
 const Transaction = require('../models/Transaction');
 const BookingRequest = require('../models/BookingRequest');
 const ChargerStation = require('../models/ChargerStation');
 const authMiddleware = require('../middleware/auth');
 const pricingService = require('../services/pricingService');
 const { scheduleBookingExpiry } = require('../queues/jobQueues');
+const { transitionBookingStatus } = require('../services/bookingStateMachine');
+const { normalizeBookings } = require('../utils/normalizeBooking');
 
 const { 
   getProfile, 
@@ -74,18 +77,7 @@ router.get('/bookings/history', authMiddleware, async (req, res) => {
 
     const totalSessions = await BookingRequest.countDocuments(query);
 
-    const normalizedSessions = sessions.map(s => ({
-      ...s,
-      totalUnitsKwh: s.totalUnitsKwh ?? s.desiredKwh ?? s.energyConsumed ?? 0,
-      desiredKwh: s.totalUnitsKwh ?? s.desiredKwh ?? s.energyConsumed ?? 0,
-      energyConsumed: s.energyConsumed ?? s.totalUnitsKwh ?? s.desiredKwh ?? 0,
-      totalBill: s.totalBill ?? s.estimatedCost ?? s.actualCost ?? 0,
-      actualCost: s.actualCost ?? s.totalBill ?? s.estimatedCost ?? 0,
-      pricePerUnit: s.pricePerKwh ?? s.pricePerUnit ?? 0,
-      pricePerKwh: s.pricePerKwh ?? s.pricePerUnit ?? 0,
-      requestedDuration: s.requestedDuration ?? s.estimatedDuration ?? s.actualDuration ?? 0,
-      estimatedDuration: s.estimatedDuration ?? s.requestedDuration ?? s.actualDuration ?? 0
-    }));
+    const normalizedSessions = normalizeBookings(sessions);
 
     res.json({
       sessions: normalizedSessions,
@@ -103,26 +95,29 @@ router.get('/bookings/history', authMiddleware, async (req, res) => {
 
 router.get('/bookings/current', authMiddleware, async (req, res) => {
   try {
+    const now = new Date();
+    const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    // Allow up to 1 hour past scheduled time for sessions in progress or starting
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
     const currentBookings = await BookingRequest.find({
       userId: req.user.id,
-      status: { $in: ['accepted', 'ongoing'] }
+      $or: [
+        { status: 'ongoing' },
+        {
+          status: 'accepted',
+          scheduledTime: {
+            $gte: oneHourAgo,
+            $lte: next24Hours
+          }
+        }
+      ]
     })
-      .select('hostName hostLocation hostPhone chargerType scheduledTime requestedDuration estimatedDuration estimatedCost totalBill energyCost pricePerKwh pricePerUnit vehicleNumber vehicleType vehicleModel status actualCost actualDuration energyConsumed totalUnitsKwh desiredKwh')
-      .sort({ createdAt: -1 })
+      .select('hostName hostLocation hostPhone chargerType scheduledTime requestedDuration estimatedDuration estimatedCost totalBill energyCost pricePerKwh pricePerUnit vehicleNumber vehicleType vehicleModel status paymentStatus paymentMethod paymentId actualCost actualDuration energyConsumed totalUnitsKwh desiredKwh')
+      .sort({ scheduledTime: 1 })
       .lean();
 
-    const normalizedBookings = currentBookings.map(b => ({
-      ...b,
-      totalUnitsKwh: b.totalUnitsKwh ?? b.desiredKwh ?? b.energyConsumed ?? 0,
-      desiredKwh: b.totalUnitsKwh ?? b.desiredKwh ?? b.energyConsumed ?? 0,
-      energyConsumed: b.energyConsumed ?? b.totalUnitsKwh ?? b.desiredKwh ?? 0,
-      totalBill: b.totalBill ?? b.estimatedCost ?? b.actualCost ?? 0,
-      actualCost: b.actualCost ?? b.totalBill ?? b.estimatedCost ?? 0,
-      pricePerUnit: b.pricePerKwh ?? b.pricePerUnit ?? 0,
-      pricePerKwh: b.pricePerKwh ?? b.pricePerUnit ?? 0,
-      requestedDuration: b.requestedDuration ?? b.estimatedDuration ?? b.actualDuration ?? 0,
-      estimatedDuration: b.estimatedDuration ?? b.requestedDuration ?? b.actualDuration ?? 0
-    }));
+    const normalizedBookings = normalizeBookings(currentBookings);
 
     res.json(normalizedBookings);
   } catch (error) {
@@ -212,13 +207,16 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
     let hostPhone = null;
 
     if (hostId) {
-      host = await require('../models/Host').findById(hostId).select(
-        'chargerPowerKw pricePerKwh pricePerHour socketMaxCapacity convenienceFee phone'
-      );
-      if (!host && chargerId) {
-        const station = await require('../models/ChargerStation').findById(chargerId);
+      if (mongoose.isValidObjectId(hostId)) {
+        host = await Host.findById(hostId);
+        if (!host) {
+          host = await Host.findOne({ userId: hostId });
+        }
+      }
+      if (!host && chargerId && mongoose.isValidObjectId(chargerId)) {
+        const station = await ChargerStation.findById(chargerId);
         if (station) {
-          host = await require('../models/Host').findOne({ userId: station.hostId });
+          host = await Host.findOne({ userId: station.hostId });
           if (!host) {
             pricePerKwh = station.pricePerKwh ?? station.pricePerUnit ?? 10;
             convenienceFee = station.convenienceFee ?? 0;
@@ -249,6 +247,66 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
       });
     }
 
+    // 1. Check Host Availability (Time and Status) - only block if explicitly unavailable (false)
+    if (host && host.available === false) {
+      return res.status(400).json({ success: false, msg: 'Host charger is currently unavailable' });
+    }
+
+    const reqDate = new Date(scheduledTime);
+    if (host && host.availableFrom && host.availableTo && host.availableFrom !== host.availableTo) {
+      const [fromHour, fromMin] = host.availableFrom.split(':').map(Number);
+      const [toHour, toMin] = host.availableTo.split(':').map(Number);
+      if (!isNaN(fromHour) && !isNaN(toHour)) {
+        const reqTime = reqDate.getHours() * 60 + reqDate.getMinutes();
+        const fromTime = fromHour * 60 + (fromMin || 0);
+        const toTime = toHour * 60 + (toMin || 0);
+        
+        let isAvailable = true;
+        if (fromTime < toTime) {
+          isAvailable = reqTime >= fromTime && reqTime <= toTime;
+        } else if (fromTime > toTime) {
+          // Overnight availability
+          isAvailable = reqTime >= fromTime || reqTime <= toTime;
+        }
+
+        if (!isAvailable) {
+          return res.status(400).json({ 
+            success: false, 
+            msg: `Host is only available from ${host.availableFrom} to ${host.availableTo}` 
+          });
+        }
+      }
+    }
+
+    // 2. Double Booking Prevention (Overlap Detection)
+    const scheduledStartTime = new Date(scheduledTime);
+    const scheduledEndTime = new Date(scheduledStartTime.getTime() + finalBookingDuration * 60 * 1000);
+
+    const activeBookings = await BookingRequest.find({
+      hostId: host._id,
+      status: { $in: ['pending', 'accepted', 'ongoing'] }
+    }).select('scheduledTime requestedDuration estimatedDuration');
+
+    const isOverlapping = activeBookings.some(b => {
+      if (!b.scheduledTime) return false;
+      const bStart = new Date(b.scheduledTime).getTime();
+      const bDuration = b.requestedDuration || b.estimatedDuration || 60; // fallback to 60 mins
+      const bEnd = bStart + bDuration * 60 * 1000;
+      
+      const reqStart = scheduledStartTime.getTime();
+      const reqEnd = scheduledEndTime.getTime();
+      
+      // Strict overlap check
+      return bStart < reqEnd && reqStart < bEnd;
+    });
+
+    if (isOverlapping) {
+      return res.status(409).json({ 
+        success: false, 
+        msg: 'This time slot is already booked for this charger.' 
+      });
+    }
+
       // Calculate pricing with REAL data
       const pricingResult = pricingService.calculateNewPricing({
         userChargerPowerKw,
@@ -256,7 +314,7 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
         bookingDurationMinutes: finalBookingDuration,
         pricePerKwh,
         convenienceFee: convenienceFee || 0,
-        platformFee: 10, // ₹10 ChargeLoop fee
+        platformFee: parseFloat(process.env.PLATFORM_FEE) || 10,
         chargerType
       });
 
@@ -276,9 +334,10 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
       const cleanChargerType = chargerType.replace(/\s*\([^)]*\)/g, '') || 'Charging';
 
       // Create booking with ONLY real user-filled and fetched data
+      const finalHostId = host ? host._id : (mongoose.isValidObjectId(hostId) ? new mongoose.Types.ObjectId(hostId) : hostId);
       const bookingRequest = new BookingRequest({
         userId: req.user.id,
-        hostId: new mongoose.Types.ObjectId(hostId),
+        hostId: finalHostId,
         hostName,
         hostLocation,
         hostPhone,
@@ -296,7 +355,7 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
         pricePerKwh,
         pricePerUnit: pricePerKwh,
         convenienceFee: convenienceFee || 0,
-        platformFee: 10,
+        platformFee: parseFloat(process.env.PLATFORM_FEE) || 10,
         
         // Calculated pricing values
         totalUnitsKwh: pricingResult.totalUnitsKwh,
@@ -323,7 +382,8 @@ router.post('/bookings/book', authMiddleware, async (req, res) => {
       // Emit WebSocket event to host
       try {
         const { getIo } = require('../services/socketService');
-        getIo().to(hostId.toString()).emit('new_booking_request', {
+        const hostUserId = host?.userId ? host.userId.toString() : hostId.toString();
+        getIo().to(hostUserId).to(hostId.toString()).emit('new_booking_request', {
           bookingId: bookingRequest._id,
           requestId: bookingRequest.requestId,
           vehicleNumber: bookingRequest.vehicleNumber,
@@ -397,17 +457,7 @@ router.get('/bookings/requests/my-requests', authMiddleware, async (req, res) =>
       .sort({ createdAt: -1 })
       .lean();
 
-    const normalizedRequests = requests.map(r => ({
-      ...r,
-      totalUnitsKwh: r.totalUnitsKwh ?? r.desiredKwh ?? 0,
-      desiredKwh: r.totalUnitsKwh ?? r.desiredKwh ?? 0,
-      pricePerUnit: r.pricePerKwh ?? r.pricePerUnit ?? 0,
-      pricePerKwh: r.pricePerKwh ?? r.pricePerUnit ?? 0,
-      totalBill: r.totalBill ?? r.estimatedCost ?? r.energyCost ?? 0,
-      estimatedCost: r.totalBill ?? r.estimatedCost ?? r.energyCost ?? 0,
-      requestedDuration: r.requestedDuration ?? r.estimatedDuration ?? r.actualDuration ?? 0,
-      estimatedDuration: r.requestedDuration ?? r.estimatedDuration ?? r.actualDuration ?? 0
-    }));
+    const normalizedRequests = normalizeBookings(requests);
 
     res.json({
       success: true,
@@ -459,7 +509,7 @@ router.put('/bookings/requests/:requestId/cancel', authMiddleware, async (req, r
     const request = await BookingRequest.findOne({
       _id: requestId,
       userId: req.user.id,
-      status: 'pending'
+      status: { $in: ['pending', 'accepted'] }
     });
 
     if (!request) {
@@ -469,7 +519,7 @@ router.put('/bookings/requests/:requestId/cancel', authMiddleware, async (req, r
       });
     }
 
-    request.status = 'declined';
+    transitionBookingStatus(request, 'cancelled', 'user');
     await request.save();
 
     // Emit WebSocket event to host
@@ -477,7 +527,7 @@ router.put('/bookings/requests/:requestId/cancel', authMiddleware, async (req, r
       const { getIo } = require('../services/socketService');
       getIo().to(request.hostId.toString()).emit('booking_update', {
         bookingId: request._id,
-        status: 'declined' // Because user cancelled
+        status: 'cancelled'
       });
     } catch (socketErr) {
       console.error('Failed to emit socket event:', socketErr.message);
@@ -515,9 +565,6 @@ router.put('/bookings/:sessionId/complete', authMiddleware, async (req, res) => 
       });
     }
 
-    const endTime = new Date();
-    const duration = Math.round((endTime - booking.startTime) / (1000 * 60));
-
     let finalEnergy = energyConsumed || booking.energyDelivered || 0;
     let finalCost = actualCost;
 
@@ -525,11 +572,9 @@ router.put('/bookings/:sessionId/complete', authMiddleware, async (req, res) => 
       finalCost = pricingService.calculateTotalCost(finalEnergy, booking.pricePerKwh);
     }
 
-    booking.endTime = endTime;
-    booking.actualDuration = duration;
+    transitionBookingStatus(booking, 'completed', 'user');
     booking.energyConsumed = finalEnergy;
     booking.actualCost = finalCost || 0;
-    booking.status = 'completed';
 
     await booking.save();
 
@@ -596,12 +641,7 @@ router.put('/bookings/:sessionId/cancel', authMiddleware, async (req, res) => {
       return res.status(404).json({ msg: 'Booking not found or cannot be cancelled' });
     }
 
-    booking.status = 'cancelled';
-    booking.endTime = new Date();
-    if (reason) {
-      booking.metadata = booking.metadata || {};
-      booking.metadata.cancellationReason = reason;
-    }
+    transitionBookingStatus(booking, 'cancelled', 'user', { reason });
 
     await booking.save();
 

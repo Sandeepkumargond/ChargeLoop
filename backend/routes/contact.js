@@ -27,7 +27,7 @@ router.post('/', async (req, res) => {
         subject,
         message,
         type: type || 'general',
-        to: to || process.env.EMAIL_USER || 'errorincode404@gmail.com'
+        to: to || process.env.SUPPORT_EMAIL || 'support@chargeloop.com'
       });
     } catch (queueErr) {
       sendContactEmail({
@@ -36,7 +36,7 @@ router.post('/', async (req, res) => {
         subject,
         message,
         type: type || 'general',
-        to: to || process.env.EMAIL_USER || 'errorincode404@gmail.com'
+        to: to || process.env.SUPPORT_EMAIL || 'support@chargeloop.com'
       }).catch(err => console.error('Direct contact email error:', err.message));
     }
 

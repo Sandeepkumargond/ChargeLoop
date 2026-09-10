@@ -6,6 +6,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import Sidebar from '@/components/Sidebar';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { fetchWithFriendlyError } from '@/utils/fetchWithFriendlyError';
+import { parseJwtPayload } from '@/utils/auth';
 
 const DetailItem = ({ label, value }) => (
   <div className="mb-1">
@@ -128,9 +129,13 @@ export default function AdminDashboard() {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      setCurrentAdminEmail(payload.email);
-      setCurrentAdminName(payload.name || payload.email?.split('@')[0]);
+      const payload = parseJwtPayload(token);
+      if (payload) {
+        setCurrentAdminEmail(payload.email || '');
+        setCurrentAdminName(payload.name || payload.email?.split('@')[0] || 'Admin');
+      } else {
+        setCurrentAdminName('Admin');
+      }
     } catch (e) { setCurrentAdminName('Admin'); }
   };
 

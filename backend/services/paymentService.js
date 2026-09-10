@@ -66,20 +66,11 @@ const paymentService = {
           isSimulation: false
         };
       } catch (error) {
-        console.warn('⚠️ Razorpay API error, falling back to simulated order:', error.message || error.error?.description);
+        throw new Error(`Razorpay API error: ${error.message || error.error?.description}`);
       }
     }
 
-    // Simulation / Sandbox Mode
-    const simulatedOrderId = `order_sim_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-    return {
-      id: simulatedOrderId,
-      amount: amountInPaise,
-      currency,
-      receipt: receipt || `rcpt_${Date.now()}`,
-      status: 'created',
-      isSimulation: true
-    };
+    throw new Error('Payment Gateway is not configured for production environment');
   },
 
   verifyPaymentSignature({ orderId, paymentId, signature }) {
@@ -104,18 +95,7 @@ const paymentService = {
       }
     }
 
-    // In simulation mode, accept simulated signature or verify basic hash
-    if (signature && (signature.startsWith('sim_') || signature.startsWith('mock_'))) {
-      return true;
-    }
-
-    // Fallback: simple hash verification for simulated test requests
-    const fallbackExpected = crypto
-      .createHash('sha256')
-      .update(`${orderId}|${paymentId}|chargeloop_secret`)
-      .digest('hex');
-
-    return signature === fallbackExpected || true;
+    return false;
   }
 };
 

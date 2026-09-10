@@ -36,7 +36,24 @@ export default function UserDashboardPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setBookings(Array.isArray(data) ? data : data.bookings || []);
+        const rawList = Array.isArray(data) ? data : data.bookings || [];
+
+        // Ensure only ongoing or upcoming bookings scheduled within the next 24 hours are shown
+        const now = new Date();
+        const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+        const upcomingOnly = rawList.filter(b => {
+          if (b.status === 'ongoing') return true;
+          if (b.status === 'accepted') {
+            if (!b.scheduledTime) return false;
+            const scheduled = new Date(b.scheduledTime);
+            return scheduled >= oneHourAgo && scheduled <= next24Hours;
+          }
+          return false;
+        });
+
+        setBookings(upcomingOnly);
       }
     } catch (error) {
       setBookings([]);
@@ -333,17 +350,15 @@ export default function UserDashboardPage() {
                         {/* Mobile Header: Status */}
                         <div className="lg:hidden text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 font-semibold">Status</div>
                         <div>
-                          <span className={`px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded inline-block ${
-                            booking.status === 'ongoing' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                            booking.status === 'accepted' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                            booking.status === 'completed' ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-700 dark:text-neutral-300' :
-                            'bg-neutral-100 text-neutral-800 dark:bg-neutral-700 dark:text-neutral-300'
-                          }`}>
-                            {booking.status === 'ongoing' && 'Active'}
-                            {booking.status === 'accepted' && 'Accepted'}
-                            {booking.status === 'completed' && 'Completed'}
-                            {booking.status === 'cancelled' && 'Cancelled'}
-                            {booking.status === 'pending' && 'Pending'}
+                          <span className={`px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded inline-block capitalize ${getStatusColor(booking.status)}`}>
+                            {booking.status === 'ongoing' ? 'Active' :
+                             booking.status === 'accepted' ? 'Accepted' :
+                             booking.status === 'completed' ? 'Completed' :
+                             booking.status === 'cancelled' ? 'Cancelled' :
+                             booking.status === 'declined' ? 'Declined' :
+                             booking.status === 'expired' ? 'Expired' :
+                             booking.status === 'pending' ? 'Pending' :
+                             booking.status}
                           </span>
                         </div>
 
@@ -405,6 +420,7 @@ export default function UserDashboardPage() {
       {/* Payment Checkout Modal */}
       {paymentModalBooking && (
         <PaymentModal
+          isOpen={true}
           booking={paymentModalBooking}
           onClose={() => setPaymentModalBooking(null)}
           onSuccess={(paidBooking) => {
@@ -421,6 +437,7 @@ export default function UserDashboardPage() {
       {/* Official Payment Receipt Modal */}
       {receiptModalBookingId && (
         <ReceiptModal
+          isOpen={true}
           bookingId={receiptModalBookingId}
           onClose={() => setReceiptModalBookingId(null)}
         />

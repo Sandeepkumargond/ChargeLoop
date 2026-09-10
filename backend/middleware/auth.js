@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   const token = req.header('Authorization')?.replace('Bearer ', '')?.trim();
 
   if (!token) {
@@ -31,6 +31,15 @@ const authMiddleware = (req, res, next) => {
       return res.status(401).json({ 
         msg: 'Invalid token structure',
         code: 'INVALID_TOKEN_STRUCTURE'
+      });
+    }
+
+    const { isTokenBlacklisted } = require('../services/redisService');
+    const isBlacklisted = await isTokenBlacklisted(token);
+    if (isBlacklisted) {
+      return res.status(401).json({ 
+        msg: 'Token has been revoked',
+        code: 'TOKEN_REVOKED'
       });
     }
 

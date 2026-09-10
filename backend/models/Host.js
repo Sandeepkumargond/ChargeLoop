@@ -26,15 +26,16 @@ const HostSchema = new mongoose.Schema({
     city: String,
     state: String,
     pincode: String,
+    type: {
+      type: String,
+      enum: ['Point'],
+      required: true,
+      default: 'Point'
+    },
     coordinates: {
-      lat: {
-        type: Number,
-        required: true
-      },
-      lng: {
-        type: Number,
-        required: true
-      }
+      type: mongoose.Schema.Types.Mixed, // Supports GeoJSON [longitude, latitude] and legacy { lat, lng }
+      required: true,
+      default: [0, 0]
     }
   },
   chargerType: {
@@ -109,6 +110,7 @@ const HostSchema = new mongoose.Schema({
   },
   totalBookings: { type: Number, default: 0 },
   totalEarnings: { type: Number, default: 0 },
+  totalPaidOut: { type: Number, default: 0 },
   documents: {
     addressProofUrl: String,
     aadharCardUrl: String,
@@ -125,6 +127,28 @@ const HostSchema = new mongoose.Schema({
 });
 
 HostSchema.index({ "location.coordinates": "2dsphere" });
+
+HostSchema.pre('validate', function(next) {
+  if (this.location) {
+    if (!this.location.type) {
+      this.location.type = 'Point';
+    }
+    if (this.location.coordinates) {
+      if (!Array.isArray(this.location.coordinates) && typeof this.location.coordinates === 'object') {
+        const lat = Number(this.location.coordinates.lat ?? this.location.coordinates.latitude);
+        const lng = Number(this.location.coordinates.lng ?? this.location.coordinates.longitude);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          this.location.coordinates = [lng, lat];
+        } else {
+          this.location.coordinates = [0, 0];
+        }
+      }
+    } else {
+      this.location.coordinates = [0, 0];
+    }
+  }
+  next();
+});
 
 HostSchema.pre('save', function(next) {
   this.updatedAt = Date.now();

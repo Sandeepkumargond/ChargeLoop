@@ -423,10 +423,8 @@ exports.requestHostRegistration = async (req, res) => {
         city: location?.city || '',
         state: location?.state || '',
         pincode: location?.pincode || '',
-        coordinates: {
-          lat: parseFloat(latitude),
-          lng: parseFloat(longitude)
-        }
+        type: 'Point',
+        coordinates: [parseFloat(longitude), parseFloat(latitude)]
       },
       chargerType: finalChargerType,
       chargerPowerKw: power,

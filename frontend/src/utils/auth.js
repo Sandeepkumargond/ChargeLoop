@@ -19,20 +19,40 @@ export function deleteCookie(name) {
   document.cookie = `${encodeURIComponent(name)}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
 }
 
-export function isTokenExpired(token) {
-  if (!token || typeof token !== 'string') return true;
+export function parseJwtPayload(token) {
+  if (!token || typeof token !== 'string') return null;
   try {
     const parts = token.split('.');
-    if (parts.length !== 3) return false;
-    const payload = JSON.parse(atob(parts[1]));
-    if (payload && payload.exp) {
-      // payload.exp is in seconds
-      return Date.now() >= payload.exp * 1000;
+    if (parts.length !== 3) return null;
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
     }
-    return false;
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
   } catch (e) {
-    return false;
+    try {
+      const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(atob(base64));
+    } catch {
+      return null;
+    }
   }
+}
+
+export function isTokenExpired(token) {
+  if (!token || typeof token !== 'string') return true;
+  const payload = parseJwtPayload(token);
+  if (payload && payload.exp) {
+    // payload.exp is in seconds
+    return Date.now() >= payload.exp * 1000;
+  }
+  return false;
 }
 
 export function getAuth() {
