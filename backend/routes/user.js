@@ -683,8 +683,11 @@ router.put('/bookings/:sessionId/rate', authMiddleware, async (req, res) => {
     await booking.save();
 
     res.json({
+      success: true,
       msg: 'Rating submitted successfully',
-      session: booking
+      rating: booking.rating,
+      session: booking,
+      booking: booking
     });
 
   } catch (error) {

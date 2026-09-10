@@ -70,6 +70,19 @@ const paymentService = {
       }
     }
 
+    // Gated simulation fallback when live Razorpay keys are not configured
+    if (process.env.NODE_ENV !== 'production') {
+      const simOrderId = `order_sim_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      return {
+        id: simOrderId,
+        amount: amountInPaise,
+        currency,
+        receipt: receipt || `rcpt_${Date.now()}`,
+        status: 'created',
+        isSimulation: true
+      };
+    }
+
     throw new Error('Payment Gateway is not configured for production environment');
   },
 
@@ -93,6 +106,15 @@ const paymentService = {
         console.error('Error verifying signature:', err.message);
         return false;
       }
+    }
+
+    // In local development / test mode when live keys are not configured
+    if (process.env.NODE_ENV !== 'production') {
+      return Boolean(
+        (signature && signature.startsWith('sim_sig_')) ||
+        (orderId && orderId.startsWith('order_sim_')) ||
+        (signature && signature === 'test_signature')
+      );
     }
 
     return false;

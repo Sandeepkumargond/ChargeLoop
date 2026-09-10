@@ -21,11 +21,12 @@ const createChargerStation = async (req, res) => {
     // Determine pricing field
     const finalPrice = pricePerKwh || pricePerUnit;
     const finalSocketCapacity = socketMaxCapacity || powerOutput || 3.3;
+    const finalOperatingHours = operatingHours || { start: '00:00', end: '23:59', is24x7: true };
 
-    if (!name || !location || !chargerType || !finalPrice || !operatingHours) {
+    if (!name || !location || !chargerType || !finalPrice) {
       return res.status(400).json({
         success: false,
-        message: 'All required fields must be provided: name, location, chargerType, pricePerUnit/pricePerKwh, operatingHours'
+        message: 'All required fields must be provided: name, location, chargerType, pricePerUnit/pricePerKwh'
       });
     }
 
@@ -49,7 +50,7 @@ const createChargerStation = async (req, res) => {
       pricePerKwh: finalPrice,
       convenienceFee: convenienceFee || 0,
       amenities: amenities || [],
-      operatingHours,
+      operatingHours: finalOperatingHours,
       images: images || []
     });
 
@@ -73,7 +74,8 @@ const createChargerStation = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Charger station created successfully',
-      data: chargerStation
+      data: chargerStation,
+      station: chargerStation
     });
   } catch (error) {
     res.status(500).json({
@@ -90,7 +92,9 @@ const getHostChargerStations = async (req, res) => {
 
     res.json({
       success: true,
-      data: chargerStations
+      data: chargerStations,
+      stations: chargerStations,
+      count: chargerStations.length
     });
   } catch (error) {
     res.status(500).json({
@@ -102,39 +106,47 @@ const getHostChargerStations = async (req, res) => {
 
 const getNearbyChargerStations = async (req, res) => {
   try {
-    const { lat, lng, radius = 10 } = req.query;
+    const lat = parseFloat(req.query.lat || req.query.latitude);
+    const lng = parseFloat(req.query.lng || req.query.longitude);
+    const radius = parseFloat(req.query.radius || 10);
 
-    if (!lat || !lng) {
+    if (isNaN(lat) || isNaN(lng)) {
       return res.status(400).json({
         success: false,
         message: 'Latitude and longitude are required'
       });
     }
 
-    const radiusInMeters = radius * 1000;
-
     const chargerStations = await ChargerStation.find({
-      'location.coordinates': {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [parseFloat(lng), parseFloat(lat)]
-          },
-          $maxDistance: radiusInMeters
-        }
-      },
-      status: 'Active',
-      verified: true
+      status: { $ne: 'Suspended' }
     }).populate('hostId', 'name email phone');
+
+    // Filter by Haversine distance
+    const nearby = chargerStations.filter(st => {
+      const sLat = st.location?.coordinates?.lat ?? (Array.isArray(st.location?.coordinates) ? st.location.coordinates[1] : null);
+      const sLng = st.location?.coordinates?.lng ?? (Array.isArray(st.location?.coordinates) ? st.location.coordinates[0] : null);
+      if (sLat == null || sLng == null) return false;
+
+      const dLat = (sLat - lat) * Math.PI / 180;
+      const dLng = (sLng - lng) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat * Math.PI / 180) * Math.cos(sLat * Math.PI / 180) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distKm = 6371 * c;
+      return distKm <= radius;
+    });
 
     res.json({
       success: true,
-      data: chargerStations
+      data: nearby,
+      stations: nearby,
+      count: nearby.length
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: error.message || 'Internal server error'
     });
   }
 };

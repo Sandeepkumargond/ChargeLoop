@@ -501,13 +501,16 @@ exports.getHostRegistrationStatus = async (req, res) => {
 
 exports.checkUserType = async (req, res) => {
   try {
-    const { email } = req.body;
+    let email = req.body?.email;
+    let user = null;
 
-    if (!email) {
-      return res.status(400).json({ msg: 'Email is required' });
+    if (email) {
+      user = await User.findOne({ email });
+    } else if (req.user?.id) {
+      user = await User.findById(req.user.id);
+      email = user?.email;
     }
 
-    const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({ msg: 'User not found', userType: 'user' });
     }

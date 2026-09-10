@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const Host = require('../models/Host');
 const User = require('../models/User');
@@ -220,10 +221,13 @@ const acceptBookingRequestHandler = async (req, res) => {
     // Emit WebSocket event to user
     try {
       const { getIo } = require('../services/socketService');
-      getIo().to(request.userId._id.toString()).emit('booking_update', {
-        bookingId: request._id,
-        status: 'accepted'
-      });
+      const targetUserId = (request.userId?._id || request.userId)?.toString();
+      if (targetUserId) {
+        getIo().to(targetUserId).emit('booking_update', {
+          bookingId: request._id,
+          status: 'accepted'
+        });
+      }
     } catch (socketErr) {
       console.error('Failed to emit socket event:', socketErr.message);
     }
@@ -290,11 +294,14 @@ const declineBookingRequestHandler = async (req, res) => {
     // Emit WebSocket event to user
     try {
       const { getIo } = require('../services/socketService');
-      getIo().to(request.userId.toString()).emit('booking_update', {
-        bookingId: request._id,
-        status: 'declined',
-        reason: reason || 'No reason provided'
-      });
+      const targetUserId = (request.userId?._id || request.userId)?.toString();
+      if (targetUserId) {
+        getIo().to(targetUserId).emit('booking_update', {
+          bookingId: request._id,
+          status: 'declined',
+          reason: reason || 'No reason provided'
+        });
+      }
     } catch (socketErr) {
       console.error('Failed to emit socket event:', socketErr.message);
     }
@@ -363,11 +370,14 @@ const cancelBookingRequestHandler = async (req, res) => {
     // Emit WebSocket event to user
     try {
       const { getIo } = require('../services/socketService');
-      getIo().to(request.userId._id.toString()).emit('booking_update', {
-        bookingId: request._id,
-        status: 'cancelled',
-        reason: reason || 'Host cancelled the booking'
-      });
+      const targetUserId = (request.userId?._id || request.userId)?.toString();
+      if (targetUserId) {
+        getIo().to(targetUserId).emit('booking_update', {
+          bookingId: request._id,
+          status: 'cancelled',
+          reason: reason || 'Host cancelled the booking'
+        });
+      }
     } catch (socketErr) {
       console.error('Failed to emit socket event:', socketErr.message);
     }
@@ -467,10 +477,13 @@ const markDoneBookingRequestHandler = async (req, res) => {
     // Emit WebSocket event to user
     try {
       const { getIo } = require('../services/socketService');
-      getIo().to(request.userId._id.toString()).emit('booking_update', {
-        bookingId: request._id,
-        status: 'completed'
-      });
+      const targetUserId = (request.userId?._id || request.userId)?.toString();
+      if (targetUserId) {
+        getIo().to(targetUserId).emit('booking_update', {
+          bookingId: request._id,
+          status: 'completed'
+        });
+      }
     } catch (socketErr) {
       console.error('Failed to emit socket event:', socketErr.message);
     }
