@@ -1,12 +1,16 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const Host = require('../models/Host');
+const User = require('../models/User');
 const BookingRequest = require('../models/BookingRequest');
 const ChargerStation = require('../models/ChargerStation');
 const Transaction = require('../models/Transaction');
 const auth = require('../middleware/auth');
 const { enqueueBookingConfirmation, cancelBookingExpiry } = require('../queues/jobQueues');
+const { transitionBookingStatus } = require('../services/bookingStateMachine');
 const { uploadFile } = require('../services/imagekitService');
+const { normalizeBookings } = require('../utils/normalizeBooking');
 const { getNearbyHosts, getAllHosts, updateHostAvailability, toggleMapVisibility } = require('../controllers/hostController');
 const {
   createChargerStation,
@@ -90,9 +94,16 @@ router.get('/booking-requests/pending', auth, async (req, res) => {
       return res.status(404).json({ message: 'Host profile not found' });
     }
 
+    const hostQuery = {
+      $or: [
+        { hostId: host._id },
+        { hostId: host.userId }
+      ]
+    };
+
     // Auto-expire past pending requests
     await BookingRequest.updateMany({
-      hostId: host._id,
+      ...hostQuery,
       status: 'pending',
       scheduledTime: { $lt: new Date() }
     }, {
@@ -100,24 +111,14 @@ router.get('/booking-requests/pending', auth, async (req, res) => {
     });
 
     const pendingRequests = await BookingRequest.find({
-      hostId: host._id,
+      ...hostQuery,
       status: 'pending'
     })
       .populate('userId', 'name email phone')
       .sort({ createdAt: -1 })
       .lean();
 
-    const normalizedPending = pendingRequests.map(r => ({
-      ...r,
-      totalUnitsKwh: r.totalUnitsKwh ?? r.desiredKwh ?? 0,
-      desiredKwh: r.totalUnitsKwh ?? r.desiredKwh ?? 0,
-      pricePerUnit: r.pricePerKwh ?? r.pricePerUnit ?? 0,
-      pricePerKwh: r.pricePerKwh ?? r.pricePerUnit ?? 0,
-      totalBill: r.totalBill ?? r.estimatedCost ?? r.energyCost ?? 0,
-      estimatedCost: r.totalBill ?? r.estimatedCost ?? r.energyCost ?? 0,
-      requestedDuration: r.requestedDuration ?? r.estimatedDuration ?? r.actualDuration ?? 0,
-      estimatedDuration: r.requestedDuration ?? r.estimatedDuration ?? r.actualDuration ?? 0,
-    }));
+    const normalizedPending = normalizeBookings(pendingRequests);
 
     res.json({
       success: true,
@@ -159,9 +160,10 @@ const acceptBookingRequestHandler = async (req, res) => {
     }
 
     const userHostIdStr = userHost._id.toString();
+    const userHostUserIdStr = userHost.userId ? userHost.userId.toString() : '';
     const requestHostIdStr = request.hostId.toString ? request.hostId.toString() : String(request.hostId);
 
-    if (userHostIdStr !== requestHostIdStr) {
+    if (userHostIdStr !== requestHostIdStr && userHostUserIdStr !== requestHostIdStr) {
       return res.status(403).json({
         success: false,
         msg: 'Unauthorized to accept this request'
@@ -181,12 +183,7 @@ const acceptBookingRequestHandler = async (req, res) => {
       });
     }
 
-    request.status = 'accepted';
-    request.startTime = request.scheduledTime;
-    request.hostResponse = {
-      respondedAt: new Date(),
-      acceptedAt: new Date()
-    };
+    transitionBookingStatus(request, 'accepted', 'host');
 
     try {
       const bookingDetails = {
@@ -224,10 +221,13 @@ const acceptBookingRequestHandler = async (req, res) => {
     // Emit WebSocket event to user
     try {
       const { getIo } = require('../services/socketService');
-      getIo().to(request.userId._id.toString()).emit('booking_update', {
-        bookingId: request._id,
-        status: 'accepted'
-      });
+      const targetUserId = (request.userId?._id || request.userId)?.toString();
+      if (targetUserId) {
+        getIo().to(targetUserId).emit('booking_update', {
+          bookingId: request._id,
+          status: 'accepted'
+        });
+      }
     } catch (socketErr) {
       console.error('Failed to emit socket event:', socketErr.message);
     }
@@ -277,29 +277,31 @@ const declineBookingRequestHandler = async (req, res) => {
     }
 
     const userHost = await Host.findOne({ userId: req.user.id });
-    if (!userHost || userHost._id.toString() !== request.hostId.toString()) {
+    const userHostIdStr = userHost?._id?.toString();
+    const userHostUserIdStr = userHost?.userId?.toString();
+    const requestHostIdStr = request.hostId?.toString();
+
+    if (!userHost || (userHostIdStr !== requestHostIdStr && userHostUserIdStr !== requestHostIdStr)) {
       return res.status(403).json({
         success: false,
         msg: 'Unauthorized to decline this request'
       });
     }
 
-    request.status = 'declined';
-    request.hostResponse = {
-      respondedAt: new Date(),
-      declinedAt: new Date(),
-      declineReason: reason || 'No reason provided'
-    };
+    transitionBookingStatus(request, 'declined', 'host', { reason });
     await request.save();
 
     // Emit WebSocket event to user
     try {
       const { getIo } = require('../services/socketService');
-      getIo().to(request.userId.toString()).emit('booking_update', {
-        bookingId: request._id,
-        status: 'declined',
-        reason: reason || 'No reason provided'
-      });
+      const targetUserId = (request.userId?._id || request.userId)?.toString();
+      if (targetUserId) {
+        getIo().to(targetUserId).emit('booking_update', {
+          bookingId: request._id,
+          status: 'declined',
+          reason: reason || 'No reason provided'
+        });
+      }
     } catch (socketErr) {
       console.error('Failed to emit socket event:', socketErr.message);
     }
@@ -340,40 +342,42 @@ const cancelBookingRequestHandler = async (req, res) => {
 
     const request = await BookingRequest.findOne({
       _id: requestId,
-      status: 'accepted'
+      status: { $in: ['accepted', 'ongoing', 'pending'] }
     }).populate('userId', 'name email phone');
 
     if (!request) {
       return res.status(404).json({
         success: false,
-        msg: 'Booking request not found or not in accepted status'
+        msg: 'Booking request not found or not in active status'
       });
     }
 
     const userHost = await Host.findOne({ userId: req.user.id });
-    if (!userHost || userHost._id.toString() !== request.hostId.toString()) {
+    const userHostIdStr = userHost?._id?.toString();
+    const userHostUserIdStr = userHost?.userId?.toString();
+    const requestHostIdStr = request.hostId?.toString();
+
+    if (!userHost || (userHostIdStr !== requestHostIdStr && userHostUserIdStr !== requestHostIdStr)) {
       return res.status(403).json({
         success: false,
         msg: 'Unauthorized to cancel this request'
       });
     }
 
-    request.status = 'cancelled';
-    request.hostResponse = {
-      respondedAt: new Date(),
-      cancelledAt: new Date(),
-      cancelReason: reason || 'Host cancelled the booking'
-    };
+    transitionBookingStatus(request, 'cancelled', 'host', { reason });
     await request.save();
 
     // Emit WebSocket event to user
     try {
       const { getIo } = require('../services/socketService');
-      getIo().to(request.userId._id.toString()).emit('booking_update', {
-        bookingId: request._id,
-        status: 'cancelled',
-        reason: reason || 'Host cancelled the booking'
-      });
+      const targetUserId = (request.userId?._id || request.userId)?.toString();
+      if (targetUserId) {
+        getIo().to(targetUserId).emit('booking_update', {
+          bookingId: request._id,
+          status: 'cancelled',
+          reason: reason || 'Host cancelled the booking'
+        });
+      }
     } catch (socketErr) {
       console.error('Failed to emit socket event:', socketErr.message);
     }
@@ -407,34 +411,29 @@ const markDoneBookingRequestHandler = async (req, res) => {
 
     const request = await BookingRequest.findOne({
       _id: requestId,
-      status: 'accepted'
+      status: { $in: ['accepted', 'ongoing'] }
     }).populate('userId', 'name email phone');
 
     if (!request) {
       return res.status(404).json({
         success: false,
-        msg: 'Booking request not found or not in accepted status'
+        msg: 'Booking request not found or not in accepted/ongoing status'
       });
     }
 
     const userHost = await Host.findOne({ userId: req.user.id });
-    if (!userHost || userHost._id.toString() !== request.hostId.toString()) {
+    const userHostIdStr = userHost?._id?.toString();
+    const userHostUserIdStr = userHost?.userId?.toString();
+    const requestHostIdStr = request.hostId?.toString();
+
+    if (!userHost || (userHostIdStr !== requestHostIdStr && userHostUserIdStr !== requestHostIdStr)) {
       return res.status(403).json({
         success: false,
         msg: 'Unauthorized to mark this booking as done'
       });
     }
 
-    const now = new Date();
-    const startTime = request.startTime ? new Date(request.startTime) : null;
-
-    request.status = 'completed';
-    request.endTime = now;
-    
-    // Calculate actual duration in minutes
-    if (startTime) {
-      request.actualDuration = Math.round((now - startTime) / (1000 * 60));
-    }
+    transitionBookingStatus(request, 'completed', 'host');
 
     await request.save();
 
@@ -443,9 +442,12 @@ const markDoneBookingRequestHandler = async (req, res) => {
     const hostEarned = Math.max(0, (request.totalBill || request.actualCost || 0) - platformFee);
 
     if (hostEarned > 0) {
-      userHost.totalEarnings = (userHost.totalEarnings || 0) + hostEarned;
-      userHost.totalBookings = (userHost.totalBookings || 0) + 1;
-      await userHost.save();
+      await Host.findByIdAndUpdate(userHost._id, {
+        $inc: { 
+          totalEarnings: hostEarned,
+          totalBookings: 1
+        }
+      });
 
       // Record host credit transaction
       try {
@@ -475,10 +477,13 @@ const markDoneBookingRequestHandler = async (req, res) => {
     // Emit WebSocket event to user
     try {
       const { getIo } = require('../services/socketService');
-      getIo().to(request.userId._id.toString()).emit('booking_update', {
-        bookingId: request._id,
-        status: 'completed'
-      });
+      const targetUserId = (request.userId?._id || request.userId)?.toString();
+      if (targetUserId) {
+        getIo().to(targetUserId).emit('booking_update', {
+          bookingId: request._id,
+          status: 'completed'
+        });
+      }
     } catch (socketErr) {
       console.error('Failed to emit socket event:', socketErr.message);
     }
@@ -542,8 +547,8 @@ router.post('/register', auth, async (req, res) => {
 
     if (coordinates || address || city || state || pincode) {
       if (coordinates) {
-        host.location.coordinates.lat = coordinates.lat;
-        host.location.coordinates.lng = coordinates.lng;
+        host.location.type = 'Point';
+        host.location.coordinates = [coordinates.lng, coordinates.lat];
       }
       if (address) host.location.address = address;
       if (city) host.location.city = city;
@@ -617,7 +622,12 @@ router.get('/bookings', auth, async (req, res) => {
       return res.status(404).json({ message: 'Host profile not found' });
     }
 
-    const bookings = await BookingRequest.find({ hostId: host._id })
+    const bookings = await BookingRequest.find({
+      $or: [
+        { hostId: host._id },
+        { hostId: host.userId }
+      ]
+    })
       .populate('userId', 'name phone')
       .sort({ createdAt: -1 });
 
@@ -652,85 +662,6 @@ router.get('/bookings', auth, async (req, res) => {
   }
 });
 
-router.put('/bookings/:bookingId/status', auth, async (req, res) => {
-  try {
-    const { bookingId } = req.params;
-    const { status } = req.body;
-
-    const host = await Host.findOne({ userId: req.user.id });
-    if (!host) {
-      return res.status(404).json({ message: 'Host profile not found' });
-    }
-
-    const booking = await BookingRequest.findOne({
-      _id: bookingId,
-      hostId: host._id
-    }).populate('userId', 'name email phone');
-
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    if (status === 'accepted' && booking.status === 'pending') {
-      const bookingDetails = {
-        userName: booking.userId?.name || 'Customer',
-        chargerType: booking.chargerType,
-        hostName: booking.hostName,
-        hostLocation: booking.hostLocation,
-        scheduledTime: booking.scheduledTime,
-        requiredEnergy: booking.requiredEnergy || booking.desiredKwh,
-        bookingDuration: booking.bookingDuration || booking.requestedDuration,
-        energyDelivered: booking.energyDelivered,
-        estimatedDuration: booking.bookingDuration || booking.requestedDuration,
-        estimatedCost: booking.actualCost || (booking.energyDelivered * booking.pricePerKwh),
-        requestId: booking.requestId,
-        chargerPowerKw: booking.chargerPowerKw,
-        pricePerKwh: booking.pricePerKwh
-      };
-
-      try {
-        // Send via BullMQ queue (guaranteed delivery with retries)
-        await enqueueBookingConfirmation(booking.userId?.email, bookingDetails);
-        console.log('Booking confirmation email queued for:', booking.userId?.email);
-      } catch (emailError) {
-        console.error('Error queuing booking confirmation email:', emailError.message);
-      }
-
-      booking.hostResponse = {
-        respondedAt: new Date(),
-        acceptedAt: new Date()
-      };
-    }
-
-    booking.status = status;
-
-    if (status === 'completed' && !booking.endTime) {
-      booking.endTime = new Date();
-      const startTime = booking.startTime || booking.scheduledTime || new Date();
-      booking.actualDuration = Math.max(1, Math.ceil((booking.endTime - startTime) / (1000 * 60)));
-      const platformFee = booking.platformFee ?? 10;
-      const finalCost = booking.totalBill || booking.actualCost || Math.ceil((booking.actualDuration / 60) * (host.pricePerKwh || host.pricePerHour || 10));
-      booking.actualCost = finalCost;
-
-      const hostEarned = Math.max(0, finalCost - platformFee);
-      host.totalEarnings = (host.totalEarnings || 0) + hostEarned;
-      host.totalBookings = (host.totalBookings || 0) + 1;
-      await host.save();
-    }
-
-    await booking.save();
-    res.json({
-      message: 'Booking status updated successfully',
-      booking: {
-        _id: booking._id,
-        status: booking.status,
-        requestId: booking.requestId
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
 
 router.put('/toggle-availability', auth, async (req, res) => {
   try {
@@ -756,7 +687,8 @@ router.put('/profile', auth, async (req, res) => {
     }
 
     const allowedUpdates = [
-      'hostName', 'email', 'phone', 'pricePerHour', 'amenities',
+      'hostName', 'email', 'phone', 'pricePerHour', 'pricePerKwh', 'convenienceFee',
+      'socketMaxCapacity', 'chargerPowerKw', 'amenities',
       'description', 'availableFrom', 'availableTo'
     ];
 
@@ -766,56 +698,193 @@ router.put('/profile', auth, async (req, res) => {
       }
     });
 
+    // Keep the underlying User model in sync
+    if (req.body.hostName || req.body.phone || req.body.location) {
+      await User.findByIdAndUpdate(req.user.id, {
+        ...(req.body.hostName && { name: req.body.hostName }),
+        ...(req.body.phone && { phone: req.body.phone }),
+        ...(req.body.location && {
+          location: typeof req.body.location === 'string' ? req.body.location : (req.body.location.address || '')
+        })
+      });
+    }
+
+    // Update location address if passed as string or object
+    if (req.body.location) {
+      if (typeof req.body.location === 'string') {
+        if (!host.location) host.location = { type: 'Point', coordinates: [0, 0] };
+        host.location.address = req.body.location;
+      } else if (typeof req.body.location === 'object') {
+        host.location = { ...host.location, ...req.body.location };
+      }
+    }
+
+    // Ensure location has valid GeoJSON format before saving
+    if (host.location) {
+      if (!host.location.type) {
+        host.location.type = 'Point';
+      }
+      if (host.location.coordinates && !Array.isArray(host.location.coordinates)) {
+        const lat = Number(host.location.coordinates.lat ?? host.location.coordinates.latitude);
+        const lng = Number(host.location.coordinates.lng ?? host.location.coordinates.longitude);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          host.location.coordinates = [lng, lat];
+        }
+      }
+    }
+
     await host.save();
     
-    // Return the updated host object directly (consistent with user profile endpoint)
+    // Return the updated host object directly
     const updatedHost = await Host.findById(host._id);
     res.json(updatedHost);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Host profile update error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
+// Get current bookings for host (ongoing or upcoming within the next 24 hours)
+router.get('/bookings/current', auth, async (req, res) => {
+  try {
+    const host = await Host.findOne({
+      $or: [
+        { userId: req.user.id },
+        ...(mongoose.isValidObjectId(req.user.id) ? [{ _id: req.user.id }] : [])
+      ]
+    });
+
+    const validHostIds = [req.user.id, String(req.user.id)];
+    if (mongoose.isValidObjectId(req.user.id)) {
+      validHostIds.push(new mongoose.Types.ObjectId(req.user.id));
+    }
+    if (host) {
+      if (host._id) {
+        validHostIds.push(host._id);
+        validHostIds.push(host._id.toString());
+      }
+      if (host.userId) {
+        validHostIds.push(host.userId);
+        validHostIds.push(host.userId.toString());
+      }
+    }
+
+    const now = new Date();
+    const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    // Include ongoing sessions or sessions scheduled from 1 hour ago up to 24 hours from now
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+    const query = {
+      hostId: { $in: validHostIds },
+      $or: [
+        { status: 'ongoing' },
+        {
+          status: 'accepted',
+          scheduledTime: {
+            $gte: oneHourAgo,
+            $lte: next24Hours
+          }
+        }
+      ]
+    };
+
+    const bookings = await BookingRequest.find(query)
+      .populate('userId', 'name email phone')
+      .sort({ scheduledTime: 1 })
+      .lean();
+
+    const normalizedBookings = normalizeBookings(bookings);
+
+    res.json({
+      success: true,
+      bookings: normalizedBookings,
+      count: normalizedBookings.length
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
 router.get('/booking-requests/history', auth, async (req, res) => {
   try {
-    const { status, page = 1, limit = 20 } = req.query;
-    const host = await Host.findOne({ userId: req.user.id });
+    const { status, page = 1, limit = 100 } = req.query;
+    const host = await Host.findOne({
+      $or: [
+        { userId: req.user.id },
+        ...(mongoose.isValidObjectId(req.user.id) ? [{ _id: req.user.id }] : [])
+      ]
+    });
 
-    if (!host) {
-      return res.status(404).json({ message: 'Host profile not found' });
+    const validHostIds = [req.user.id, String(req.user.id)];
+    if (mongoose.isValidObjectId(req.user.id)) {
+      validHostIds.push(new mongoose.Types.ObjectId(req.user.id));
+    }
+    if (host) {
+      if (host._id) {
+        validHostIds.push(host._id);
+        validHostIds.push(host._id.toString());
+      }
+      if (host.userId) {
+        validHostIds.push(host.userId);
+        validHostIds.push(host.userId.toString());
+      }
     }
 
-    const query = { hostId: host._id };
+    const hostMatch = {
+      hostId: { $in: validHostIds }
+    };
+
+    const query = { ...hostMatch };
     if (status && status !== 'all') {
       query.status = status;
     }
 
-    const total = await BookingRequest.countDocuments(query);
-    const requests = await BookingRequest.find(query)
-      .populate('userId', 'name email phone')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .lean();
+    // Compute status counts for all filter tabs
+    const statusAgg = await BookingRequest.aggregate([
+      { $match: hostMatch },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
 
-    const normalizedRequests = requests.map(r => ({
-      ...r,
-      totalUnitsKwh: r.totalUnitsKwh ?? r.desiredKwh ?? 0,
-      desiredKwh: r.totalUnitsKwh ?? r.desiredKwh ?? 0,
-      pricePerUnit: r.pricePerKwh ?? r.pricePerUnit ?? 0,
-      pricePerKwh: r.pricePerKwh ?? r.pricePerUnit ?? 0,
-      totalBill: r.totalBill ?? r.estimatedCost ?? r.energyCost ?? 0,
-      estimatedCost: r.totalBill ?? r.estimatedCost ?? r.energyCost ?? 0,
-      requestedDuration: r.requestedDuration ?? r.estimatedDuration ?? r.actualDuration ?? 0,
-      estimatedDuration: r.requestedDuration ?? r.estimatedDuration ?? r.actualDuration ?? 0,
-    }));
+    const statusCounts = {
+      all: 0,
+      pending: 0,
+      accepted: 0,
+      ongoing: 0,
+      completed: 0,
+      cancelled: 0,
+      declined: 0,
+      expired: 0
+    };
+
+    statusAgg.forEach(item => {
+      if (item._id && Object.prototype.hasOwnProperty.call(statusCounts, item._id)) {
+        statusCounts[item._id] = item.count;
+      }
+      statusCounts.all += (item.count || 0);
+    });
+
+    const total = await BookingRequest.countDocuments(query);
+    const numLimit = limit === 'all' ? 0 : (parseInt(limit) || 100);
+    const numPage = parseInt(page) || 1;
+
+    let queryExec = BookingRequest.find(query)
+      .populate('userId', 'name email phone')
+      .sort({ createdAt: -1 });
+
+    if (numLimit > 0) {
+      queryExec = queryExec.limit(numLimit).skip((numPage - 1) * numLimit);
+    }
+
+    const requests = await queryExec.lean();
+    const normalizedRequests = normalizeBookings(requests);
 
     res.json({
       success: true,
       requests: normalizedRequests,
+      statusCounts,
       pagination: {
-        current: parseInt(page),
-        pages: Math.ceil(total / limit),
+        current: numPage,
+        pages: numLimit > 0 ? Math.ceil(total / numLimit) : 1,
         total: total
       }
     });

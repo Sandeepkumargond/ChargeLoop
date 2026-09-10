@@ -11,14 +11,14 @@ export default function DashboardLayout({ children }) {
 
   return (
     <AuthGuard>
-      <div className="flex flex-col min-h-screen bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 lg:flex-row">
+      <div className="flex flex-col h-screen overflow-hidden bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 lg:flex-row">
         {/* Sidebar */}
         <Sidebar />
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col w-full lg:ml-0 transition-all duration-300">
+        <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
           {/* Mobile Header with Hamburger - Only visible on mobile */}
-          <div className="lg:hidden flex items-center h-14 px-4 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 sticky top-0 z-30">
+          <div className="lg:hidden flex items-center h-14 px-4 bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700 shrink-0 z-30">
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="p-2 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
@@ -30,9 +30,9 @@ export default function DashboardLayout({ children }) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto min-w-0">
             {children}
-          </div>
+          </main>
         </div>
 
         {/* Mobile Overlay - Only visible on mobile when sidebar is open */}

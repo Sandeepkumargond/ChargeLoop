@@ -7,6 +7,7 @@ const Transaction = require('../models/Transaction');
 const Host = require('../models/Host');
 const User = require('../models/User');
 const { getIo } = require('../services/socketService');
+const { getRedisClient } = require('../services/redisService');
 
 // ============================================================
 // 1. Create Payment Order (Razorpay or Simulation)
@@ -410,6 +411,20 @@ router.post('/host/payout-request', auth, async (req, res) => {
     const hostId = host ? host._id : req.user.id;
     const hostIdQuery = host ? { $in: [host._id, req.user.id] } : req.user.id;
 
+    const redisClient = getRedisClient();
+    const lockKey = `lock:payout:${hostId}`;
+    let lockAcquired = false;
+
+    if (redisClient && redisClient.status === 'ready') {
+      const lockResult = await redisClient.set(lockKey, 'LOCKED', 'NX', 'EX', 10);
+      if (!lockResult) {
+        return res.status(429).json({ success: false, msg: 'A payout request is already in progress. Please wait.' });
+      }
+      lockAcquired = true;
+    }
+
+    try {
+
     // Verify available balance
     const completedBookings = await BookingRequest.find({
       hostId: hostIdQuery,
@@ -458,12 +473,17 @@ router.post('/host/payout-request', auth, async (req, res) => {
 
     await payoutTransaction.save();
 
-    res.json({
-      success: true,
-      msg: `Payout of ₹${withdrawAmount} processed successfully!`,
-      referenceId: payoutTransaction.referenceId,
-      newAvailableBalance: parseFloat((availableBalance - withdrawAmount).toFixed(2))
-    });
+      res.json({
+        success: true,
+        msg: `Payout of ₹${withdrawAmount} processed successfully!`,
+        referenceId: payoutTransaction.referenceId,
+        newAvailableBalance: parseFloat((availableBalance - withdrawAmount).toFixed(2))
+      });
+    } finally {
+      if (lockAcquired) {
+        await redisClient.del(lockKey).catch(() => {});
+      }
+    }
 
   } catch (error) {
     console.error('Error processing payout request:', error.message);

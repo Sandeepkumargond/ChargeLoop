@@ -158,6 +158,7 @@ export default function ProfilePage() {
         requestData = {
           hostName: formData.name,
           phone: formData.phone,
+          location: formData.location,
         };
       } else {
         apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`;
@@ -294,7 +295,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (error) {
+  if (error && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-100 dark:bg-neutral-900">
         <div className="bg-white dark:bg-neutral-800 p-8 rounded-lg shadow-lg text-center">

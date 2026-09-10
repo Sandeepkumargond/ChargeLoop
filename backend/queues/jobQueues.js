@@ -92,60 +92,108 @@ async function enqueueOtpEmail(email, otp) {
  * Queue a booking confirmation email to user
  */
 async function enqueueBookingConfirmation(userEmail, bookingDetails) {
-  const queue = getEmailQueue();
-  return queue.add('booking-confirmation', { userEmail, bookingDetails }, {
-    priority: 1,
-  });
+  try {
+    const queue = getEmailQueue();
+    return await Promise.race([
+      queue.add('booking-confirmation', { userEmail, bookingDetails }, { priority: 1 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Queue timeout')), 2500))
+    ]);
+  } catch (queueErr) {
+    console.warn(`⚠️ [BullMQ] enqueueBookingConfirmation fallback to direct send: ${queueErr.message}`);
+    const { sendBookingConfirmationEmail } = require('../services/emailService');
+    sendBookingConfirmationEmail(userEmail, bookingDetails).catch(err => console.error('Direct booking email error:', err.message));
+    return { id: `fallback-${Date.now()}` };
+  }
 }
 
 /**
  * Queue a booking notification to host
  */
 async function enqueueBookingNotificationToHost(hostData, bookingData) {
-  const queue = getEmailQueue();
-  return queue.add('booking-notification-host', { hostData, bookingData }, {
-    priority: 2,
-  });
+  try {
+    const queue = getEmailQueue();
+    return await Promise.race([
+      queue.add('booking-notification-host', { hostData, bookingData }, { priority: 2 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Queue timeout')), 2500))
+    ]);
+  } catch (queueErr) {
+    console.warn(`⚠️ [BullMQ] enqueueBookingNotificationToHost fallback to direct send: ${queueErr.message}`);
+    const { sendBookingNotificationToHost } = require('../services/emailService');
+    sendBookingNotificationToHost(hostData, bookingData).catch(err => console.error('Direct host notification error:', err.message));
+    return { id: `fallback-${Date.now()}` };
+  }
 }
 
 /**
  * Queue a host onboarding email
  */
 async function enqueueHostOnboardingEmail(hostData) {
-  const queue = getEmailQueue();
-  return queue.add('host-onboarding', { hostData }, {
-    priority: 3,
-  });
+  try {
+    const queue = getEmailQueue();
+    return await Promise.race([
+      queue.add('host-onboarding', { hostData }, { priority: 3 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Queue timeout')), 2500))
+    ]);
+  } catch (queueErr) {
+    console.warn(`⚠️ [BullMQ] enqueueHostOnboardingEmail fallback to direct send: ${queueErr.message}`);
+    const { sendHostOnboardingEmail } = require('../services/emailService');
+    sendHostOnboardingEmail(hostData).catch(err => console.error('Direct onboarding email error:', err.message));
+    return { id: `fallback-${Date.now()}` };
+  }
 }
 
 /**
  * Queue a host approval email
  */
 async function enqueueHostApprovalEmail(email, name) {
-  const queue = getEmailQueue();
-  return queue.add('host-approval', { email, name }, {
-    priority: 2,
-  });
+  try {
+    const queue = getEmailQueue();
+    return await Promise.race([
+      queue.add('host-approval', { email, name }, { priority: 2 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Queue timeout')), 2500))
+    ]);
+  } catch (queueErr) {
+    console.warn(`⚠️ [BullMQ] enqueueHostApprovalEmail fallback to direct send: ${queueErr.message}`);
+    const { sendHostApprovalEmail } = require('../services/emailService');
+    sendHostApprovalEmail(email, name).catch(err => console.error('Direct approval email error:', err.message));
+    return { id: `fallback-${Date.now()}` };
+  }
 }
 
 /**
  * Queue a host denial email
  */
 async function enqueueHostDenialEmail(email, name, denialReason) {
-  const queue = getEmailQueue();
-  return queue.add('host-denial', { email, name, denialReason }, {
-    priority: 2,
-  });
+  try {
+    const queue = getEmailQueue();
+    return await Promise.race([
+      queue.add('host-denial', { email, name, denialReason }, { priority: 2 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Queue timeout')), 2500))
+    ]);
+  } catch (queueErr) {
+    console.warn(`⚠️ [BullMQ] enqueueHostDenialEmail fallback to direct send: ${queueErr.message}`);
+    const { sendHostDenialEmail } = require('../services/emailService');
+    sendHostDenialEmail(email, name, denialReason).catch(err => console.error('Direct denial email error:', err.message));
+    return { id: `fallback-${Date.now()}` };
+  }
 }
 
 /**
  * Queue a contact form email
  */
 async function enqueueContactEmail(contactData) {
-  const queue = getEmailQueue();
-  return queue.add('contact-form', { contactData }, {
-    priority: 4, // Lowest priority
-  });
+  try {
+    const queue = getEmailQueue();
+    return await Promise.race([
+      queue.add('contact-form', { contactData }, { priority: 4 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Queue timeout')), 2500))
+    ]);
+  } catch (queueErr) {
+    console.warn(`⚠️ [BullMQ] enqueueContactEmail fallback to direct send: ${queueErr.message}`);
+    const { sendContactEmail } = require('../services/emailService');
+    sendContactEmail(contactData).catch(err => console.error('Direct contact email error:', err.message));
+    return { id: `fallback-${Date.now()}` };
+  }
 }
 
 // ============================================================
@@ -158,11 +206,16 @@ async function enqueueContactEmail(contactData) {
  * @param {number} delayMs - Delay in milliseconds (default: 15 minutes)
  */
 async function scheduleBookingExpiry(bookingId, delayMs = 15 * 60 * 1000) {
-  const queue = getBookingExpiryQueue();
-  return queue.add('expire-booking', { bookingId }, {
-    delay: delayMs,
-    jobId: `expire_${bookingId}`, // Prevent duplicate expiry jobs (BullMQ forbids colons in custom IDs)
-  });
+  try {
+    const queue = getBookingExpiryQueue();
+    return await queue.add('expire-booking', { bookingId }, {
+      delay: delayMs,
+      jobId: `expire_${bookingId}`, // Prevent duplicate expiry jobs (BullMQ forbids colons in custom IDs)
+    });
+  } catch (err) {
+    console.warn(`⚠️ [BullMQ] scheduleBookingExpiry error: ${err.message}`);
+    return null;
+  }
 }
 
 /**
@@ -170,10 +223,14 @@ async function scheduleBookingExpiry(bookingId, delayMs = 15 * 60 * 1000) {
  * @param {string} bookingId
  */
 async function cancelBookingExpiry(bookingId) {
-  const queue = getBookingExpiryQueue();
-  const job = await queue.getJob(`expire_${bookingId}`);
-  if (job) {
-    await job.remove();
+  try {
+    const queue = getBookingExpiryQueue();
+    const job = await queue.getJob(`expire_${bookingId}`);
+    if (job) {
+      await job.remove();
+    }
+  } catch (err) {
+    console.warn(`⚠️ [BullMQ] cancelBookingExpiry error: ${err.message}`);
   }
 }
 

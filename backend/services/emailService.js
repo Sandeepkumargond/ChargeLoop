@@ -1,55 +1,53 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
+
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@chargeloop.com';
+const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || process.env.SUPPORT_EMAIL || 'support@chargeloop.com';
 
-let transporter;
+const isSendGridConfigured = Boolean(
+  process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.startsWith('SG.')
+);
 
-if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_API_KEY.startsWith('SG.')) {
-  const sgMail = require('@sendgrid/mail');
+if (isSendGridConfigured) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
   console.log('✅ SendGrid Email Service Initialized (HTTP Port 443 - Cloud/Render Compatible)');
-
-  transporter = {
-    sendMail: async (mailOptions) => {
-      const fromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.EMAIL_USER || SUPPORT_EMAIL;
-      const msg = {
-        to: mailOptions.to,
-        from: fromEmail,
-        subject: mailOptions.subject,
-        html: mailOptions.html,
-        text: mailOptions.text || mailOptions.subject.replace(/<[^>]*>?/gm, ''),
-        ...(mailOptions.replyTo ? { replyTo: mailOptions.replyTo } : {})
-      };
-      const res = await sgMail.send(msg);
-      return { success: true, messageId: res[0]?.headers?.['x-message-id'] || `sg-${Date.now()}` };
-    }
-  };
-} else if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    },
-    connectionTimeout: 5000,
-    greetingTimeout: 5000,
-    socketTimeout: 8000
-  });
-  console.log('✅ Gmail SMTP Email Service Initialized');
 } else {
-  console.warn('⚠️ EMAIL_USER / SENDGRID_API_KEY not configured. Using test mode for emails.');
-  transporter = {
-    sendMail: async (mailOptions) => {
-      console.log('[TEST MODE] Email would be sent to:', mailOptions.to);
-      console.log('Subject:', mailOptions.subject);
-      return { success: true, messageId: 'test-' + Date.now() };
-    }
-  };
+  console.warn('⚠️  SENDGRID_API_KEY not configured. Running in simulated test mode.');
 }
+
+/**
+ * Universal SendGrid mail dispatcher
+ */
+const sendMail = async (mailOptions) => {
+  const to = mailOptions.to;
+  const from = mailOptions.from || FROM_EMAIL;
+  const subject = mailOptions.subject;
+  const html = mailOptions.html;
+  const text = mailOptions.text || (html ? html.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim() : subject);
+  const replyTo = mailOptions.replyTo;
+
+  if (isSendGridConfigured) {
+    const msg = {
+      to,
+      from,
+      subject,
+      html,
+      text,
+      ...(replyTo ? { replyTo } : {})
+    };
+    const res = await sgMail.send(msg);
+    return { success: true, messageId: res[0]?.headers?.['x-message-id'] || `sg-${Date.now()}` };
+  }
+
+  console.log(`📨 [SendGrid Test Mode] Email to: ${to} | Subject: "${subject}" | From: ${from}`);
+  return { success: true, messageId: `sim-${Date.now()}` };
+};
+
+const transporter = { sendMail };
 
 const sendHostOnboardingEmail = async (hostData) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
+      from: FROM_EMAIL,
       to: hostData.email,
       subject: 'Welcome to ChargeLoop - Host Registration Successful!',
       html: `
@@ -142,7 +140,7 @@ const sendHostOnboardingEmail = async (hostData) => {
 const sendBookingNotificationToHost = async (hostData, bookingData) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
+      from: FROM_EMAIL,
       to: hostData.email,
       subject: 'New Charging Request - ChargeLoop',
       html: `
@@ -255,7 +253,7 @@ const sendContactEmail = async (contactData) => {
     const { name, email, subject, message, type, to } = contactData;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
+      from: FROM_EMAIL,
       to: to || SUPPORT_EMAIL,
       replyTo: email,
       subject: `ChargeLoop Contact Form: ${subject}`,
@@ -296,7 +294,7 @@ const sendContactEmail = async (contactData) => {
 const sendHostApprovalEmail = async (email, name) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
+      from: FROM_EMAIL,
       to: email,
       subject: ' Your Host Registration Request Has Been Approved!',
       html: `
@@ -370,7 +368,7 @@ const sendHostApprovalEmail = async (email, name) => {
 const sendHostDenialEmail = async (email, name, denialReason) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
+      from: FROM_EMAIL,
       to: email,
       subject: ' Your Host Registration Request - Action Required',
       html: `
@@ -438,7 +436,7 @@ const sendHostDenialEmail = async (email, name, denialReason) => {
 const sendOtpEmail = async (email, otp) => {
   try {
     const mailOptions = {
-      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
+      from: FROM_EMAIL,
       to: email,
       subject: 'ChargeLoop - Email Verification OTP',
       html: `
@@ -493,16 +491,16 @@ const sendOtpEmail = async (email, otp) => {
 
     await transporter.sendMail(mailOptions);
 
-    if (!process.env.EMAIL_PASS) {
-      console.log('[TEST OTP] Email:', email, '| OTP:', otp);
+    if (!isSendGridConfigured) {
+      console.log('🔑 [TEST OTP CODE] Email:', email, '| OTP:', otp);
     }
 
     return { success: true };
   } catch (error) {
     console.error('Error sending OTP email:', error.message);
 
-    if (!process.env.EMAIL_PASS) {
-      console.log('[TEST OTP - FALLBACK] Email:', email, '| OTP:', otp);
+    if (!isSendGridConfigured) {
+      console.log('🔑 [TEST OTP CODE - FALLBACK] Email:', email, '| OTP:', otp);
       return { success: true };
     }
     return { success: false, error: error.message };
@@ -537,7 +535,7 @@ const sendBookingConfirmationEmail = async (userEmail, bookingDetails) => {
     });
 
     const mailOptions = {
-      from: process.env.EMAIL_USER || SUPPORT_EMAIL,
+      from: FROM_EMAIL,
       to: userEmail,
       subject: 'Booking Confirmed! - ChargeLoop Charging Station Reservation',
       html: `
@@ -680,8 +678,8 @@ const sendBookingConfirmationEmail = async (userEmail, bookingDetails) => {
   } catch (error) {
     console.error('Error sending booking confirmation email:', error.message);
 
-    if (!process.env.EMAIL_PASS) {
-      console.log('[TEST MODE] Booking confirmation email would be sent to:', userEmail);
+    if (!isSendGridConfigured) {
+      console.log('📨 [SendGrid Test Mode] Booking confirmation email would be sent to:', userEmail);
       return { success: true };
     }
     return { success: false, error: error.message };

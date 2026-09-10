@@ -15,27 +15,19 @@ const getNearbyHosts = async (req, res) => {
 
     const hosts = await Host.find({
       verificationStatus: 'approved',
-      isVisibleOnMap: true
+      isVisibleOnMap: true,
+      "location.coordinates": {
+         $nearSphere: {
+            $geometry: {
+               type: 'Point',
+               coordinates: [lng, lat]
+            },
+            $maxDistance: radiusInKm * 1000 // Convert km to meters
+         }
+      }
     }).populate('userId', 'name email phone');
 
-    const nearbyHosts = hosts.filter(host => {
-      if (!host.location?.coordinates?.lat || !host.location?.coordinates?.lng) return false;
-      const hostLat = host.location.coordinates.lat;
-      const hostLng = host.location.coordinates.lng;
-      const deltaLat = Math.abs(lat - hostLat);
-      const deltaLng = Math.abs(lng - hostLng);
-      const distance = Math.sqrt(deltaLat * deltaLat + deltaLng * deltaLng) * 111;
-      return distance <= radiusInKm;
-    });
-
-    const formattedHosts = nearbyHosts.map(host => {
-      const h = host.toObject();
-      if (h.location && h.location.coordinates && typeof h.location.coordinates === 'object') {
-        h.location.coordinates = [h.location.coordinates.lng, h.location.coordinates.lat];
-      }
-      return h;
-    });
-    res.json({ hosts: formattedHosts });
+    res.json({ hosts });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch nearby hosts' });
   }
@@ -63,18 +55,10 @@ const getAllHosts = async (req, res) => {
     if (chargerType) filter.chargerType = chargerType;
     const hosts = await Host.find(filter).populate('userId', 'name email phone');
 
-    const formattedHosts = hosts.map(host => {
-      const h = host.toObject();
-      if (h.location && h.location.coordinates && typeof h.location.coordinates === 'object') {
-        h.location.coordinates = [h.location.coordinates.lng, h.location.coordinates.lat];
-      }
-      return h;
-    });
-
     // Cache for 30 seconds
-    await setCache(cacheKey, formattedHosts, 30);
+    await setCache(cacheKey, hosts, 30);
 
-    res.json({ hosts: formattedHosts });
+    res.json({ hosts });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch hosts' });
   }

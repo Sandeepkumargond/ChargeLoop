@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-export default function ReceiptModal({ bookingId, isOpen, onClose }) {
+export default function ReceiptModal({ bookingId, isOpen = true, onClose }) {
   const [receipt, setReceipt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

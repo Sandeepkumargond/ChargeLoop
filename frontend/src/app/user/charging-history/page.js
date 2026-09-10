@@ -364,6 +364,7 @@ export default function ChargingHistoryPage() {
       {/* Payment Checkout Modal */}
       {paymentModalBooking && (
         <PaymentModal
+          isOpen={true}
           booking={paymentModalBooking}
           onClose={() => setPaymentModalBooking(null)}
           onSuccess={(paidBooking) => {
@@ -376,6 +377,7 @@ export default function ChargingHistoryPage() {
       {/* Official Payment Receipt Modal */}
       {receiptModalBookingId && (
         <ReceiptModal
+          isOpen={true}
           bookingId={receiptModalBookingId}
           onClose={() => setReceiptModalBookingId(null)}
         />

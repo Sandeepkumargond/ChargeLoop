@@ -1,55 +1,62 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-export default function PaymentModal({ booking, isOpen, onClose, onSuccess }) {
+export default function PaymentModal({ booking, isOpen = true, onClose, onSuccess }) {
   const [order, setOrder] = useState(null);
   const [loadingOrder, setLoadingOrder] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('upi');
-  const [upiId, setUpiId] = useState('');
-  const [cardDetails, setCardDetails] = useState({ number: '', expiry: '', cvv: '', name: '' });
   const [paymentSuccess, setPaymentSuccess] = useState(null);
   const [error, setError] = useState(null);
 
+  const bId = booking?._id || booking?.id;
+
+  const createOrder = useCallback(async () => {
+    if (!bId) return;
+    setLoadingOrder(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Please log in to complete your payment.');
+        setLoadingOrder(false);
+        return;
+      }
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment/create-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ bookingId: bId })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setOrder(data);
+      } else {
+        setError(data.msg || 'Could not initiate payment order.');
+      }
+    } catch (err) {
+      setError(err.message || 'Payment service unreachable. Please check your connection.');
+    } finally {
+      setLoadingOrder(false);
+    }
+  }, [bId]);
+
   // Load order details when modal opens
   useEffect(() => {
-    if (!isOpen || !booking) {
+    if (!isOpen || !booking || !bId) {
       setOrder(null);
       setPaymentSuccess(null);
       setError(null);
       return;
     }
 
-    const createOrder = async () => {
-      setLoadingOrder(true);
-      setError(null);
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment/create-order`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ bookingId: booking._id })
-        });
-
-        const data = await res.json();
-        if (res.ok && data.success) {
-          setOrder(data);
-        } else {
-          setError(data.msg || 'Could not initiate payment order');
-        }
-      } catch (err) {
-        setError(err.message || 'Payment service unreachable');
-      } finally {
-        setLoadingOrder(false);
-      }
-    };
-
     createOrder();
-  }, [isOpen, booking]);
+  }, [isOpen, booking, bId, createOrder]);
 
   if (!isOpen || !booking) return null;
 
@@ -66,7 +73,7 @@ export default function PaymentModal({ booking, isOpen, onClose, onSuccess }) {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          bookingId: booking._id,
+          bookingId: bId,
           orderId,
           paymentId,
           signature,
@@ -81,37 +88,59 @@ export default function PaymentModal({ booking, isOpen, onClose, onSuccess }) {
           onSuccess(data.booking);
         }
       } else {
-        setError(data.msg || 'Payment verification failed');
+        setError(data.msg || 'Payment verification failed on server.');
       }
     } catch (err) {
-      setError(err.message || 'Error verifying payment');
+      setError(err.message || 'Error communicating with payment server.');
     } finally {
       setProcessingPayment(false);
     }
   };
 
-  // Launch Razorpay if configured, or use interactive direct checkout
-  const handlePay = async () => {
-    if (!order) return;
+  // Helper to load Razorpay Checkout script dynamically
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined') return resolve(false);
+      if (window.Razorpay) return resolve(true);
 
-    // Check if real Razorpay key is present (not mock key)
+      const existingScript = document.querySelector('script[src*="checkout.razorpay.com"]');
+      if (existingScript) {
+        existingScript.onload = () => resolve(true);
+        existingScript.onerror = () => resolve(false);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  // Launch Razorpay or handle developer simulation safely
+  const handlePay = async () => {
+    if (!order) {
+      // If order isn't ready yet, attempt to create it
+      await createOrder();
+      return;
+    }
+
     const isRealRazorpay = order.keyId && !order.keyId.includes('sim') && !order.keyId.includes('mock');
 
     if (isRealRazorpay && typeof window !== 'undefined') {
-      // Try loading Razorpay SDK
-      const loadScript = () => {
-        return new Promise((resolve) => {
-          if (window.Razorpay) return resolve(true);
-          const script = document.createElement('script');
-          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-          script.onload = () => resolve(true);
-          script.onerror = () => resolve(false);
-          document.body.appendChild(script);
-        });
-      };
+      setProcessingPayment(true);
+      setError(null);
 
-      const loaded = await loadScript();
-      if (loaded && window.Razorpay) {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded || !window.Razorpay) {
+        setProcessingPayment(false);
+        setError('Failed to load Razorpay payment gateway. Please disable ad-blockers and try again.');
+        return;
+      }
+
+      try {
         const options = {
           key: order.keyId,
           amount: order.amount,
@@ -130,31 +159,49 @@ export default function PaymentModal({ booking, isOpen, onClose, onSuccess }) {
           prefill: {
             name: booking.userId?.name || '',
             email: booking.userId?.email || '',
-            contact: booking.userPhone || ''
+            contact: booking.userPhone || '',
+            method: paymentMethod === 'card' ? 'card' : paymentMethod === 'upi' ? 'upi' : undefined
           },
-          theme: { color: '#2563eb' }
+          theme: { color: '#2563eb' },
+          modal: {
+            ondismiss: function () {
+              setProcessingPayment(false);
+            }
+          }
         };
 
         const rzp = new window.Razorpay(options);
         rzp.on('payment.failed', function (resp) {
-          setError(resp.error?.description || 'Razorpay payment was not completed');
+          setProcessingPayment(false);
+          setError(resp.error?.description || 'Payment was cancelled or unsuccessful.');
         });
         rzp.open();
-        return;
+      } catch (err) {
+        setProcessingPayment(false);
+        setError('Could not open Razorpay checkout: ' + err.message);
       }
+      return;
     }
 
-    // Direct / Simulated Secure Checkout (Instant verification for development & live fallback)
-    const simPaymentId = `pay_${paymentMethod}_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-    const simSignature = `sim_sig_${order.orderId}_${simPaymentId}`;
+    // Gated simulation when live gateway is unconfigured
+    if (order.isSimulation) {
+      setProcessingPayment(true);
+      const simPaymentId = `pay_${paymentMethod}_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      const simSignature = `sim_sig_${order.orderId}_${simPaymentId}`;
 
-    await verifyPaymentOnServer({
-      orderId: order.orderId,
-      paymentId: simPaymentId,
-      signature: simSignature,
-      method: paymentMethod
-    });
+      await verifyPaymentOnServer({
+        orderId: order.orderId,
+        paymentId: simPaymentId,
+        signature: simSignature,
+        method: paymentMethod
+      });
+      return;
+    }
+
+    setError('Payment gateway configuration is missing. Please contact support.');
   };
+
+  const billAmount = order?.booking?.totalBill || booking.totalBill || booking.actualCost || booking.energyCost || 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
@@ -188,7 +235,7 @@ export default function PaymentModal({ booking, isOpen, onClose, onSuccess }) {
                 Payment Successful!
               </h3>
               <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-6">
-                Your charging session payment of <span className="font-bold text-neutral-800 dark:text-neutral-200">₹{order?.booking?.totalBill || booking.totalBill}</span> has been confirmed.
+                Your charging session payment of <span className="font-bold text-neutral-800 dark:text-neutral-200">₹{billAmount}</span> has been confirmed.
               </p>
 
               <div className="bg-neutral-50 dark:bg-neutral-800/60 p-4 rounded-xl border border-neutral-200 dark:border-neutral-700 text-left text-xs space-y-2 mb-6 font-mono">
@@ -217,14 +264,26 @@ export default function PaymentModal({ booking, isOpen, onClose, onSuccess }) {
             /* Loading View */
             <div className="flex flex-col items-center justify-center py-12">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3"></div>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">Preparing payment session...</p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400 font-medium">Preparing payment session...</p>
+              <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-1">Contacting payment gateway</p>
             </div>
           ) : (
             /* Checkout View */
             <div className="space-y-5">
               {error && (
-                <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300">
-                  ⚠️ {error}
+                <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300 flex items-start justify-between gap-2">
+                  <div>
+                    <span className="font-bold">Error: </span>
+                    {error}
+                  </div>
+                  {!order && (
+                    <button
+                      onClick={createOrder}
+                      className="shrink-0 text-xs text-blue-600 dark:text-blue-400 font-bold underline hover:no-underline ml-2"
+                    >
+                      Retry
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -232,12 +291,12 @@ export default function PaymentModal({ booking, isOpen, onClose, onSuccess }) {
               <div className="bg-neutral-50 dark:bg-neutral-800/60 p-4 rounded-xl border border-neutral-200 dark:border-neutral-700/80">
                 <div className="flex justify-between items-center mb-3 pb-3 border-b border-neutral-200 dark:border-neutral-700">
                   <div>
-                    <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">{booking.hostName}</h4>
+                    <h4 className="font-semibold text-neutral-900 dark:text-white text-sm">{booking.hostName || 'EV Charging Station'}</h4>
                     <p className="text-xs text-neutral-500 dark:text-neutral-400">{booking.vehicleNumber || 'EV Charging'}</p>
                   </div>
                   <div className="text-right">
                     <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      ₹{order?.booking?.totalBill || booking.totalBill || 0}
+                      ₹{billAmount}
                     </span>
                   </div>
                 </div>
@@ -253,15 +312,22 @@ export default function PaymentModal({ booking, isOpen, onClose, onSuccess }) {
                   </div>
                   <div className="flex justify-between">
                     <span>Platform Fee</span>
-                    <span className="font-medium text-neutral-900 dark:text-white">₹{booking.platformFee || 10}</span>
+                    <span className="font-medium text-neutral-900 dark:text-white">₹{booking.platformFee ?? 10}</span>
                   </div>
                 </div>
               </div>
 
+              {/* Development Simulation Banner */}
+              {order?.isSimulation && (
+                <div className="p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-800 dark:text-amber-300">
+                  <span className="font-semibold">Test Mode Active:</span> Razorpay keys not configured; using sandbox simulation.
+                </div>
+              )}
+
               {/* Payment Methods */}
               <div>
                 <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-                  Select Payment Method
+                  Select Payment Option
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -274,7 +340,7 @@ export default function PaymentModal({ booking, isOpen, onClose, onSuccess }) {
                     }`}
                   >
                     <span className="text-lg">⚡</span>
-                    <span className="text-xs">UPI / GPay</span>
+                    <span className="text-xs">UPI / QR</span>
                   </button>
 
                   <button
@@ -287,7 +353,7 @@ export default function PaymentModal({ booking, isOpen, onClose, onSuccess }) {
                     }`}
                   >
                     <span className="text-lg">💳</span>
-                    <span className="text-xs">Card</span>
+                    <span className="text-xs">Cards</span>
                   </button>
 
                   <button
@@ -300,66 +366,21 @@ export default function PaymentModal({ booking, isOpen, onClose, onSuccess }) {
                     }`}
                   >
                     <span className="text-lg">🌐</span>
-                    <span className="text-xs">Razorpay</span>
+                    <span className="text-xs">NetBanking</span>
                   </button>
                 </div>
+                <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-2 text-center">
+                  Protected by 256-bit SSL encrypted Razorpay checkout.
+                </p>
               </div>
-
-              {/* Dynamic Input Details */}
-              {paymentMethod === 'upi' && (
-                <div className="space-y-2 animate-fadeIn">
-                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                    UPI ID or Number (optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={upiId}
-                    onChange={(e) => setUpiId(e.target.value)}
-                    placeholder="user@upi or phone number"
-                    className="w-full px-3 py-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-xl text-xs text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-[10px] text-neutral-500">Supports Google Pay, PhonePe, Paytm, BHIM</p>
-                </div>
-              )}
-
-              {paymentMethod === 'card' && (
-                <div className="space-y-2 animate-fadeIn">
-                  <input
-                    type="text"
-                    maxLength="19"
-                    value={cardDetails.number}
-                    onChange={(e) => setCardDetails(prev => ({ ...prev, number: e.target.value }))}
-                    placeholder="Card Number (XXXX XXXX XXXX XXXX)"
-                    className="w-full px-3 py-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-xl text-xs text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      maxLength="5"
-                      value={cardDetails.expiry}
-                      onChange={(e) => setCardDetails(prev => ({ ...prev, expiry: e.target.value }))}
-                      placeholder="MM/YY"
-                      className="px-3 py-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-xl text-xs text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="password"
-                      maxLength="4"
-                      value={cardDetails.cvv}
-                      onChange={(e) => setCardDetails(prev => ({ ...prev, cvv: e.target.value }))}
-                      placeholder="CVV"
-                      className="px-3 py-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-xl text-xs text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-              )}
 
               {/* Pay Button */}
               <button
                 type="button"
                 onClick={handlePay}
-                disabled={processingPayment}
+                disabled={processingPayment || loadingOrder}
                 className={`w-full py-3 rounded-xl font-semibold text-sm text-white shadow-lg transition flex items-center justify-center gap-2 ${
-                  processingPayment
+                  processingPayment || loadingOrder
                     ? 'bg-blue-400 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700 active:scale-[0.99]'
                 }`}
@@ -369,13 +390,20 @@ export default function PaymentModal({ booking, isOpen, onClose, onSuccess }) {
                     <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
                     Processing Payment...
                   </>
+                ) : loadingOrder ? (
+                  <>
+                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                    Preparing Order...
+                  </>
+                ) : !order ? (
+                  'Retry Creating Order'
                 ) : (
-                  `Pay ₹${order?.booking?.totalBill || booking.totalBill || 0} Now`
+                  `Pay ₹${billAmount} Now`
                 )}
               </button>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">
-                <span>🔒 256-bit Encrypted</span>
+                <span>🔒 PCI-DSS Compliant</span>
                 <span>•</span>
                 <span>Instant Receipt</span>
                 <span>•</span>

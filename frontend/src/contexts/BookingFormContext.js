@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
 const BookingFormContext = createContext();
 
@@ -22,6 +22,7 @@ export const BookingFormProvider = ({ children, charger, userLocation, onClose }
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [chargerDetails, setChargerDetails] = useState(null);
   const [pricingBreakdown, setPricingBreakdown] = useState(null);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     const fetchSavedVehicles = async () => {
@@ -177,17 +178,24 @@ export const BookingFormProvider = ({ children, charger, userLocation, onClose }
   }, [bookingDetails, pricingBreakdown]);
 
   const handleBooking = async () => {
+    if (isSubmittingRef.current) {
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
 
+    isSubmittingRef.current = true;
     setLoading(true);
     try {
+      const locationAddress = charger?.location?.address || charger?.location?.city || charger?.location || 'EV Station';
+
       const bookingData = {
         chargerId: charger._id,
         hostId: charger.hostId || charger._id,
         hostName: charger.hostName,
-        hostLocation: charger.location.address,
+        hostLocation: locationAddress,
         chargerType: charger.chargerType,
         scheduledTime: new Date(bookingDetails.startTime).toISOString(),
         // Vehicle details
@@ -218,6 +226,7 @@ export const BookingFormProvider = ({ children, charger, userLocation, onClose }
       if (!token) {
         alert('Please login to book a charger');
         setLoading(false);
+        isSubmittingRef.current = false;
         return;
       }
 
@@ -248,6 +257,7 @@ export const BookingFormProvider = ({ children, charger, userLocation, onClose }
     } catch (error) {
       alert(`Booking Error: ${error.message}\n\nPlease try again or contact support if the issue persists.`);
     } finally {
+      isSubmittingRef.current = false;
       setLoading(false);
     }
   };

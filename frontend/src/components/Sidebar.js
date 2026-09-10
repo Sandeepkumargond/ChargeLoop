@@ -105,8 +105,8 @@ export default function Sidebar({ activeTab, setActiveTab }) {
 
   return (
     <>
-      <aside className={`${isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64 lg:translate-x-0 lg:w-20'} bg-white dark:bg-neutral-800 border-r border-neutral-200 dark:border-neutral-700 flex flex-col fixed lg:static inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out shadow-sm h-screen lg:h-auto pt-14 lg:pt-0`}>
-        <div className="h-16 flex items-center justify-between px-3 border-b border-neutral-100 dark:border-neutral-700">
+      <aside className={`${isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64 lg:translate-x-0 lg:w-20'} bg-white dark:bg-neutral-800 border-r border-neutral-200 dark:border-neutral-700 flex flex-col fixed lg:static inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out shadow-sm h-screen shrink-0 pt-14 lg:pt-0`}>
+        <div className="h-16 flex items-center justify-between px-3 border-b border-neutral-100 dark:border-neutral-700 shrink-0">
           <div className={`flex items-center gap-2 overflow-hidden transition-[width] duration-300 flex-1 ${isOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 invisible'}`}>
             <img src="/logo.png" alt="ChargeLoop Logo" className="h-10 w-10 rounded-lg " />
 
@@ -159,7 +159,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-neutral-100 dark:border-neutral-700">
+        <div className="p-4 border-t border-neutral-100 dark:border-neutral-700 shrink-0">
           {isAdminSection ? (
             isOpen ? (
               <div className="w-full bg-neutral-100 dark:bg-neutral-700 rounded-xl p-3 mb-2 flex items-center gap-3 cursor-default">

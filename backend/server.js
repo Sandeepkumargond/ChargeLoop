@@ -55,7 +55,7 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    return callback(null, false);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -97,18 +97,37 @@ createBullBoard({
 app.use('/admin/queues', serverAdapter.getRouter());
 
 // ============================================================
-// Database Connection
+// Database Connection with Resilient Fallback
 // ============================================================
-mongoose.connect(process.env.MONGO_URI, {
-  maxPoolSize: 50,        // Increase connection pool size
-  minPoolSize: 10,        // Minimum connections
-  serverSelectionTimeoutMS: 10000,
-  socketTimeoutMS: 45000,
-  retryWrites: true,
-  w: 'majority'
-})
-  .then(() => console.log('✅ MongoDB Connected with Connection Pooling'))
-  .catch((err) => console.log('❌ MongoDB Connection Error:', err));
+const primaryMongoUri = process.env.MONGO_URI;
+const fallbackMongoUri = process.env.MONGO_FALLBACK_URI || 'mongodb://127.0.0.1:27017/chargeloop';
+
+async function connectToDatabase() {
+  const options = {
+    maxPoolSize: 50,
+    minPoolSize: 5,
+    serverSelectionTimeoutMS: 4000,
+    socketTimeoutMS: 45000,
+  };
+
+  try {
+    await mongoose.connect(primaryMongoUri, options);
+    console.log(`✅ MongoDB Connected (${primaryMongoUri.includes('mongodb+srv') ? 'Atlas Cloud' : 'Primary'})`);
+  } catch (err) {
+    console.warn(`⚠️ Primary MongoDB connection failed (${err.message}).`);
+    if (fallbackMongoUri && fallbackMongoUri !== primaryMongoUri) {
+      console.log(`🔄 Attempting fallback connection to: ${fallbackMongoUri}...`);
+      try {
+        await mongoose.connect(fallbackMongoUri, options);
+        console.log(`✅ MongoDB Connected to Fallback Database: ${fallbackMongoUri}`);
+      } catch (fallbackErr) {
+        console.error('❌ Fallback MongoDB Connection Error:', fallbackErr.message);
+      }
+    }
+  }
+}
+
+connectToDatabase();
 
 // ============================================================
 // Initialize Redis & BullMQ Workers
@@ -132,13 +151,27 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/payment', paymentRoutes);
 
+// Kubernetes Liveness Probe
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// Kubernetes Readiness Probe
+app.get('/ready', (req, res) => {
+  if (mongoose.connection.readyState === 1) {
+    res.status(200).send('Ready');
+  } else {
+    res.status(503).send('Service Unavailable - Database not ready');
+  }
+});
+
 app.get('/', (req, res) => {
   const healthcheck = {
     uptime: process.uptime(),
     message: 'OK',
     timestamp: Date.now(),
     mongoStatus: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
-    redisStatus: getRedisClient()?.status || 'Unknown'
+    redisStatus: getRedisClient()?.status === 'ready' ? 'Connected' : 'Disconnected'
   };
   res.status(200).json(healthcheck);
 });
