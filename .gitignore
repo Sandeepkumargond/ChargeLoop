@@ -1,0 +1,5 @@
+# Local test & analysis documents
+CHARGELOOP_DEEP_DIVE_ANALYSIS.md
+test_all_apis.py
+__pycache__/
+*.pyc
